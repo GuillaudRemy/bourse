@@ -6,8 +6,11 @@ installee ; si elle est plus recente, son installateur est telecharge et lance
 en silencieux, puis il relance l'application. Sans internet, ou si GitHub ne
 repond pas, l'application demarre simplement telle quelle.
 
-Les donnees vivent hors du dossier d'installation (%LOCALAPPDATA%\\Bourse sous
-Windows) : une mise a jour remplace le programme sans jamais toucher a la base.
+Windows : la mise a jour passe par l'installateur, lance en silencieux.
+Linux   : l'archive est telechargee et remplace le dossier du programme, puis on se relance.
+
+Les donnees vivent hors du dossier du programme (%LOCALAPPDATA%\\Bourse sous Windows,
+~/.local/share/bourse sous Linux) : une mise a jour ne touche jamais a la base.
 
 Variables d'environnement utiles :
   BOURSE_DONNEES  dossier des donnees (base + sauvegardes)
@@ -17,9 +20,11 @@ Usage : python -m backend.lanceur   (depuis la racine du paquet)
 """
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -29,7 +34,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
 DEPOT = os.environ.get("BOURSE_DEPOT", "GuillaudRemy/bourse")
-INSTALLATEUR = "Bourse-Setup.exe"
+ARCHIVES = {"nt": "Bourse-Setup.exe", "posix": "bourse-linux-x86_64.tar.gz"}
 PORTS = range(8765, 8785)
 TEST = os.environ.get("BOURSE_TEST") == "1"
 
@@ -39,7 +44,9 @@ def _dossier_donnees() -> Path:
         return Path(os.environ["BOURSE_DONNEES"])
     if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
         return Path(os.environ["LOCALAPPDATA"]) / "Bourse"
-    return RACINE
+    if _version_installee() != "dev":     # paquet Linux installe dans ~/.local/share/bourse/app
+        return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "bourse"
+    return RACINE                          # developpement : donnees/ a la racine du depot
 
 
 def _version_installee() -> str:
@@ -56,10 +63,12 @@ def _numeros(version: str) -> tuple[int, ...]:
 
 # ── Mise a jour ──────────────────────────────────────────────────────
 def _mettre_a_jour() -> bool:
-    """Vrai si une mise a jour a ete lancee : il faut alors quitter pour la laisser s'installer."""
+    """Vrai si une mise a jour a ete lancee : il faut alors quitter pour la laisser s'installer.
+    Sous Linux, la mise a jour reussie relance directement la nouvelle version (exec)."""
     installee = _version_installee()
-    if TEST or os.name != "nt" or installee == "dev":
+    if TEST or installee == "dev" or os.name not in ARCHIVES:
         return False
+    nom = ARCHIVES[os.name]
     try:
         requete = urllib.request.Request(
             f"https://api.github.com/repos/{DEPOT}/releases/latest",
@@ -70,28 +79,59 @@ def _mettre_a_jour() -> bool:
         derniere = publication["tag_name"].lstrip("v")
         if _numeros(derniere) <= _numeros(installee):
             return False
-        lien = next(a["browser_download_url"] for a in publication["assets"] if a["name"] == INSTALLATEUR)
+        lien = next(a["browser_download_url"] for a in publication["assets"] if a["name"] == nom)
     except Exception as e:     # pas d'internet, GitHub indisponible, publication incomplete…
         print(f"Verification des mises a jour impossible ({e}) : on continue avec la version {installee}.")
         return False
 
     print(f"Nouvelle version {derniere} (installee : {installee}). Telechargement…")
     try:
-        cible = Path(tempfile.gettempdir()) / f"Bourse-Setup-{derniere}.exe"
+        cible = Path(tempfile.gettempdir()) / f"bourse-{derniere}-{nom}"
         with urllib.request.urlopen(lien, timeout=120) as r, open(cible, "wb") as f:
-            f.write(r.read())
+            shutil.copyfileobj(r, f)
+        if os.name == "nt":
+            _installer_windows(cible)
+            return True
+        _installer_linux(cible, derniere)
     except Exception as e:
-        print(f"Telechargement impossible ({e}) : on continue avec la version {installee}.")
-        return False
+        print(f"Mise a jour impossible ({e}) : on continue avec la version {installee}.")
+    return False
 
+
+def _installer_windows(installateur: Path) -> None:
     print("Installation de la mise a jour : Bourse va se relancer tout seul dans un instant.")
     # Detache : l'installateur doit survivre a ce processus, qui quitte pour liberer ses fichiers.
     subprocess.Popen(
-        [str(cible), "/SILENT", "/SP-", "/NOCANCEL", "/NORESTART", "/SUPPRESSMSGBOXES"],
+        [str(installateur), "/SILENT", "/SP-", "/NOCANCEL", "/NORESTART", "/SUPPRESSMSGBOXES"],
         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
         close_fds=True,
     )
-    return True
+
+
+def _installer_linux(archive: Path, version: str) -> None:
+    """Extrait a cote, verifie, puis echange les dossiers : en cas d'echec, l'ancien reste en place."""
+    nouveau = RACINE.with_name(RACINE.name + ".nouveau")
+    ancien = RACINE.with_name(RACINE.name + ".ancien")
+    shutil.rmtree(nouveau, ignore_errors=True)
+    shutil.rmtree(ancien, ignore_errors=True)
+    extraction = Path(tempfile.mkdtemp(dir=RACINE.parent))
+    with tarfile.open(archive) as t:
+        t.extractall(extraction, filter="tar")
+    (extraction / "bourse").rename(nouveau)
+    shutil.rmtree(extraction)
+    python = nouveau / "python" / "bin" / "python3"
+    if (nouveau / "VERSION").read_text().strip() != version or not python.exists():
+        raise RuntimeError("archive incomplete")
+
+    RACINE.rename(ancien)
+    nouveau.rename(RACINE)
+    shutil.rmtree(ancien, ignore_errors=True)
+    archive.unlink(missing_ok=True)
+    print(f"Bourse {version} installe. Redemarrage…")
+    sys.stdout.flush()
+    os.chdir(RACINE)
+    os.execv(str(RACINE / "python" / "bin" / "python3"),
+             [str(RACINE / "python" / "bin" / "python3"), "-m", "backend.lanceur"])
 
 
 # ── Serveur ──────────────────────────────────────────────────────────

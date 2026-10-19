@@ -1,9 +1,10 @@
 # Publication d'une version : declenchee par une etiquette vX.Y.Z (outils/publier.sh).
 #
-# Tout se passe sur un vrai Windows : construction du paquet, test de fumee du paquet,
-# installateur, installation silencieuse, test de fumee de l'application INSTALLEE.
-# La publication GitHub n'est creee que si tout est vert : l'application de bureau
-# ne voit donc jamais une version qui n'a pas demarre sous Windows.
+# Chaque systeme est construit et teste sur une vraie machine de ce systeme :
+#   windows : paquet, test de fumee, installateur, installation silencieuse, test de l'appli INSTALLEE
+#   linux   : Ubuntu 24.04, paquet, test de fumee, installer.sh, test de l'appli INSTALLEE
+# La publication GitHub n'est creee que si les deux sont verts : l'application de bureau
+# ne voit donc jamais une version qui n'a pas demarre sur son systeme.
 name: Publier
 
 on:
@@ -48,7 +49,7 @@ jobs:
           npm run build
 
       - name: Paquet
-        run: python outils/assembler.py "${{ github.ref_name }}"
+        run: python outils/assembler.py "${{ github.ref_name }}" windows
 
       - name: Test de fumee du paquet
         run: python outils/test_fumee.py paquet
@@ -71,7 +72,76 @@ jobs:
       - name: Test de fumee de l'application installee
         run: python outils/test_fumee.py "$env:LOCALAPPDATA\Programs\Bourse"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: sortie/Bourse-Setup.exe
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Tests
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest -q tests
+
+      - name: Interface
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Paquet
+        run: python outils/assembler.py "${{ github.ref_name }}" linux
+
+      - name: Test de fumee du paquet
+        run: python outils/test_fumee.py paquet
+
+      - name: Installation depuis l'archive
+        run: |
+          mkdir -p /tmp/telechargement && cd /tmp/telechargement
+          tar xzf "$GITHUB_WORKSPACE/sortie/bourse-linux-x86_64.tar.gz"
+          ./bourse/installer.sh
+          test -x "$HOME/.local/share/bourse/app/python/bin/python3"
+          test -f "$HOME/.local/share/applications/bourse.desktop"
+
+      - name: Test de fumee de l'application installee
+        run: python outils/test_fumee.py "$HOME/.local/share/bourse/app"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: sortie/bourse-linux-x86_64.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  publication:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: sortie
+          merge-multiple: true
       - name: Publication
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" sortie\Bourse-Setup.exe --title "Bourse ${{ github.ref_name }}" --notes-from-tag
+        run: |
+          git fetch --force origin "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
+          gh release create "${{ github.ref_name }}" sortie/Bourse-Setup.exe sortie/bourse-linux-x86_64.tar.gz \
+            --title "Bourse ${{ github.ref_name }}" --notes-from-tag

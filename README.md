@@ -24,6 +24,28 @@ cd frontend && npm install && npm run dev
 
 Puis http://localhost:5173
 
+## Version de bureau (Windows et Ubuntu) avec mise à jour automatique
+
+Téléchargement : https://github.com/GuillaudRemy/bourse/releases/latest
+
+- **Windows 10/11 (64 bits)** : `Bourse-Setup.exe`, puis l'icône « Bourse » du bureau.
+  Au premier lancement, SmartScreen peut demander « Informations complémentaires » → « Exécuter quand même ».
+- **Ubuntu 24.04 (x86_64)** : `tar xzf bourse-linux-x86_64.tar.gz && ./bourse/installer.sh`, puis l'icône « Bourse ».
+
+À chaque lancement, l'application vérifie la dernière version publiée et se met à jour seule.
+Les données sont rangées hors du programme (`%LOCALAPPDATA%\Bourse`, `~/.local/share/bourse`) :
+une mise à jour ne les touche jamais.
+
+**Publier une nouvelle version** :
+
+```bash
+git commit -am "…"
+outils/publier.sh 0.2.0 "Ce qui change"
+```
+
+GitHub Actions construit alors les deux versions, les installe et les teste sur un vrai Windows et
+un vrai Ubuntu 24.04 ; la publication n'est créée que si tout est vert.
+
 ## Lancer avec Docker
 
 ```bash

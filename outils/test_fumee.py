@@ -64,8 +64,8 @@ def verifier(condition, message):
 
 
 def main(dossier: Path) -> None:
-    python = dossier / "python" / ("python.exe" if os.name == "nt" else "bin/python")
-    if not python.exists():
+    python = dossier / "python" / ("python.exe" if os.name == "nt" else "bin/python3")
+    if not python.exists():          # arborescence de developpement : le Python courant
         python = Path(sys.executable)
     donnees = Path(tempfile.mkdtemp(prefix="bourse-fumee-"))
     env = {**os.environ, "BOURSE_TEST": "1", "BOURSE_DONNEES": str(donnees)}

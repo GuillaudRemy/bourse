@@ -1,0 +1,4 @@
+#!/bin/sh
+# Lance Bourse avec son propre Python, quel que soit l'endroit d'ou on l'appelle.
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+exec ./python/bin/python3 -m backend.lanceur "$@"
