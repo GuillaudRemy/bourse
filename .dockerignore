@@ -1,0 +1,12 @@
+.venv
+frontend
+exemple
+donnees
+sauvegardes
+**/__pycache__
+paquet
+sortie
+.cache
+tests
+outils
+installateur

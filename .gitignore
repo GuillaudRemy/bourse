@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+node_modules/
+frontend/dist/
+donnees/*.db*
+sauvegardes/
+backend/.env
+.idea/
+paquet/
+sortie/
+.cache/
+exemple/

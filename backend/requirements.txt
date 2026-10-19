@@ -1,0 +1,11 @@
+fastapi==0.149.0
+sqlmodel==0.0.48
+sqlalchemy==2.1.5
+pydantic==2.14.1
+pydantic-settings==2.16.0
+uvicorn==0.54.0
+python-dotenv==1.2.4
+python-multipart==0.0.32
+yfinance==1.7.0
+pandas==3.0.6
+numpy==2.5.4
