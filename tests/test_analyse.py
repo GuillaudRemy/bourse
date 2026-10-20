@@ -54,3 +54,19 @@ def test_champs_alignes_sur_le_schema():
     from backend.db.schema import Fondamental
     colonnes = set(Fondamental.model_fields) - {"id", "annee", "source", "sources", "valeur_id", "valeur"}
     assert colonnes == set(CLES)
+
+
+def test_controle_qualite(cours_synthetiques):
+    from backend.analyse.qualite import controler
+    propre = pd.DataFrame({"cloture": cours_synthetiques, "ajuste": cours_synthetiques * 0.9})
+    assert controler(propre)["statut"] == "ok"
+
+    abime = propre.copy()
+    abime.iloc[1000, 0] *= 3                   # pic aussitot annule
+    abime.iloc[3000:, 0] /= 2                  # division mal ajustee
+    abime = abime.drop(abime.index[4000:4040])  # deux mois sans cotation
+    rapport = controler(abime)
+    types = {a["type"] for a in rapport["anomalies"]}
+    assert rapport["statut"] == "alerte"
+    assert {"pic", "saut", "trou"} <= types
+    assert any("division" in a["texte"] for a in rapport["anomalies"])

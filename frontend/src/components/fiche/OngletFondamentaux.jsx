@@ -4,6 +4,7 @@ import { pct, nombre, grand } from '../../lib/format'
 import { useChamps, ETATS, SOURCES } from '../../lib/champs'
 import DepotFichier from '../DepotFichier'
 import Barres from '../Barres'
+import RelecturePdf from '../RelecturePdf'
 import { Stat } from './OngletRegression'
 
 const INFOS = [
@@ -48,6 +49,7 @@ export default function OngletFondamentaux({ analyse, recharger }) {
   const [occupe, setOccupe] = useState(false)
   const [nouvelleAnnee, setNouvelleAnnee] = useState('')
   const [collage, setCollage] = useState('')
+  const [proposition, setProposition] = useState(null)
   const defilement = useRef(null)
 
   const per = fiabilite?.verifications.find(v => v.cle === 'per')?.details ?? {}
@@ -192,6 +194,9 @@ export default function OngletFondamentaux({ analyse, recharger }) {
             </div>
             <DepotFichier onFichier={f => action(() => api.imports.fondamentaux(valeur.id, f), r => r.message)} occupe={occupe}
                           libelle="Déposer un fichier CSV" />
+            <DepotFichier onFichier={f => action(async () => setProposition(await api.imports.pdf(valeur.id, f)))}
+                          occupe={occupe} accept=".pdf,application/pdf"
+                          libelle="Rapport annuel PDF : extraction assistée, à relire avant enregistrement" />
             {info && <div className="succes">{info}</div>}
           </div>
         </div>
@@ -207,6 +212,13 @@ export default function OngletFondamentaux({ analyse, recharger }) {
           </div>
         )}
       </div>
+      {proposition && (
+        <RelecturePdf
+          proposition={proposition}
+          onFermer={() => setProposition(null)}
+          onValider={annees => action(() => api.imports.lot(valeur.id, annees), r => { setProposition(null); return r.message })}
+        />
+      )}
     </div>
   )
 }

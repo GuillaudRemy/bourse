@@ -55,3 +55,22 @@ def test_collage_tableur_annees_en_colonnes():
         assert lignes[2019]["benefice_net"] == 110
         assert lignes[2020]["bpa"] == 1.99
         assert lignes[2020]["sources"]["bpa"] == "import"
+
+
+def test_pdf_propose_puis_valide():
+    from pathlib import Path
+    pdf = (Path(__file__).parent / "donnees" / "rapport_exemple.pdf").read_bytes()
+    with TestClient(app) as client:
+        vid = client.post("/valeurs", json={"symbole": "PDF", "source": "import"}).json()["id"]
+        proposition = client.post(f"/valeurs/{vid}/import/pdf", files={"fichier": ("r.pdf", pdf)}).json()
+        assert proposition["multiplicateur"] == 1e6
+        postes = {p["cle"]: p["valeurs"] for p in proposition["postes"]}
+        assert postes["chiffre_affaires"] == {"2024": 27058.0, "2023": 27607.6}
+        assert postes["bpa"] == {"2024": 5.72, "2023": 5.33}
+        assert client.get(f"/valeurs/{vid}/fondamentaux").json() == []      # rien d'enregistre
+
+        lot = {"annees": {"2024": {"chiffre_affaires": 27058e6, "bpa": 5.72, "charges_interets": -412.3e6}}}
+        assert client.post(f"/valeurs/{vid}/import/lot", json=lot).status_code == 200
+        ligne = client.get(f"/valeurs/{vid}/fondamentaux").json()[0]
+        assert ligne["chiffre_affaires"] == 27058e6 and ligne["sources"]["bpa"] == "pdf"
+        assert ligne["charges_interets"] == 412.3e6             # depense stockee en positif

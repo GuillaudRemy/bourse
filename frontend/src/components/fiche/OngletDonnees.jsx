@@ -72,6 +72,26 @@ export default function OngletDonnees({ analyse, recharger }) {
             )}
           </div>
         </div>
+        {analyse.qualite && (
+          <div className="carte">
+            <div className="section-titre">Qualité des cours</div>
+            {analyse.qualite.anomalies.length === 0 ? (
+              <div className="carte-corps succes" style={{ margin: 14 }}>Aucune anomalie détectée.</div>
+            ) : analyse.qualite.anomalies.map((a, i) => (
+              <div key={i} className="signal">
+                <span className={`signal-point ${a.gravite === 'alerte' ? 'baisse' : 'neutre'}`} />
+                <span className="mono" style={{ minWidth: 90 }}>{date(a.jour)}</span>
+                <span>{a.texte}</span>
+              </div>
+            ))}
+            {analyse.qualite.anomalies.length > 0 && (
+              <div className="carte-corps discret">
+                Une anomalie ancienne peut être écartée en faisant commencer la droite après elle
+                (réglage « Début de la droite » ci-contre), ou corrigée en réimportant les cours.
+              </div>
+            )}
+          </div>
+        )}
         {erreur && <div className="erreur">{erreur}</div>}
         {info && <div className="succes">{info}</div>}
       </div>

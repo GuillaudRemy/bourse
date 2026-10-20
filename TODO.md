@@ -15,8 +15,8 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 1.5 Provenance affichée pour chaque donnée annuelle — §1.1
 - [x] 1.6 Ajustement du BPA aux divisions d'actions — §1.2
 - [x] 1.7 Collage « 20 ans d'un coup » depuis un tableur — §1.2
-- [ ] 1.8 Import assisté de rapports annuels PDF — §1.2
-- [ ] 1.9 Contrôle qualité des cours (trous, sauts, zéros) + rapport — §1.3
+- [x] 1.8 Import assisté de rapports annuels PDF — §1.2
+- [x] 1.9 Contrôle qualité des cours (trous, sauts, zéros) + rapport — §1.3
 - [ ] 1.10 Indices dividendes réinvestis par défaut + avertissement indice « prix » — §1.3
 - [ ] 1.11 Taux de change BCE + affichage en EUR — §1.4
 - [x] 1.12 Réseau : nouvelles tentatives, délais, limitation de débit — §1.5

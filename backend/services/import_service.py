@@ -32,10 +32,13 @@ ALIAS_COURS = {
 }
 # Synonymes courants des postes (en plus de la cle et du libelle de champs.py).
 SYNONYMES = {
-    "bpa":              ["eps", "dilutedeps", "beneficeparaction", "bnpa", "bpadilue", "earningspershare"],
+    "bpa":              ["eps", "dilutedeps", "beneficeparaction", "bnpa", "bpadilue", "earningspershare",
+                         "resultatnetparaction", "resultatparaction", "resultatnetdilueparaction",
+                         "dilutedearningspershare", "resultatnetpartdugroupeparaction"],
+    "dividende":        ["dividend", "dpa", "dividendeparaction", "dividendpershare", "dps",
+                         "dividendeverseparaction", "dividendeproposeparaction"],
     "benefice_net":     ["netincome", "resultatnet", "benefice", "resultatnetpartdugroupe", "netprofit"],
     "chiffre_affaires": ["ca", "revenue", "revenues", "totalrevenue", "ventes", "sales", "turnover"],
-    "dividende":        ["dividend", "dpa", "dividendeparaction", "dividendpershare", "dps"],
     "marge_brute":      ["grossprofit", "margebrute"],
     "ebit":             ["resultatoperationnel", "operatingincome", "resultatdexploitation", "ebit"],
     "ebitda":           ["ebitda", "ebe", "excedentbrutdexploitation"],
@@ -67,18 +70,23 @@ ALIAS_FONDAMENTAUX.update(_alias_postes())
 
 
 def _poste(libelle: str) -> str | None:
-    """Libelle de ligne (tableur) -> poste. Egalite exacte, ou debut de libelle pour les alias longs
-    (« Bénéfice net (part du groupe) » -> benefice_net)."""
+    """Libelle de ligne (tableur, PDF) -> poste. Egalite exacte, ou debut de libelle pour les alias
+    longs (« Bénéfice net (part du groupe) » -> benefice_net) ; l'alias le plus long l'emporte
+    (« Résultat net par action » -> bpa, pas benefice_net)."""
     nom = _normaliser(libelle)
     if not nom:
         return None
     for cle, noms in ALIAS_FONDAMENTAUX.items():
         if cle != "annee" and nom in noms:
             return cle
+    meilleur, longueur = None, 0
     for cle, noms in ALIAS_FONDAMENTAUX.items():
-        if cle != "annee" and any(len(n) >= 6 and nom.startswith(n) for n in noms):
-            return cle
-    return None
+        if cle == "annee":
+            continue
+        for n in noms:
+            if len(n) >= 6 and len(n) > longueur and nom.startswith(n):
+                meilleur, longueur = cle, len(n)
+    return meilleur
 
 
 def _lire(contenu: bytes) -> pd.DataFrame:
