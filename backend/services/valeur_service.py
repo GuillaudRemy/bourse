@@ -175,20 +175,6 @@ class ValeurService:
                 return resultat
         return None
 
-    def actualiser_tout(self) -> Resultat:
-        valeurs = self._db.exec(select(Valeur)).all()
-        echecs = []
-        for valeur in valeurs:
-            try:
-                self.actualiser(valeur.id)
-            except HTTPException:
-                self._db.rollback()
-                echecs.append(valeur.symbole)
-        message = f"{len(valeurs) - len(echecs)} valeur(s) actualisée(s)."
-        if echecs:
-            message += f" Échec : {', '.join(echecs)}."
-        return Resultat(message=message)
-
     def _get(self, valeur_id: int) -> Valeur:
         valeur = self._db.get(Valeur, valeur_id)
         if not valeur:

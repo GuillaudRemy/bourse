@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from backend import migrate
 from backend.api import fondamentaux, imports, reglages, valeurs
 from backend.core.config import config
+from backend.services import taches
 
 
 @asynccontextmanager
@@ -16,6 +17,8 @@ async def lifespan(app: FastAPI):
     # Sauvegarde du jour puis migrations : les fondamentaux saisis a la main
     # sont ce qui a le plus de valeur ici.
     migrate.main()
+    if config.ACTUALISATION_AU_DEMARRAGE:
+        taches.lancer_si_besoin()
     yield
 
 

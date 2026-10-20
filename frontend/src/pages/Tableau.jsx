@@ -26,7 +26,7 @@ export default function Tableau() {
   const [erreur, setErreur] = useState(null)
   const [info, setInfo] = useState(null)
   const [ajout, setAjout] = useState(false)
-  const [actualisation, setActualisation] = useState(false)
+  const [progression, setProgression] = useState(null)
   const [tri, setTri] = useState({ cle: 'position', sens: 1 })
   const [filtre, setFiltre] = useState('tous')
 
@@ -37,12 +37,33 @@ export default function Tableau() {
 
   useEffect(() => { charger() }, [charger])
 
+  // Suivi de l'actualisation en tache de fond (lancee ici ou automatiquement au demarrage).
+  useEffect(() => {
+    let actif = true, minuterie = null
+    const suivre = async () => {
+      try {
+        const etat = await api.valeurs.actualisation()
+        if (!actif) return
+        setProgression(etat)
+        if (etat.en_cours) minuterie = setTimeout(suivre, 1500)
+        else if (etat.fin) {
+          charger()
+          const problemes = [...etat.echecs, ...etat.avertissements]
+          setInfo(`${etat.faits} valeur(s) actualisée(s).` + (problemes.length ? ` ${problemes.join(' · ')}` : ''))
+        }
+      } catch { /* serveur momentanement injoignable : on reessaiera au prochain clic */ }
+    }
+    if (progression === null || progression.en_cours) suivre()
+    return () => { actif = false; clearTimeout(minuterie) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progression?.en_cours])
+
   const actualiserTout = async () => {
-    setActualisation(true); setInfo(null)
-    try { setInfo((await api.valeurs.actualiserTout()).message); await charger() }
+    setInfo(null)
+    try { setProgression(await api.valeurs.actualiserTout()) }
     catch (e) { setErreur(e.message) }
-    finally { setActualisation(false) }
   }
+  const enCours = progression?.en_cours
 
   const triees = useMemo(() => {
     if (!lignes) return []
@@ -72,15 +93,24 @@ export default function Tableau() {
           </div>
         </div>
         <div className="rangee">
-          <button className="btn" onClick={actualiserTout} disabled={actualisation || !lignes?.length}>
-            {actualisation ? 'Actualisation…' : 'Tout actualiser'}
+          <button className="btn" onClick={actualiserTout} disabled={enCours || !lignes?.length}>
+            {enCours ? 'Actualisation…' : 'Tout actualiser'}
           </button>
           <button className="btn btn-primaire" onClick={() => setAjout(true)}>+ Ajouter une valeur</button>
         </div>
       </div>
 
       {erreur && <div className="erreur" style={{ marginBottom: 12 }}>{erreur}</div>}
-      {info && <div className="succes" style={{ marginBottom: 12 }}>{info}</div>}
+      {enCours && (
+        <div className="carte carte-corps" style={{ marginBottom: 12 }}>
+          <div className="rangee" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+            <span>Actualisation : <b>{progression.courant ?? '…'}</b></span>
+            <span className="mono discret">{progression.faits} / {progression.total}</span>
+          </div>
+          <div className="barre"><div className="barre-remplie" style={{ width: `${(progression.faits / Math.max(1, progression.total)) * 100}%`, background: 'var(--accent)' }} /></div>
+        </div>
+      )}
+      {info && !enCours && <div className="succes" style={{ marginBottom: 12 }}>{info}</div>}
 
       <div className="carte">
         <div className="graphique-barre">

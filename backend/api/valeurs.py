@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from backend.db.db import get_session
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
+from backend.services import taches
 from backend.services.analyse_service import AnalyseService
 from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
@@ -45,9 +46,15 @@ def create_valeur(data: ValeurCreate, service: ValeurService = Depends(get_servi
     return service.create(data)
 
 
-@router.post("/actualiser", response_model=Resultat)
-def actualiser_tout(service: ValeurService = Depends(get_service)):
-    return service.actualiser_tout()
+@router.post("/actualiser")
+def actualiser_tout():
+    """Lance l'actualisation de toutes les valeurs en tache de fond ; renvoie la progression."""
+    return taches.lancer()
+
+
+@router.get("/actualisation")
+def progression():
+    return taches.etat()
 
 
 @router.get("/{valeur_id}", response_model=ValeurRead)

@@ -22,12 +22,22 @@ class Definition:
 
 DEFINITIONS = [
     Definition(
+        "actualisation_auto", "Actualisation automatique quotidienne",
+        "« oui » : au premier lancement de la journée, toutes les valeurs sont actualisées en tâche de fond. "
+        "« non » : uniquement à la demande.",
+        defaut="oui",
+    ),
+    Definition(
         "contact_sec", "E-mail de contact pour la SEC",
         "L'administration américaine (SEC) exige une adresse e-mail dans chaque requête. "
         "Sans elle, les comptes des sociétés américaines ne sont pas téléchargés.",
     ),
 ]
 PAR_CLE = {d.cle: d for d in DEFINITIONS}
+
+
+# Valeurs internes, memorisees mais non affichees dans les reglages.
+INTERNES = {"derniere_actualisation"}
 
 
 def lire(cle: str) -> str:

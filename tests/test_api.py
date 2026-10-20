@@ -74,3 +74,18 @@ def test_pdf_propose_puis_valide():
         ligne = client.get(f"/valeurs/{vid}/fondamentaux").json()[0]
         assert ligne["chiffre_affaires"] == 27058e6 and ligne["sources"]["bpa"] == "pdf"
         assert ligne["charges_interets"] == 412.3e6             # depense stockee en positif
+
+
+def test_actualisation_en_tache_de_fond():
+    import time
+    with TestClient(app) as client:
+        client.post("/valeurs", json={"symbole": "FOND1", "source": "import"})
+        etat = client.post("/valeurs/actualiser").json()
+        assert etat["total"] >= 1
+        for _ in range(100):
+            etat = client.get("/valeurs/actualisation").json()
+            if not etat["en_cours"]:
+                break
+            time.sleep(0.1)
+        assert not etat["en_cours"] and etat["faits"] == etat["total"]
+        assert etat["fin"]

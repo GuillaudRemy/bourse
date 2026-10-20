@@ -62,6 +62,7 @@ export const api = {
     remove:     (id)        => request(`/valeurs/${id}`, { method: 'DELETE' }),
     actualiser: (id)        => request(`/valeurs/${id}/actualiser`, { method: 'POST' }),
     actualiserTout: ()      => request('/valeurs/actualiser', { method: 'POST' }),
+    actualisation:  ()      => request('/valeurs/actualisation'),
   },
 
   fondamentaux: {

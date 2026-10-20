@@ -28,6 +28,8 @@ class Config(BaseSettings):
     # Version de bureau (paquet Windows) : le backend sert lui-meme l'interface
     # construite (frontend/dist), et l'API passe sous /api comme derriere nginx.
     DOSSIER_FRONTEND: str = ""
+    # Actualisation quotidienne au demarrage (desactivee par les tests).
+    ACTUALISATION_AU_DEMARRAGE: bool = True
 
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8081"
 

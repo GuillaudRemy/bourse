@@ -20,7 +20,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 1.10 Indices dividendes réinvestis par défaut + avertissement indice « prix » — §1.3
 - [x] 1.11 Taux de change BCE + affichage en EUR — §1.4
 - [x] 1.12 Réseau : nouvelles tentatives, délais, limitation de débit — §1.5
-- [ ] 1.13 Actualisation en tâche de fond avec progression + auto quotidienne — §1.5
+- [ ] 1.13 Actualisation en tâche de fond avec progression + auto quotidienne — §1.5 — EN COURS : backend + barre de progression écrits et testés, reste la vérification visuelle
 
 ## Phase 2 — Les comptes
 - [x] 2.1 États financiers complets (résultat, bilan, flux) en base et depuis les sources — §2.1
