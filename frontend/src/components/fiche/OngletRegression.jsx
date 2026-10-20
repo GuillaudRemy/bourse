@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../../lib/api'
 import { pct, prix, nombre, sigma, date } from '../../lib/format'
 import { ZONES, ORDRE_ZONES, STATUTS } from '../../lib/zones'
 import Jauge, { BadgeZone } from '../Jauge'
@@ -19,6 +21,7 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
 
   return (
     <div className="pile" style={{ gap: 16 }}>
+      {analyse.avertissement_indice && <AvertissementIndice avertissement={analyse.avertissement_indice} />}
       <div className="stat-grille">
         <Stat libelle="Pente (rythme de croisière)" valeur={pct(reg.pente, { signe: true })} classe={reg.pente >= 0 ? 'positif' : 'negatif'}
               detail={base_ajustee ? 'par an, dividendes réinvestis' : 'par an, hors dividendes'} />
@@ -120,6 +123,31 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
           <div className="regle-or">La droite donne le cadre, les comptes la valident.</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AvertissementIndice({ avertissement }) {
+  const naviguer = useNavigate()
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  const suivre = async () => {
+    setOccupe(true)
+    try {
+      const existantes = await api.valeurs.list()
+      const deja = existantes.find(v => v.symbole === avertissement.symbole)
+      const valeur = deja ?? await api.valeurs.create({ symbole: avertissement.symbole, source: 'yahoo' })
+      naviguer(`/valeurs/${valeur.id}`)
+    } catch (e) { setErreur(e.message) } finally { setOccupe(false) }
+  }
+  return (
+    <div className="info" style={{ background: '#FFF7ED', color: '#9A3412', borderColor: '#FED7AA' }}>
+      <span>{erreur || avertissement.texte}</span>
+      {avertissement.symbole && (
+        <button className="btn btn-mini" onClick={suivre} disabled={occupe}>
+          {occupe ? 'Téléchargement…' : `Ouvrir ${avertissement.nom}`}
+        </button>
+      )}
     </div>
   )
 }

@@ -7,9 +7,8 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from backend.analyse import fiabilite
+from backend.analyse import fiabilite, indices, qualite
 from backend.analyse import indicateurs as ind
-from backend.analyse import qualite
 from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
 from backend.db.schema import Valeur
@@ -102,6 +101,7 @@ class AnalyseService:
             "stats": self._stats(cloture, mm50, mm200, rsi14),
             "signaux": ind.signaux(cloture, mm50, mm200, rsi14),
             "qualite": qualite.controler(cours),
+            "avertissement_indice": indices.avertissement(valeur.symbole, valeur.nom, valeur.type),
             "fondamentaux": fondamentaux,
         }
 
