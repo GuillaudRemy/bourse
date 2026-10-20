@@ -60,9 +60,10 @@ def analyse_valeur(
     valeur_id: int,
     dividendes: bool = True,
     debut: Optional[date] = None,
+    en_euros: bool = False,
     analyse: AnalyseService = Depends(get_analyse),
 ):
-    return analyse.analyse(valeur_id, dividendes, debut)
+    return analyse.analyse(valeur_id, dividendes, debut, en_euros)
 
 
 @router.patch("/{valeur_id}", response_model=ValeurRead)

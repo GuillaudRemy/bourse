@@ -25,14 +25,15 @@ export default function Fiche() {
   const [avertissement, setAvertissement] = useState(null)
   const [dividendes, setDividendes] = useState(true)
   const [debut, setDebut] = useState('')
+  const [enEuros, setEnEuros] = useState(false)
   const [actualisation, setActualisation] = useState(false)
 
   const charger = useCallback(async () => {
     try {
-      setAnalyse(await api.valeurs.analyse(id, { dividendes, debut }))
+      setAnalyse(await api.valeurs.analyse(id, { dividendes, debut, en_euros: enEuros || undefined }))
       setErreur(null)
     } catch (e) { setErreur(e.message) }
-  }, [id, dividendes, debut])
+  }, [id, dividendes, debut, enEuros])
 
   useEffect(() => { charger() }, [charger])
 
@@ -82,7 +83,7 @@ export default function Fiche() {
         </div>
         {stats && (
           <div className="fiche-cours">
-            <div className="fiche-dernier">{prix(stats.dernier, valeur.devise)}</div>
+            <div className="fiche-dernier">{prix(stats.dernier, analyse.devise_affichee)}</div>
             <div className={`mono ${ton(stats.variation_jour)}`}>
               {pct(stats.variation_jour, { signe: true, decimales: 2 })}
               <span className="discret"> · {date(stats.jour)}</span>
@@ -127,10 +128,11 @@ export default function Fiche() {
             <OngletRegression
               analyse={analyse}
               dividendes={dividendes} setDividendes={setDividendes}
+              enEuros={enEuros} setEnEuros={setEnEuros}
               debut={debut} setDebut={setDebut}
             />
           )}
-          {onglet === 'technique'    && <OngletTechnique analyse={analyse} />}
+          {onglet === 'technique'    && <OngletTechnique analyse={analyse} enEuros={enEuros} setEnEuros={setEnEuros} />}
           {onglet === 'fondamentaux' && <OngletFondamentaux analyse={analyse} recharger={charger} />}
           {onglet === 'donnees'      && <OngletDonnees analyse={analyse} recharger={charger} />}
         </>

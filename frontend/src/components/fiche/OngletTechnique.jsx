@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { pct, prix, nombre, date, ton } from '../../lib/format'
 import GraphiqueTechnique from '../GraphiqueTechnique'
-import { Stat } from './OngletRegression'
+import { Stat, InterrupteurEuros } from './OngletRegression'
 
 const CLE_OPTIONS = 'bourse.options-techniques'
 const DEFAUT = { bougies: true, log: false, mm20: true, mm50: true, mm200: true, bollinger: false, volume: true, rsi: true, macd: true }
@@ -16,10 +16,10 @@ const LIBELLES = {
   bollinger: 'Bollinger', volume: 'Volume', rsi: 'RSI', macd: 'MACD',
 }
 
-export default function OngletTechnique({ analyse }) {
+export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   const [options, setOptions] = useState(lireOptions)
   const { stats, signaux, valeur } = analyse
-  const devise = valeur.devise
+  const devise = analyse.devise_affichee
 
   const basculer = cle => {
     const suivantes = { ...options, [cle]: !options[cle] }
@@ -46,6 +46,7 @@ export default function OngletTechnique({ analyse }) {
       <div className="grille-2">
         <div className="carte">
           <div className="graphique-barre">
+            <InterrupteurEuros valeur={valeur} enEuros={enEuros} setEnEuros={setEnEuros} />
             {Object.keys(LIBELLES).map(cle => (
               <label key={cle} className="interrupteur">
                 <input type="checkbox" checked={options[cle]} onChange={() => basculer(cle)} />

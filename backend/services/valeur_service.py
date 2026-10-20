@@ -10,11 +10,13 @@ from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services.stockage import (
     charger_divisions,
+    dernier_taux,
     enregistrer_cours,
     enregistrer_divisions,
     enregistrer_fondamentaux,
+    enregistrer_taux,
 )
-from backend.sources import esef, sec, yahoo, yahoo_direct
+from backend.sources import bce, esef, sec, yahoo, yahoo_direct
 from backend.sources.base import Identite, SourceIndisponible
 
 
@@ -109,6 +111,7 @@ class ValeurService:
                 avertissements.append(str(e))
         self._db.flush()
 
+        self._actualiser_change(valeur, avertissements)
         nb_fond, sources = self._actualiser_comptes(valeur, avertissements)
         valeur.maj_le = datetime.now(UTC)
         self._db.commit()
@@ -146,6 +149,18 @@ class ValeurService:
             if identite.decouverts.get(cle) and not getattr(valeur, cle):
                 setattr(valeur, cle, identite.decouverts[cle])
         return len(annees), utilisees
+
+    def _actualiser_change(self, valeur: Valeur, avertissements: list[str]) -> None:
+        """Taux BCE des devises de cotation et de publication des comptes (si autre que l'euro)."""
+        for brute in {valeur.devise, valeur.devise_comptes}:
+            devise, _ = bce.normaliser(brute)
+            if not devise or devise == "EUR":
+                continue
+            depuis = dernier_taux(self._db, devise)
+            try:
+                enregistrer_taux(self._db, devise, bce.taux(devise, depuis))
+            except SourceIndisponible as e:
+                avertissements.append(str(e))
 
     @staticmethod
     def _premier_disponible(appels, avertissements: list[str]):

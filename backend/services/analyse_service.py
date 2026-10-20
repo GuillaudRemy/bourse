@@ -13,7 +13,8 @@ from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
 from backend.db.schema import Valeur
 from backend.models.valeur import ValeurRead
-from backend.services.stockage import charger_cours, charger_fondamentaux
+from backend.services.stockage import charger_cours, charger_fondamentaux, charger_taux
+from backend.sources import bce
 
 PROJECTION_ANS = 3
 
@@ -37,11 +38,16 @@ class AnalyseService:
     def __init__(self, session: Session):
         self._db = session
 
-    def _contexte(self, valeur_id: int, dividendes: bool, debut: date | None):
+    def _contexte(self, valeur_id: int, dividendes: bool, debut: date | None, en_euros: bool = False):
         valeur = self._db.get(Valeur, valeur_id)
         if not valeur:
             raise HTTPException(404, "Valeur introuvable.")
         cours = charger_cours(self._db, valeur_id)
+        # Les comptes (PER) restent dans leur devise : on garde la cloture d'origine pour eux.
+        self._cloture_origine = cours["cloture"] if not cours.empty else pd.Series(dtype=float)
+        self._devise = valeur.devise
+        if en_euros and not cours.empty:
+            cours = self._en_euros(cours, valeur.devise)
         if cours.empty:
             return valeur, cours, None, None, None
 
@@ -55,6 +61,22 @@ class AnalyseService:
             fenetre = base
         return valeur, cours, base_ajustee, fenetre, ajuster(fenetre)
 
+    def _en_euros(self, cours: pd.DataFrame, devise_brute: str | None) -> pd.DataFrame:
+        """Cours convertis en euros au taux BCE du jour (le dernier connu les jours sans taux).
+        Avant 1999 (pas de taux BCE), l'historique est coupe."""
+        devise, diviseur = bce.normaliser(devise_brute)
+        if not devise or devise == "EUR":
+            return cours / diviseur if diviseur != 1 else cours
+        taux = charger_taux(self._db, devise)
+        if taux.empty:
+            raise HTTPException(409, f"Taux {devise}/EUR absents : actualisez la valeur pour les télécharger.")
+        taux = taux.reindex(cours.index.union(taux.index)).ffill().reindex(cours.index)
+        converti = cours.copy()
+        for colonne in ("ouverture", "haut", "bas", "cloture", "ajuste"):
+            converti[colonne] = cours[colonne] / diviseur / taux
+        self._devise = "EUR"
+        return converti.dropna(subset=["cloture"])
+
     def _fondamentaux(self, valeur_id: int, cloture: pd.Series) -> list[dict]:
         fond = charger_fondamentaux(self._db, valeur_id)
         pers = fiabilite.per_annuels(cloture, fond) if not cloture.empty else {}
@@ -63,11 +85,14 @@ class AnalyseService:
         return fond
 
     # ── Fiche complete ────────────────────────────────────────────────
-    def analyse(self, valeur_id: int, dividendes: bool = True, debut: date | None = None) -> dict:
-        valeur, cours, base_ajustee, fenetre, reg = self._contexte(valeur_id, dividendes, debut)
+    def analyse(self, valeur_id: int, dividendes: bool = True, debut: date | None = None,
+                en_euros: bool = False) -> dict:
+        valeur, cours, base_ajustee, fenetre, reg = self._contexte(valeur_id, dividendes, debut, en_euros)
         resultat = {
             "valeur": ValeurRead.model_validate(valeur).model_dump(mode="json"),
             "debut_defaut": debut_par_defaut(valeur).isoformat(),
+            "devise_affichee": self._devise,
+            "en_euros": en_euros,
             "vide": cours.empty,
         }
         if cours.empty:
@@ -78,7 +103,7 @@ class AnalyseService:
         rsi14 = ind.rsi(cloture)
         macd = ind.macd(cloture)
         boll = ind.bollinger(cloture)
-        fondamentaux = self._fondamentaux(valeur_id, cloture)
+        fondamentaux = self._fondamentaux(valeur_id, self._cloture_origine)
 
         resultat |= {
             "base_ajustee": base_ajustee,
@@ -112,7 +137,7 @@ class AnalyseService:
         resultat["regression"] = self._regression(reg, fenetre)
         verifs = [
             fiabilite.historique(reg),
-            fiabilite.per(reg, cloture, fondamentaux),
+            fiabilite.per(reg, self._cloture_origine, fondamentaux),
             fiabilite.rupture(reg, fenetre, valeur.rupture),
         ]
         resultat["fiabilite"] = {"verifications": verifs, "verdict": fiabilite.verdict(verifs)}

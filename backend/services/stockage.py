@@ -5,10 +5,10 @@ from datetime import date
 
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
-from backend.db.schema import Cours, Division, Fondamental
+from backend.db.schema import Cours, Division, Fondamental, TauxChange
 from backend.sources.xbrl import DELAI_PUBLICATION, ajuster_divisions, facteur_divisions
 
 COLONNES_COURS = ["ouverture", "haut", "bas", "cloture", "ajuste", "volume"]
@@ -133,3 +133,22 @@ def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
         resultat.append({"annee": ligne.annee, **valeurs, "source": ligne.source, "sources": origine,
                          "ajustes": ajustes})
     return resultat
+
+
+def enregistrer_taux(db: Session, devise: str, serie: pd.Series) -> int:
+    lignes = [{"devise": devise, "jour": jour.date(), "taux": float(v)} for jour, v in serie.items()]
+    table = TauxChange.__table__
+    for i in range(0, len(lignes), PAQUET):
+        requete = insert(table).values(lignes[i:i + PAQUET])
+        db.exec(requete.on_conflict_do_update(index_elements=["devise", "jour"], set_={"taux": requete.excluded.taux}))
+    return len(lignes)
+
+
+def charger_taux(db: Session, devise: str) -> pd.Series:
+    lignes = db.exec(select(TauxChange.jour, TauxChange.taux).where(TauxChange.devise == devise)
+                     .order_by(TauxChange.jour)).all()
+    return pd.Series([t for _, t in lignes], index=pd.to_datetime([j for j, _ in lignes]), dtype=float)
+
+
+def dernier_taux(db: Session, devise: str) -> date | None:
+    return db.exec(select(func.max(TauxChange.jour)).where(TauxChange.devise == devise)).first()

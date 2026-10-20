@@ -12,12 +12,12 @@ const COULEURS_ZONES = {
   surevalue: 'var(--z-sv)', surevaluation_manifeste: 'var(--z-sm)',
 }
 
-export default function OngletRegression({ analyse, dividendes, setDividendes, debut, setDebut }) {
+export default function OngletRegression({ analyse, dividendes, setDividendes, debut, setDebut, enEuros, setEnEuros }) {
   const [log, setLog] = useState(true)
   const { regression: reg, valeur, fiabilite, base_ajustee } = analyse
   if (!reg) return <div className="carte vide">Pas assez de cours pour tracer une droite (30 séances minimum).</div>
 
-  const devise = valeur.devise
+  const devise = analyse.devise_affichee
 
   return (
     <div className="pile" style={{ gap: 16 }}>
@@ -46,6 +46,7 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
                 <input type="checkbox" checked={dividendes} onChange={e => setDividendes(e.target.checked)} />
                 Dividendes réinvestis
               </label>
+              <InterrupteurEuros valeur={valeur} enEuros={enEuros} setEnEuros={setEnEuros} />
               <span className="espaceur" />
               <label className="interrupteur">
                 Début
@@ -124,6 +125,16 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
         </div>
       </div>
     </div>
+  )
+}
+
+export function InterrupteurEuros({ valeur, enEuros, setEnEuros }) {
+  if (!valeur.devise || valeur.devise === 'EUR') return null
+  return (
+    <label className="interrupteur" title="Cours convertis au taux de référence BCE du jour : la pente inclut l'effet de change, comme pour un investisseur en euros.">
+      <input type="checkbox" checked={enEuros} onChange={e => setEnEuros(e.target.checked)} />
+      En euros
+    </label>
   )
 }
 

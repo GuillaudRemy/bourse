@@ -60,3 +60,28 @@ def test_facteur_divisions():
     assert facteur_divisions(divisions, date(2021, 1, 1)) == 1.0
     assert ajuster_divisions({"bpa": 28.0, "dividende": 2.8, "nombre_actions": 1.0}, 28.0) == \
         pytest.approx({"bpa": 1.0, "dividende": 0.1, "nombre_actions": 28.0})
+
+
+def test_conversion_en_euros(cours_synthetiques):
+    """Cours en USD et taux BCE constant de 2 dollars pour 1 euro : tout est divise par 2,
+    sauf le PER, calcule dans la devise des comptes."""
+    import pandas as pd
+
+    from backend.services.analyse_service import AnalyseService
+    from backend.services.stockage import enregistrer_cours, enregistrer_taux
+
+    with Session(engine) as db:
+        migrate.main()
+        v = Valeur(symbole="USDTEST", nom="Test USD", source="import", devise="USD")
+        db.add(v)
+        db.commit()
+        df = pd.DataFrame({"jour": cours_synthetiques.index.date, "cloture": cours_synthetiques.to_numpy()})
+        enregistrer_cours(db, v.id, df)
+        enregistrer_taux(db, "USD", pd.Series(2.0, index=pd.bdate_range("2000-01-03", "2026-01-01")))
+        db.commit()
+
+        service = AnalyseService(db)
+        dollars, euros = service.analyse(v.id), service.analyse(v.id, en_euros=True)
+        assert euros["devise_affichee"] == "EUR"
+        assert euros["stats"]["dernier"] == pytest.approx(dollars["stats"]["dernier"] / 2)
+        assert euros["regression"]["pente"] == pytest.approx(dollars["regression"]["pente"], abs=1e-9)
