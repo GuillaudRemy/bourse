@@ -73,5 +73,13 @@ export const api = {
   imports: {
     cours:        (id, f) => request(`/valeurs/${id}/import/cours`, fichier(f)),
     fondamentaux: (id, f) => request(`/valeurs/${id}/import/fondamentaux`, fichier(f)),
+    coller:       (id, texte) => request(`/valeurs/${id}/import/fondamentaux/texte`, { method: 'POST', ...corps({ texte }) }),
+  },
+
+  champs: () => request('/champs'),
+
+  reglages: {
+    list:   ()            => request('/reglages'),
+    ecrire: (cle, valeur) => request(`/reglages/${cle}`, { method: 'PUT', ...corps({ valeur }) }),
   },
 }

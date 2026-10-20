@@ -16,6 +16,7 @@ export default function OngletDonnees({ analyse, recharger }) {
   const [form, setForm] = useState({
     nom: valeur.nom, type: valeur.type, devise: valeur.devise ?? '', secteur: valeur.secteur ?? '',
     debut_regression: valeur.debut_regression ?? '', rupture: valeur.rupture, notes: valeur.notes ?? '',
+    isin: valeur.isin ?? '', lei: valeur.lei ?? '', cik: valeur.cik ?? '', devise_comptes: valeur.devise_comptes ?? '',
   })
   const [erreur, setErreur] = useState(null)
   const [info, setInfo] = useState(null)
@@ -98,6 +99,30 @@ export default function OngletDonnees({ analyse, recharger }) {
             <label className="champ-label">Secteur</label>
             <input className="champ" {...champ('secteur')} />
           </div>
+          <div className="rangee" style={{ alignItems: 'flex-start' }}>
+            <div className="champ-groupe" style={{ flex: 1 }}>
+              <label className="champ-label">ISIN</label>
+              <input className="champ champ-mono" {...champ('isin')} placeholder="FR0000120073" />
+            </div>
+            <div className="champ-groupe" style={{ width: 120 }}>
+              <label className="champ-label">Devise des comptes</label>
+              <input className="champ" {...champ('devise_comptes')} />
+            </div>
+          </div>
+          <div className="rangee" style={{ alignItems: 'flex-start' }}>
+            <div className="champ-groupe" style={{ flex: 1 }}>
+              <label className="champ-label">LEI (comptes européens ESEF)</label>
+              <input className="champ champ-mono" {...champ('lei')} placeholder="trouvé automatiquement si possible" />
+            </div>
+            <div className="champ-groupe" style={{ width: 140 }}>
+              <label className="champ-label">CIK (SEC, USA)</label>
+              <input className="champ champ-mono" {...champ('cik')} />
+            </div>
+          </div>
+          <span className="discret">
+            Le LEI se trouve sur <a href="https://search.gleif.org" target="_blank" rel="noreferrer">search.gleif.org</a> ;
+            il permet de télécharger les comptes officiels ESEF quand la recherche automatique échoue.
+          </span>
           <div className="champ-groupe">
             <label className="champ-label">Début de la droite de régression</label>
             <input type="date" className="champ" {...champ('debut_regression')} />

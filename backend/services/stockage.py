@@ -1,14 +1,19 @@
 """Lecture et ecriture en masse des cours et des fondamentaux."""
+import json
 import math
+from datetime import date
 
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, select
 
-from backend.db.schema import Cours, Fondamental
+from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
+from backend.db.schema import Cours, Division, Fondamental
+from backend.sources.xbrl import DELAI_PUBLICATION, ajuster_divisions, facteur_divisions
 
 COLONNES_COURS = ["ouverture", "haut", "bas", "cloture", "ajuste", "volume"]
-CHAMPS_FONDAMENTAUX = ["bpa", "benefice_net", "chiffre_affaires", "dividende"]
+# Saisies humaines : publiees « telles que declarees », a ajuster des divisions a la lecture.
+SAISIES = {"manuel", "import", "pdf"}
 PAQUET = 2000   # SQLite limite le nombre de parametres par requete
 
 
@@ -53,31 +58,78 @@ def charger_cours(db: Session, valeur_id: int) -> pd.DataFrame:
     return df.astype(float)
 
 
-def enregistrer_fondamentaux(
-    db: Session, valeur_id: int, annees: dict[int, dict], source: str, ecraser: bool = True,
-) -> int:
-    """Fusionne les donnees annuelles. Avec `ecraser=False` (actualisation Yahoo),
-    une annee saisie ou importee a la main est laissee intacte."""
-    existantes = {
-        f.annee: f for f in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id))
-    }
+def provenance(ligne: Fondamental) -> dict[str, str]:
+    """Source de chaque case. Les lignes d'avant la provenance par case heritent de `source`."""
+    if ligne.sources:
+        return json.loads(ligne.sources)
+    return {c: ligne.source for c in CLES if getattr(ligne, c) is not None}
+
+
+def enregistrer_fondamentaux(db: Session, valeur_id: int, annees: dict[int, dict], source: str) -> int:
+    """Fusionne des comptes annuels case par case : une case n'est remplacee que par une
+    source au moins aussi fiable (champs.PRIORITE). Une saisie manuelle n'est donc jamais
+    ecrasee par une actualisation, mais une source officielle (SEC, ESEF) remplace Yahoo."""
+    rang = PRIORITE[source]
+    existantes = {f.annee: f for f in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id))}
     total = 0
     for annee, champs in annees.items():
-        champs = {c: _nombre(champs.get(c)) for c in CHAMPS_FONDAMENTAUX if c in champs}
-        if not any(v is not None for v in champs.values()):
+        champs = {c: v for c, v in ((c, _nombre(champs.get(c))) for c in CLES if c in champs) if v is not None}
+        if not champs:
             continue
         ligne = existantes.get(annee)
         if ligne is None:
-            db.add(Fondamental(valeur_id=valeur_id, annee=annee, source=source, **champs))
-        elif ecraser or ligne.source == "yahoo":
-            for cle, valeur in champs.items():
-                if valeur is not None:
-                    setattr(ligne, cle, valeur)
-            ligne.source = source
-        else:
-            # Ligne manuelle : on ne comble que les cases vides.
-            for cle, valeur in champs.items():
-                if valeur is not None and getattr(ligne, cle) is None:
-                    setattr(ligne, cle, valeur)
-        total += 1
+            ligne = Fondamental(valeur_id=valeur_id, annee=annee, source=source)
+            db.add(ligne)
+            existantes[annee] = ligne
+        origine = provenance(ligne)
+        modifiee = False
+        for cle, valeur in champs.items():
+            actuelle = origine.get(cle)
+            if actuelle is None or PRIORITE.get(actuelle, 0) <= rang:
+                setattr(ligne, cle, valeur)
+                origine[cle] = source
+                modifiee = True
+        if modifiee:
+            ligne.sources = json.dumps(origine)
+            ligne.source = max(origine.values(), key=lambda s: PRIORITE.get(s, 0))
+            total += 1
     return total
+
+
+def enregistrer_divisions(db: Session, valeur_id: int, divisions: list[tuple]) -> None:
+    """Remplace la liste des divisions d'actions de la valeur."""
+    for ancienne in db.exec(select(Division).where(Division.valeur_id == valeur_id)):
+        db.delete(ancienne)
+    db.flush()
+    for jour, ratio in sorted(set(divisions)):
+        db.add(Division(valeur_id=valeur_id, jour=jour, ratio=ratio))
+
+
+def charger_divisions(db: Session, valeur_id: int) -> list[tuple[date, float]]:
+    return [(d.jour, d.ratio) for d in db.exec(
+        select(Division).where(Division.valeur_id == valeur_id).order_by(Division.jour))]
+
+
+def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
+    """Comptes annuels prets pour l'analyse : postes par action des saisies et imports
+    manuels ramenes a la base d'actions actuelle (SEC et ESEF le sont deja, Yahoo aussi)."""
+    divisions = charger_divisions(db, valeur_id)
+    resultat = []
+    for ligne in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id).order_by(Fondamental.annee)):
+        origine = provenance(ligne)
+        valeurs = {c: getattr(ligne, c) for c in CLES}
+        publication = date(ligne.annee, 12, 31) + DELAI_PUBLICATION
+        facteur = facteur_divisions(divisions, publication)
+        ajustes = []
+        if facteur != 1:
+            for cle in [*PAR_ACTION_CLES, "nombre_actions"]:
+                if valeurs[cle] is not None and origine.get(cle) in SAISIES:
+                    valeurs[cle] = ajuster_divisions({cle: valeurs[cle]}, facteur)[cle]
+                    ajustes.append(cle)
+        # Postes reconstitues quand la source ne les publie pas, signales « calcul ».
+        if valeurs["ebitda"] is None and valeurs["ebit"] is not None and valeurs["amortissements"] is not None:
+            valeurs["ebitda"] = valeurs["ebit"] + valeurs["amortissements"]
+            origine = {**origine, "ebitda": "calcul"}
+        resultat.append({"annee": ligne.annee, **valeurs, "source": ligne.source, "sources": origine,
+                         "ajustes": ajustes})
+    return resultat

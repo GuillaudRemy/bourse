@@ -14,6 +14,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session
 
+from backend.db.champs import CHAMPS, PAR_CLE
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat
 from backend.services.stockage import enregistrer_cours, enregistrer_fondamentaux
@@ -29,18 +30,55 @@ ALIAS_COURS = {
                   "dividendesreinvestis", "totalreturn"],
     "volume":    ["volume", "vol", "quantite"],
 }
-ALIAS_FONDAMENTAUX = {
-    "annee":            ["annee", "year", "exercice", "an"],
-    "bpa":              ["bpa", "eps", "dilutedeps", "beneficeparaction", "bnpa"],
-    "benefice_net":     ["beneficenet", "netincome", "resultatnet", "benefice"],
-    "chiffre_affaires": ["chiffreaffaires", "chiffredaffaires", "ca", "revenue", "totalrevenue", "ventes"],
-    "dividende":        ["dividende", "dividend", "dpa", "dividendeparaction"],
+# Synonymes courants des postes (en plus de la cle et du libelle de champs.py).
+SYNONYMES = {
+    "bpa":              ["eps", "dilutedeps", "beneficeparaction", "bnpa", "bpadilue", "earningspershare"],
+    "benefice_net":     ["netincome", "resultatnet", "benefice", "resultatnetpartdugroupe", "netprofit"],
+    "chiffre_affaires": ["ca", "revenue", "revenues", "totalrevenue", "ventes", "sales", "turnover"],
+    "dividende":        ["dividend", "dpa", "dividendeparaction", "dividendpershare", "dps"],
+    "marge_brute":      ["grossprofit", "margebrute"],
+    "ebit":             ["resultatoperationnel", "operatingincome", "resultatdexploitation", "ebit"],
+    "ebitda":           ["ebitda", "ebe", "excedentbrutdexploitation"],
+    "nombre_actions":   ["shares", "sharesoutstanding", "nombredactions", "actions"],
+    "capitaux_propres": ["equity", "stockholdersequity", "fondspropres", "capitauxpropres"],
+    "dette_financiere": ["totaldebt", "dettefinanciere", "endettementbrut", "dettebrute"],
+    "tresorerie":       ["cash", "cashandequivalents", "tresorerie", "disponibilites"],
+    "flux_operationnel": ["operatingcashflow", "fluxoperationnel", "cfo"],
+    "capex":            ["capex", "capitalexpenditure", "investissements", "investissementscorporels"],
+    "total_actif":      ["totalassets", "totalactif", "totalbilan"],
 }
+ALIAS_FONDAMENTAUX = {"annee": ["annee", "year", "exercice", "an", "fy"]}
 
 
 def _normaliser(nom: str) -> str:
     nom = unicodedata.normalize("NFKD", str(nom)).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]", "", nom.lower())
+
+
+def _alias_postes() -> dict[str, list[str]]:
+    alias = {}
+    for champ in CHAMPS:
+        noms = {_normaliser(champ.cle), _normaliser(champ.libelle), *SYNONYMES.get(champ.cle, [])}
+        alias[champ.cle] = sorted(noms, key=len, reverse=True)
+    return alias
+
+
+ALIAS_FONDAMENTAUX.update(_alias_postes())
+
+
+def _poste(libelle: str) -> str | None:
+    """Libelle de ligne (tableur) -> poste. Egalite exacte, ou debut de libelle pour les alias longs
+    (« Bénéfice net (part du groupe) » -> benefice_net)."""
+    nom = _normaliser(libelle)
+    if not nom:
+        return None
+    for cle, noms in ALIAS_FONDAMENTAUX.items():
+        if cle != "annee" and nom in noms:
+            return cle
+    for cle, noms in ALIAS_FONDAMENTAUX.items():
+        if cle != "annee" and any(len(n) >= 6 and nom.startswith(n) for n in noms):
+            return cle
+    return None
 
 
 def _lire(contenu: bytes) -> pd.DataFrame:
@@ -135,25 +173,54 @@ def importer_cours(db: Session, valeur: Valeur, contenu: bytes) -> Resultat:
     )
 
 
-def importer_fondamentaux(db: Session, valeur: Valeur, contenu: bytes) -> Resultat:
+def importer_fondamentaux(db: Session, valeur: Valeur, contenu: bytes, source: str = "import") -> Resultat:
+    """Deux dispositions acceptees : une ligne par annee (colonne « annee »), ou une ligne par
+    poste avec les annees en colonnes — la forme habituelle d'un tableur ou d'un rapport annuel."""
     df = _lire(contenu)
-    colonnes = _associer(df, ALIAS_FONDAMENTAUX)
-    if "annee" not in colonnes or len(colonnes) < 2:
+    annees = _par_annee(df) if "annee" in _associer(df, {"annee": ALIAS_FONDAMENTAUX["annee"]}) \
+        else _par_poste(df)
+    annees = {a: v for a, v in annees.items() if any(x is not None and not pd.isna(x) for x in v.values())}
+    if not annees:
         raise HTTPException(400, (
-            "Il faut une colonne « annee » et au moins une donnée (bpa, benefice_net, "
-            f"chiffre_affaires, dividende). Colonnes lues : {', '.join(df.columns)}."
+            "Rien de lisible. Il faut soit une colonne « annee » et des colonnes de postes (bpa, "
+            "chiffre_affaires…), soit une ligne par poste avec les années en en-tête. "
+            f"Colonnes lues : {', '.join(map(str, df.columns))}."
         ))
 
-    annees = {}
-    valeurs = {c: _nombres(df[col]) for c, col in colonnes.items() if c != "annee"}
-    for i, brut in enumerate(df[colonnes["annee"]]):
-        trouve = re.search(r"(19|20|21)\d{2}", str(brut))
-        if trouve:
-            annees[int(trouve.group())] = {c: s.iloc[i] for c, s in valeurs.items()}
-    if not annees:
-        raise HTTPException(400, "Aucune année lisible dans le fichier.")
-
-    nombre = enregistrer_fondamentaux(db, valeur.id, annees, "import", ecraser=True)
+    nombre = enregistrer_fondamentaux(db, valeur.id, annees, source)
     db.commit()
-    return Resultat(message=f"{nombre} année(s) importée(s) ({min(annees)} → {max(annees)}).",
+    postes = sorted({c for v in annees.values() for c, x in v.items() if x is not None and not pd.isna(x)})
+    libelles = ", ".join(PAR_CLE[c].libelle for c in postes)
+    return Resultat(message=f"{nombre} année(s) importée(s) ({min(annees)} → {max(annees)}) : {libelles}.",
                     fondamentaux=nombre)
+
+
+def _annee(texte) -> int | None:
+    trouve = re.search(r"(19|20|21)\d{2}", str(texte))
+    return int(trouve.group()) if trouve else None
+
+
+def _par_annee(df: pd.DataFrame) -> dict[int, dict]:
+    colonnes = _associer(df, ALIAS_FONDAMENTAUX)
+    valeurs = {c: _nombres(df[col]) for c, col in colonnes.items() if c != "annee"}
+    annees = {}
+    for i, brut in enumerate(df[colonnes["annee"]]):
+        if (annee := _annee(brut)) is not None:
+            annees[annee] = {c: s.iloc[i] for c, s in valeurs.items()}
+    return annees
+
+
+def _par_poste(df: pd.DataFrame) -> dict[int, dict]:
+    colonnes_annees = {col: a for col in df.columns[1:] if (a := _annee(col)) is not None}
+    if not colonnes_annees:
+        return {}
+    annees: dict[int, dict] = {}
+    for _, ligne in df.iterrows():
+        poste = _poste(ligne.iloc[0])
+        if poste is None:
+            continue
+        valeurs = _nombres(pd.Series([ligne[c] for c in colonnes_annees]))
+        for annee, v in zip(colonnes_annees.values(), valeurs, strict=True):
+            if v is not None and not pd.isna(v):
+                annees.setdefault(annee, {}).setdefault(poste, v)
+    return annees

@@ -8,23 +8,23 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 0.3 Migrations Alembic (base existante reprise sans perte) — §11.2
 
 ## Phase 1 — Données fiables
-- [ ] 1.1 Interface `Source` commune + registre des sources — §1.1
-- [ ] 1.2 SEC EDGAR companyfacts : comptes US sur 15 ans — §1.1
-- [ ] 1.3 ESEF (filings.xbrl.org + GLEIF) : comptes européens depuis 2020 — §1.1
-- [ ] 1.4 Source de cours de secours si Yahoo tombe — §1.1
-- [ ] 1.5 Provenance affichée pour chaque donnée annuelle — §1.1
-- [ ] 1.6 Ajustement du BPA aux divisions d'actions — §1.2
-- [ ] 1.7 Collage « 20 ans d'un coup » depuis un tableur — §1.2
+- [x] 1.1 Interface `Source` commune + registre des sources — §1.1
+- [x] 1.2 SEC EDGAR companyfacts : comptes US sur 15 ans — §1.1
+- [x] 1.3 ESEF (filings.xbrl.org + GLEIF) : comptes européens depuis 2020 — §1.1
+- [x] 1.4 Source de cours de secours si Yahoo tombe — §1.1
+- [x] 1.5 Provenance affichée pour chaque donnée annuelle — §1.1
+- [x] 1.6 Ajustement du BPA aux divisions d'actions — §1.2
+- [x] 1.7 Collage « 20 ans d'un coup » depuis un tableur — §1.2
 - [ ] 1.8 Import assisté de rapports annuels PDF — §1.2
 - [ ] 1.9 Contrôle qualité des cours (trous, sauts, zéros) + rapport — §1.3
 - [ ] 1.10 Indices dividendes réinvestis par défaut + avertissement indice « prix » — §1.3
 - [ ] 1.11 Taux de change BCE + affichage en EUR — §1.4
-- [ ] 1.12 Réseau : nouvelles tentatives, délais, limitation de débit — §1.5
+- [x] 1.12 Réseau : nouvelles tentatives, délais, limitation de débit — §1.5
 - [ ] 1.13 Actualisation en tâche de fond avec progression + auto quotidienne — §1.5
 
 ## Phase 2 — Les comptes
-- [ ] 2.1 États financiers complets (résultat, bilan, flux) en base et depuis les sources — §2.1
-- [ ] 2.2 Tableaux pluriannuels + graphiques en barres — §2.1
+- [x] 2.1 États financiers complets (résultat, bilan, flux) en base et depuis les sources — §2.1
+- [x] 2.2 Tableaux pluriannuels + graphiques en barres — §2.1
 - [ ] 2.3 Ratios de qualité (marges, ROE, ROIC, ROCE, dette, FCF, payout, dilution, CAGR) — §2.2
 - [ ] 2.4 Scores Piotroski, Altman, Beneish + note maison détaillée — §2.3
 - [ ] 2.5 Graphique cours vs BPA × PER médian + bande de PER — §2.4

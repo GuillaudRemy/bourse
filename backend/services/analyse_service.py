@@ -11,9 +11,9 @@ from backend.analyse import fiabilite
 from backend.analyse import indicateurs as ind
 from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
-from backend.db.schema import Fondamental, Valeur
+from backend.db.schema import Valeur
 from backend.models.valeur import ValeurRead
-from backend.services.stockage import charger_cours
+from backend.services.stockage import charger_cours, charger_fondamentaux
 
 PROJECTION_ANS = 3
 
@@ -56,11 +56,7 @@ class AnalyseService:
         return valeur, cours, base_ajustee, fenetre, ajuster(fenetre)
 
     def _fondamentaux(self, valeur_id: int, cloture: pd.Series) -> list[dict]:
-        lignes = self._db.exec(
-            select(Fondamental).where(Fondamental.valeur_id == valeur_id).order_by(Fondamental.annee)
-        ).all()
-        fond = [l.model_dump(include={"annee", "bpa", "benefice_net", "chiffre_affaires", "dividende", "source"})
-                for l in lignes]
+        fond = charger_fondamentaux(self._db, valeur_id)
         pers = fiabilite.per_annuels(cloture, fond) if not cloture.empty else {}
         for f in fond:
             f["per"] = pers.get(f["annee"])

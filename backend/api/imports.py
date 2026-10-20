@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from backend.db.db import get_session
@@ -37,3 +38,13 @@ async def importer_fondamentaux(
     valeur_id: int, fichier: UploadFile = File(...), db: Session = Depends(get_session),
 ):
     return import_service.importer_fondamentaux(db, _valeur(db, valeur_id), await _lire(fichier))
+
+
+class Texte(BaseModel):
+    texte: str
+
+
+@router.post("/fondamentaux/texte", response_model=Resultat)
+def coller_fondamentaux(valeur_id: int, data: Texte, db: Session = Depends(get_session)):
+    """Tableau colle depuis un tableur (Excel, LibreOffice, Google Sheets) : tabulations."""
+    return import_service.importer_fondamentaux(db, _valeur(db, valeur_id), data.texte.encode("utf-8"))

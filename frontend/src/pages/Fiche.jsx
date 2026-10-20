@@ -22,6 +22,7 @@ export default function Fiche() {
 
   const [analyse, setAnalyse] = useState(null)
   const [erreur, setErreur] = useState(null)
+  const [avertissement, setAvertissement] = useState(null)
   const [dividendes, setDividendes] = useState(true)
   const [debut, setDebut] = useState('')
   const [actualisation, setActualisation] = useState(false)
@@ -37,7 +38,11 @@ export default function Fiche() {
 
   const actualiser = async () => {
     setActualisation(true)
-    try { await api.valeurs.actualiser(id); await charger() }
+    try {
+      const r = await api.valeurs.actualiser(id)
+      setAvertissement(r.avertissements?.length ? r.avertissements.join(' · ') : null)
+      await charger()
+    }
     catch (e) { setErreur(e.message) }
     finally { setActualisation(false) }
   }
@@ -69,11 +74,10 @@ export default function Fiche() {
             <span className="discret">
               · {valeur.source === 'yahoo' ? `Yahoo Finance, actualisé ${dateHeure(valeur.maj_le)}` : 'données importées'}
             </span>
-            {valeur.source === 'yahoo' && (
-              <button className="btn btn-mini" onClick={actualiser} disabled={actualisation}>
-                {actualisation ? 'Actualisation…' : 'Actualiser'}
-              </button>
-            )}
+            <button className="btn btn-mini" onClick={actualiser} disabled={actualisation}
+                    title={valeur.source === 'yahoo' ? 'Cours, divisions et comptes' : 'Comptes officiels (ESEF, SEC)'}>
+              {actualisation ? 'Actualisation…' : 'Actualiser'}
+            </button>
           </div>
         </div>
         {stats && (
@@ -88,6 +92,12 @@ export default function Fiche() {
       </div>
 
       {erreur && <div className="erreur" style={{ marginBottom: 12 }}>{erreur}</div>}
+      {avertissement && (
+        <div className="info" style={{ marginBottom: 12 }}>
+          <span>{avertissement}</span>
+          <button className="btn btn-mini btn-fantome" onClick={() => setAvertissement(null)}>×</button>
+        </div>
+      )}
 
       <div className="onglets">
         {ONGLETS.map(o => (

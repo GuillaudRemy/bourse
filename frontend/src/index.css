@@ -414,3 +414,31 @@ a { color: inherit; text-decoration: none; }
   .graphique.haut { height: 520px; }
   .repartition-ligne { grid-template-columns: 110px 1fr 46px; }
 }
+
+/* ─── ETATS FINANCIERS ───────────────────────────────────────────── */
+.tableau-etats td { padding: 4px 6px; position: relative; }
+.tableau-etats td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 230px; }
+.tableau-etats th:first-child { position: sticky; left: 0; z-index: 2; }
+.tableau-etats .champ-cellule { width: 92px; }
+.tableau-etats td.src-officiel { box-shadow: inset 3px 0 0 #10B981; }
+.tableau-etats td.src-manuel   { box-shadow: inset 3px 0 0 #8B5CF6; }
+.tableau-etats td.src-yahoo    { box-shadow: inset 3px 0 0 #CBD5E1; }
+.tableau-etats td.src-calcul input { font-style: italic; color: var(--muted); }
+.tableau-etats tr.ligne-choisie td { background: var(--accent-bg); }
+.lien-poste { text-align: left; font-weight: 500; }
+.lien-poste:hover { color: var(--accent); }
+.btn-annee { color: var(--faint); font-size: 11px; padding: 0 3px; border-radius: 3px; }
+.btn-annee:hover { color: var(--danger); background: #FEF2F2; }
+.marque-ajuste { color: #8B5CF6; font-weight: 700; margin-left: -4px; }
+.legende-sources { display: flex; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legende-sources i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.legende-sources i.src-officiel { background: #10B981; }
+.legende-sources i.src-manuel { background: #8B5CF6; }
+.legende-sources i.src-yahoo { background: #CBD5E1; }
+
+.barres { display: flex; gap: 4px; align-items: flex-start; overflow-x: auto; }
+.barres-colonne { flex: 1; min-width: 18px; max-width: 48px; display: flex; flex-direction: column; align-items: center; }
+.barres-zone { position: relative; width: 100%; }
+.barres-barre { position: absolute; left: 12%; right: 12%; background: var(--accent); border-radius: 2px; opacity: .85; }
+.barres-barre.negative { background: var(--danger); }
+.barres-x { font-family: var(--f-mono); font-size: 10px; color: var(--faint); margin-top: 4px; }

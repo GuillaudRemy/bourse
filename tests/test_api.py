@@ -37,3 +37,21 @@ def test_parcours_complet(csv_cours):
 
         assert client.delete(f"/valeurs/{vid}").status_code == 204
         assert client.get(f"/valeurs/{vid}").status_code == 404
+
+
+def test_collage_tableur_annees_en_colonnes():
+    """Forme habituelle d'un tableur : une ligne par poste, les annees en colonnes, tabulations."""
+    texte = ("Poste\t2018\t2019\t2020\n"
+             "Chiffre d'affaires\t1 200,5\t1 310\t1 290\n"
+             "Bénéfice net (part du groupe)\t100\t110\t95\n"
+             "BPA dilué\t2,10\t2,30\t1,99\n"
+             "Ligne inconnue\t1\t2\t3\n")
+    with TestClient(app) as client:
+        vid = client.post("/valeurs", json={"symbole": "COLLE", "source": "import"}).json()["id"]
+        r = client.post(f"/valeurs/{vid}/import/fondamentaux/texte", json={"texte": texte})
+        assert r.status_code == 200, r.text
+        lignes = {f["annee"]: f for f in client.get(f"/valeurs/{vid}/fondamentaux").json()}
+        assert lignes[2018]["chiffre_affaires"] == 1200.5
+        assert lignes[2019]["benefice_net"] == 110
+        assert lignes[2020]["bpa"] == 1.99
+        assert lignes[2020]["sources"]["bpa"] == "import"

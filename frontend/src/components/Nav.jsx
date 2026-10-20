@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 const LIENS = [
   { to: '/valeurs', label: 'Valeurs' },
   { to: '/methode', label: 'Méthode' },
+  { to: '/reglages', label: 'Réglages' },
 ]
 
 export default function Nav() {

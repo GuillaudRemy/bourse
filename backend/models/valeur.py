@@ -25,6 +25,10 @@ class ValeurUpdate(BaseModel):
     debut_regression: Optional[date] = None
     rupture:          Optional[bool] = None
     notes:            Optional[str] = None
+    isin:             Optional[str] = Field(default=None, max_length=12)
+    lei:              Optional[str] = Field(default=None, max_length=20)
+    cik:              Optional[str] = Field(default=None, max_length=10)
+    devise_comptes:   Optional[str] = Field(default=None, max_length=10)
 
 
 class ValeurRead(BaseModel):
@@ -39,6 +43,10 @@ class ValeurRead(BaseModel):
     place:            Optional[str]
     secteur:          Optional[str]
     pays:             Optional[str]
+    isin:             Optional[str] = None
+    lei:              Optional[str] = None
+    cik:              Optional[str] = None
+    devise_comptes:   Optional[str] = None
     debut_regression: Optional[date]
     rupture:          bool
     notes:            Optional[str]
@@ -58,3 +66,4 @@ class Resultat(BaseModel):
     message: str
     cours:        int = 0
     fondamentaux: int = 0
+    avertissements: list[str] = []

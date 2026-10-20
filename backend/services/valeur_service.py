@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from datetime import UTC, datetime
 
@@ -6,8 +8,14 @@ from sqlmodel import Session, select
 
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services.stockage import enregistrer_cours, enregistrer_fondamentaux
-from backend.sources import yahoo
+from backend.services.stockage import (
+    charger_divisions,
+    enregistrer_cours,
+    enregistrer_divisions,
+    enregistrer_fondamentaux,
+)
+from backend.sources import esef, sec, yahoo, yahoo_direct
+from backend.sources.base import Identite, SourceIndisponible
 
 
 class ValeurService:
@@ -29,7 +37,7 @@ class ValeurService:
         if data.source == "yahoo":
             try:
                 fiche = yahoo.fiche(symbole)
-            except yahoo.SourceIndisponible as e:
+            except SourceIndisponible as e:
                 raise HTTPException(502, str(e)) from e
             valeur = Valeur(
                 symbole=symbole, source="yahoo", nom=data.nom or fiche.nom, type=fiche.type,
@@ -68,35 +76,92 @@ class ValeurService:
         self._db.commit()
 
     def actualiser(self, valeur_id: int) -> Resultat:
-        """Retelecharge tout l'historique : le cours ajuste change retroactivement
-        a chaque dividende, une simple mise a jour des derniers jours ne suffit pas."""
+        """Met a jour cours, divisions, fiche et comptes depuis toutes les sources utiles.
+
+        Les cours sont retelecharges en entier : le cours ajuste change retroactivement a
+        chaque dividende. Chaque etape a un secours ; une source en panne n'empeche pas les
+        autres de passer, elle est simplement signalee dans le message."""
         valeur = self._get(valeur_id)
-        if valeur.source != "yahoo":
-            raise HTTPException(400, "Valeur importée : mettez-la à jour en important un nouveau fichier.")
+        avertissements: list[str] = []
+        nb_cours = 0
 
-        try:
-            cours = yahoo.cours(valeur.symbole)
-            fondamentaux = yahoo.fondamentaux(valeur.symbole)
-            fiche = yahoo.fiche(valeur.symbole)
-        except yahoo.SourceIndisponible as e:
-            raise HTTPException(502, str(e)) from e
-        if cours.empty:
-            raise HTTPException(502, f"Yahoo ne renvoie aucun cours pour {valeur.symbole}.")
+        if valeur.source == "yahoo":
+            cours = self._premier_disponible(
+                [lambda: yahoo.cours(valeur.symbole), lambda: yahoo_direct.cours(valeur.symbole)], avertissements)
+            if cours is None or cours.empty:
+                raise HTTPException(502, "Cours indisponibles : " + " · ".join(avertissements))
+            nb_cours = enregistrer_cours(self._db, valeur.id, cours)
 
-        nb_cours = enregistrer_cours(self._db, valeur.id, cours)
-        nb_fond = enregistrer_fondamentaux(self._db, valeur.id, fondamentaux, "yahoo", ecraser=False)
-        valeur.infos = json.dumps(fiche.infos)
-        valeur.devise = valeur.devise or fiche.devise
-        valeur.secteur = valeur.secteur or fiche.secteur
+            divisions = self._premier_disponible(
+                [lambda: yahoo.divisions(valeur.symbole), lambda: yahoo_direct.divisions(valeur.symbole)],
+                avertissements)
+            if divisions is not None:
+                enregistrer_divisions(self._db, valeur.id, divisions)
+
+            try:
+                fiche = yahoo.fiche(valeur.symbole)
+                valeur.infos = json.dumps(fiche.infos)
+                valeur.devise = valeur.devise or fiche.devise
+                valeur.secteur = valeur.secteur or fiche.secteur
+                valeur.pays = valeur.pays or fiche.pays
+                valeur.devise_comptes = valeur.devise_comptes or fiche.devise_comptes
+            except SourceIndisponible as e:
+                avertissements.append(str(e))
+        self._db.flush()
+
+        nb_fond, sources = self._actualiser_comptes(valeur, avertissements)
         valeur.maj_le = datetime.now(UTC)
         self._db.commit()
-        return Resultat(
-            message=f"{valeur.nom} : {nb_cours} séances, {nb_fond} années de fondamentaux.",
-            cours=nb_cours, fondamentaux=nb_fond,
-        )
+
+        message = f"{valeur.nom} : {nb_cours} séances, {nb_fond} années de comptes"
+        message += f" ({', '.join(sources)})." if sources else "."
+        if avertissements:
+            message += " " + " · ".join(avertissements)
+        return Resultat(message=message, cours=nb_cours, fondamentaux=nb_fond, avertissements=avertissements)
+
+    def _actualiser_comptes(self, valeur: Valeur, avertissements: list[str]) -> tuple[int, list[str]]:
+        if valeur.type != "action":
+            return 0, []
+        identite = Identite(symbole=valeur.symbole, nom=valeur.nom, type=valeur.type, pays=valeur.pays,
+                            isin=valeur.isin, lei=valeur.lei, cik=valeur.cik)
+        divisions = charger_divisions(self._db, valeur.id)
+        annees: set[int] = set()
+        utilisees = []
+        # Du moins fiable au plus fiable : la fusion case par case garde la meilleure source.
+        etapes = [("yahoo", lambda: yahoo.comptes(identite))] if valeur.source == "yahoo" else []
+        etapes += [(module.NOM, lambda m=module: m.comptes(identite, divisions))
+                   for module in (esef, sec) if module.couvre(identite)]
+        for nom, appel in etapes:
+            try:
+                comptes = appel()
+            except SourceIndisponible as e:
+                avertissements.append(str(e))
+                continue
+            if comptes:
+                enregistrer_fondamentaux(self._db, valeur.id, comptes, nom)
+                annees |= set(comptes)
+                utilisees.append(nom.upper() if nom != "yahoo" else "Yahoo")
+
+        for cle in ("lei", "cik", "devise_comptes"):
+            if identite.decouverts.get(cle) and not getattr(valeur, cle):
+                setattr(valeur, cle, identite.decouverts[cle])
+        return len(annees), utilisees
+
+    @staticmethod
+    def _premier_disponible(appels, avertissements: list[str]):
+        """Essaie chaque source dans l'ordre ; la premiere qui repond l'emporte."""
+        for appel in appels:
+            try:
+                resultat = appel()
+            except SourceIndisponible as e:
+                avertissements.append(str(e))
+                continue
+            if resultat is not None and len(resultat):
+                return resultat
+        return None
 
     def actualiser_tout(self) -> Resultat:
-        valeurs = self._db.exec(select(Valeur).where(Valeur.source == "yahoo")).all()
+        valeurs = self._db.exec(select(Valeur)).all()
         echecs = []
         for valeur in valeurs:
             try:

@@ -1,18 +1,18 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, create_model
 
+from backend.db.champs import CLES
 
-class FondamentalEcriture(BaseModel):
-    bpa:              Optional[float] = None
-    benefice_net:     Optional[float] = None
-    chiffre_affaires: Optional[float] = None
-    dividende:        Optional[float] = None
+# Un champ facultatif par poste de champs.py : seuls les postes envoyes sont modifies.
+FondamentalEcriture = create_model(
+    "FondamentalEcriture", __base__=BaseModel, **{cle: (Optional[float], None) for cle in CLES},
+)
 
 
 class FondamentalRead(FondamentalEcriture):
-    model_config = {"from_attributes": True}
-
-    annee:  int = Field(ge=1900, le=2200)
-    source: str
-    per:    Optional[float] = None   # cours moyen de l'annee / BPA
+    annee:   int
+    source:  str
+    sources: dict[str, str] = {}     # provenance de chaque case
+    ajustes: list[str] = []          # postes ramenes a la base d'actions actuelle (divisions)
+    per:     Optional[float] = None  # cours moyen de l'annee / BPA

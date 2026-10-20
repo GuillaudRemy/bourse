@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
 from backend import migrate
-from backend.api import fondamentaux, imports, valeurs
+from backend.api import fondamentaux, imports, reglages, valeurs
 from backend.core.config import config
 
 
@@ -39,6 +39,7 @@ app.add_middleware(
 app.include_router(valeurs.router,      prefix=config.API_PREFIX)
 app.include_router(fondamentaux.router, prefix=config.API_PREFIX)
 app.include_router(imports.router,      prefix=config.API_PREFIX)
+app.include_router(reglages.router,     prefix=config.API_PREFIX)
 
 
 @app.get("/health")

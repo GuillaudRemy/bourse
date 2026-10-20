@@ -46,3 +46,11 @@ def test_fiabilite_per_stable(cours_synthetiques):
     assert verif["statut"] == "ok"
     assert abs(verif["details"]["derive_per"]) < 0.01
     assert fiabilite.historique(reg)["statut"] == "ok"
+
+
+def test_champs_alignes_sur_le_schema():
+    """Chaque poste du catalogue est une colonne de la table, et inversement."""
+    from backend.db.champs import CLES
+    from backend.db.schema import Fondamental
+    colonnes = set(Fondamental.model_fields) - {"id", "annee", "source", "sources", "valeur_id", "valeur"}
+    assert colonnes == set(CLES)
