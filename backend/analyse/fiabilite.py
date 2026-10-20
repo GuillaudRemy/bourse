@@ -9,6 +9,7 @@
 """
 import numpy as np
 import pandas as pd
+
 from backend.analyse.regression import Regression, ajuster
 
 ANNEES_MIN = 20

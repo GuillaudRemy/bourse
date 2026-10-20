@@ -1,8 +1,10 @@
 """Lecture et ecriture en masse des cours et des fondamentaux."""
 import math
+
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, select
+
 from backend.db.schema import Cours, Fondamental
 
 COLONNES_COURS = ["ouverture", "haut", "bas", "cloture", "ajuste", "volume"]

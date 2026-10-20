@@ -31,7 +31,7 @@ const EXEMPLE = `annee;bpa;benefice_net;chiffre_affaires;dividende
 
 /** « 3,5 Md », « 1 200 M », « 2.4e9 », « 1,85 » -> nombre ; vide -> null. */
 function lire(texte) {
-  const t = String(texte).trim().replace(/\s| /g, '').replace(',', '.')
+  const t = String(texte).trim().replace(/\s/g, '').replace(',', '.')
   if (!t) return null
   const m = t.match(/^(-?[\d.]+(?:e-?\d+)?)(k|m|md|g|b|t)?$/i)
   if (!m) return NaN

@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from backend.db.schema import Valeur, Fondamental
+
+from backend.db.schema import Fondamental, Valeur
 from backend.models.fondamental import FondamentalEcriture, FondamentalRead
 
 

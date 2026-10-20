@@ -1,45 +1,59 @@
-"""Migration idempotente de la base.
+"""Migrations de la base (Alembic).
 
-Cree les tables manquantes et ajoute les colonnes apparues au fil des versions,
-sans jamais reconstruire ni effacer quoi que ce soit.
+  · base neuve        : toutes les migrations sont jouees ;
+  · base d'avant Alembic (v0.1.x) : elle est reconnue, marquee « 0001 », puis migree ;
+  · base a jour       : rien ne se passe.
 
-Usage : .venv/bin/python -m backend.migrate
+Rien n'est jamais efface : chaque migration ne fait qu'ajouter.
+
+Usage :
+  .venv/bin/python -m backend.migrate                       # mettre a jour
+  .venv/bin/python -m backend.migrate nouvelle "message"    # (developpeur) creer une migration
 """
-import sqlite3
+import sys
 from pathlib import Path
-from sqlmodel import SQLModel
-from backend.db.db import engine
-from backend.core.config import config
-import backend.db.schema  # noqa: F401  — enregistre les tables dans les metadonnees
 
-# (table, colonne, definition SQL) — ajoutees si absentes
-COLONNES: list[tuple[str, str, str]] = []
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import inspect
+
+from backend.core.config import config
+from backend.core.sauvegarde import sauvegarder
+from backend.db.db import engine
+
+DOSSIER = Path(__file__).parent / "migrations"
+BASE_INITIALE = "0001"
+
+
+def _config() -> Config:
+    alembic = Config()
+    alembic.set_main_option("script_location", str(DOSSIER))
+    return alembic
 
 
 def main() -> None:
+    # Toujours une copie avant de toucher au schema (une par jour au plus).
+    copie = sauvegarder()
+    if copie:
+        print(f"sauvegarde du jour : {copie}")
+
     Path(config.DB_NAME).parent.mkdir(parents=True, exist_ok=True)
-    SQLModel.metadata.create_all(engine)   # cree les tables absentes, ne touche pas aux autres
+    alembic = _config()
+    tables = set(inspect(engine).get_table_names())
 
-    connexion = sqlite3.connect(config.DB_NAME)
-    tables = {r[0] for r in connexion.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "valeur" in tables and "alembic_version" not in tables:
+        print("base d'avant les migrations : marquee comme version initiale")
+        command.stamp(alembic, BASE_INITIALE)
+    command.upgrade(alembic, "head")
+    print("base a jour")
 
-    for table, colonne, definition in COLONNES:
-        if table not in tables:
-            continue
-        existantes = [r[1] for r in connexion.execute(f"PRAGMA table_info({table})")]
-        if colonne not in existantes:
-            connexion.execute(f"ALTER TABLE {table} ADD COLUMN {colonne} {definition}")
-            print(f"colonne {table}.{colonne} ajoutee")
 
-    connexion.commit()
-
-    for table in sorted(tables):
-        total = connexion.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        print(f"  {table:16} {total:>7} ligne(s)")
-
-    connexion.close()
-    print("migration terminee")
+def nouvelle(message: str) -> None:
+    command.revision(_config(), message=message, autogenerate=True)
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 2 and sys.argv[1] == "nouvelle":
+        nouvelle(sys.argv[2])
+    else:
+        main()

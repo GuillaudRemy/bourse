@@ -1,6 +1,7 @@
 import json
-from typing import Literal, Optional
 from datetime import date, datetime
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 TypeValeur = Literal["action", "indice", "etf"]

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
+
 from backend.db.db import get_session
 from backend.models.fondamental import FondamentalEcriture, FondamentalRead
 from backend.services.fondamental_service import FondamentalService

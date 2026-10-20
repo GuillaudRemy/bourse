@@ -10,6 +10,7 @@ autour d'une droite et les ecarts a cette droite se repartissent en cloche.
     est bon marche ou chere par rapport a sa propre tendance.
 """
 from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 
@@ -71,7 +72,7 @@ class Regression:
     def repartition(self) -> dict[str, float]:
         z = self.residus / self.sigma if self.sigma > 0 else self.residus * 0
         return {cle: float(((z >= bas) & (z < haut)).mean())
-                for (bas, cle, _), haut in zip(ZONES, [b for b, _, _ in ZONES[1:]] + [np.inf])}
+                for (bas, cle, _), haut in zip(ZONES, [b for b, _, _ in ZONES[1:]] + [np.inf], strict=True)}
 
 
 def zone(position: float) -> tuple[str, str]:

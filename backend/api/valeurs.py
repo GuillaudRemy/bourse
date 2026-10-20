@@ -1,11 +1,13 @@
 from datetime import date
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
+
 from backend.db.db import get_session
-from backend.models.valeur import ValeurCreate, ValeurUpdate, ValeurRead, Resultat
-from backend.services.valeur_service import ValeurService
+from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services.analyse_service import AnalyseService
+from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
 
 router = APIRouter(tags=["Valeurs"], prefix="/valeurs")
@@ -25,7 +27,7 @@ def rechercher(q: str = Query(min_length=1)):
     try:
         return yahoo.rechercher(q)
     except yahoo.SourceIndisponible as e:
-        raise HTTPException(502, str(e))
+        raise HTTPException(502, str(e)) from e
 
 
 @router.get("", response_model=list[ValeurRead])

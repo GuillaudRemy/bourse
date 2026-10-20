@@ -1,7 +1,8 @@
-from typing import Optional, List
-from datetime import datetime, date, UTC
-from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint
-from sqlmodel import SQLModel, Field, Relationship
+from datetime import UTC, date, datetime
+from typing import List, Optional
+
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 TYPES = ("action", "indice", "etf")
 SOURCES = ("yahoo", "import")

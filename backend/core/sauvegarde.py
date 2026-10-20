@@ -10,6 +10,7 @@ Les copies vont dans sauvegardes/ (ou DOSSIER_SAUVEGARDES) ; les 30 plus recente
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+
 from backend.core.config import config
 
 RACINE = Path(__file__).parent.parent.parent

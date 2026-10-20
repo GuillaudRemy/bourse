@@ -1,9 +1,11 @@
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
 from sqlmodel import Session, select
+
 from backend.db.schema import Valeur
-from backend.models.valeur import ValeurCreate, ValeurUpdate, ValeurRead, Resultat
+from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services.stockage import enregistrer_cours, enregistrer_fondamentaux
 from backend.sources import yahoo
 
@@ -28,7 +30,7 @@ class ValeurService:
             try:
                 fiche = yahoo.fiche(symbole)
             except yahoo.SourceIndisponible as e:
-                raise HTTPException(502, str(e))
+                raise HTTPException(502, str(e)) from e
             valeur = Valeur(
                 symbole=symbole, source="yahoo", nom=data.nom or fiche.nom, type=fiche.type,
                 devise=fiche.devise, place=fiche.place, secteur=fiche.secteur, pays=fiche.pays,
@@ -77,7 +79,7 @@ class ValeurService:
             fondamentaux = yahoo.fondamentaux(valeur.symbole)
             fiche = yahoo.fiche(valeur.symbole)
         except yahoo.SourceIndisponible as e:
-            raise HTTPException(502, str(e))
+            raise HTTPException(502, str(e)) from e
         if cours.empty:
             raise HTTPException(502, f"Yahoo ne renvoie aucun cours pour {valeur.symbole}.")
 

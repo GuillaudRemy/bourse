@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["exemple", "bourse", "paquet", "frontend", "backend/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP", "SIM"]
+ignore = [
+    "E712",   # « == False » est l'idiome SQLAlchemy
+    "B008",   # Depends(...) en valeur par defaut est l'idiome FastAPI
+    "E741",   # « l » pour une ligne de resultat, comme dans le reste du code
+    "SIM108",
+    "UP006", "UP035", "UP045",   # Optional[...] / List[...] : style du projet exemple, lu par SQLModel
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]   # l'environnement doit etre fixe avant d'importer le backend
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

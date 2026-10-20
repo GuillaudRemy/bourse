@@ -4,9 +4,10 @@ Couverture : actions, indices et ETF du monde entier, cours quotidiens depuis
 l'introduction en bourse, dividendes complets. Les comptes annuels ne remontent
 en revanche que sur 4 a 5 ans : pour un historique plus long, on les importe.
 """
+import math
 from dataclasses import dataclass
 from datetime import date
-import math
+
 import pandas as pd
 import yfinance as yf
 

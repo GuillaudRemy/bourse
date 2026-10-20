@@ -1,26 +1,21 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from sqlmodel import SQLModel
-from backend.db.db import engine
+from fastapi.responses import FileResponse
+
+from backend import migrate
+from backend.api import fondamentaux, imports, valeurs
 from backend.core.config import config
-from backend.core.sauvegarde import sauvegarder
-from backend.api import valeurs, fondamentaux, imports
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Une copie de la base par jour, avant toute chose : les fondamentaux saisis
-    # a la main sont ce qui a le plus de valeur ici.
-    copie = sauvegarder()
-    if copie:
-        print(f"sauvegarde du jour : {copie}")
-
-    Path(config.DB_NAME).parent.mkdir(parents=True, exist_ok=True)
-    SQLModel.metadata.create_all(engine)
+    # Sauvegarde du jour puis migrations : les fondamentaux saisis a la main
+    # sont ce qui a le plus de valeur ici.
+    migrate.main()
     yield
 
 

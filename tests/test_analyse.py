@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
+
+from backend.analyse import fiabilite
 from backend.analyse import indicateurs as ind
 from backend.analyse.regression import ajuster, zone
-from backend.analyse import fiabilite
 
 
 def test_regression_retrouve_la_pente(cours_synthetiques):

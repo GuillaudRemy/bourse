@@ -1,5 +1,6 @@
 """Parcours complet par l'API, sans internet : valeur importee, cours CSV, analyse, fondamentaux."""
 from fastapi.testclient import TestClient
+
 from backend.main import app
 
 

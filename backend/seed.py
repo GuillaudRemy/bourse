@@ -3,7 +3,9 @@
 Usage : .venv/bin/python -m backend.seed
 """
 from fastapi import HTTPException
-from sqlmodel import SQLModel, Session
+from sqlmodel import Session
+
+from backend import migrate
 from backend.db.db import engine
 from backend.models.valeur import ValeurCreate
 from backend.services.valeur_service import ValeurService
@@ -19,7 +21,7 @@ EXEMPLES = [
 
 
 def main() -> None:
-    SQLModel.metadata.create_all(engine)
+    migrate.main()
     with Session(engine) as session:
         service = ValeurService(session)
         for symbole in EXEMPLES:

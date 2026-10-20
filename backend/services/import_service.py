@@ -9,9 +9,11 @@ import csv
 import io
 import re
 import unicodedata
+
 import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session
+
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat
 from backend.services.stockage import enregistrer_cours, enregistrer_fondamentaux

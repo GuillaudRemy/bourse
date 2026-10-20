@@ -2,15 +2,16 @@
 droite de regression, indicateurs techniques, fiabilite et fondamentaux."""
 import math
 from datetime import date
-import numpy as np
+
 import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from backend.analyse import indicateurs as ind
+
 from backend.analyse import fiabilite
-from backend.analyse.regression import ajuster, zone, THEORIE, ZONES
+from backend.analyse import indicateurs as ind
+from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
-from backend.db.schema import Valeur, Fondamental
+from backend.db.schema import Fondamental, Valeur
 from backend.models.valeur import ValeurRead
 from backend.services.stockage import charger_cours
 
