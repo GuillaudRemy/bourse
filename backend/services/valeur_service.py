@@ -31,7 +31,9 @@ class ValeurService:
     def get(self, valeur_id: int) -> ValeurRead:
         return ValeurRead.model_validate(self._get(valeur_id))
 
-    def create(self, data: ValeurCreate) -> ValeurRead:
+    def create(self, data: ValeurCreate, actualiser: bool = True) -> ValeurRead:
+        """`actualiser=False` : la valeur est creee tout de suite, ses donnees viendront de
+        l'actualisation en tache de fond (premier lancement : pas d'attente)."""
         symbole = data.symbole.strip().upper()
         if self._db.exec(select(Valeur).where(Valeur.symbole == symbole)).first():
             raise HTTPException(409, f"La valeur « {symbole} » est déjà suivie.")
@@ -56,7 +58,7 @@ class ValeurService:
         self._db.commit()
         self._db.refresh(valeur)
 
-        if valeur.source == "yahoo":
+        if valeur.source == "yahoo" and actualiser:
             self.actualiser(valeur.id)
         return self.get(valeur.id)
 

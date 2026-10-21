@@ -20,13 +20,15 @@ EXEMPLES = [
 ]
 
 
-def main() -> None:
+def main(actualiser: bool = True) -> None:
+    """`actualiser=False` (premier lancement de l'appli de bureau) : les valeurs sont seulement
+    creees ; l'actualisation en tache de fond telecharge ensuite leurs donnees, avec progression."""
     migrate.main()
     with Session(engine) as session:
         service = ValeurService(session)
         for symbole in EXEMPLES:
             try:
-                valeur = service.create(ValeurCreate(symbole=symbole))
+                valeur = service.create(ValeurCreate(symbole=symbole), actualiser=actualiser)
                 print(f"+ {valeur.symbole:8} {valeur.nom}")
             except HTTPException as e:
                 session.rollback()

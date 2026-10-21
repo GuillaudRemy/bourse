@@ -6,8 +6,14 @@ de prolonger la droite), avec les indicateurs techniques classiques.
 
 - **Backend** : FastAPI · SQLModel · SQLite · pandas/numpy (dossier `backend/`)
 - **Frontend** : React · Vite · react-router · lightweight-charts (dossier `frontend/`)
-- **Données** : Yahoo Finance via [yfinance](https://github.com/ranaroussi/yfinance) — libre, gratuit, sans clé.
-  Import CSV pour tout ce qu'aucune API ne couvre (cours d'une valeur absente, historique long de BPA).
+- **Données** (toutes gratuites) :
+  - cours, dividendes, divisions : Yahoo Finance via [yfinance](https://github.com/ranaroussi/yfinance), avec un secours
+    direct sur l'API « chart » de Yahoo si la bibliothèque casse ;
+  - comptes officiels américains : **SEC EDGAR** (15–19 ans ; renseigner un e-mail de contact dans Réglages, exigé par la SEC) ;
+  - comptes officiels européens : **ESEF** via filings.xbrl.org (depuis 2020) ;
+  - taux de change : **BCE** ;
+  - et pour le reste : import CSV, collage depuis un tableur, extraction assistée de rapports annuels PDF.
+  Chaque chiffre garde sa provenance ; une saisie manuelle n'est jamais écrasée.
 
 ## Lancer en développement
 
@@ -58,10 +64,13 @@ Puis http://localhost:8081. La base vit dans `donnees/`, une copie par jour va d
 
 | Onglet | Contenu |
 |---|---|
-| Droite de régression | Moindres carrés de ln(cours) sur le temps, depuis 2003 (actions) ou 1992 (indices) ; pente annuelle, écart-type, position en σ, zone, retour à la droite, projections, temps passé par zone vs loi normale |
+| Droite de régression | Moindres carrés de ln(cours) sur le temps, depuis 2003 (actions) ou 1992 (indices, banques, défense) ; pente, écart-type, position en σ, zone, projections, temps par zone vs loi normale ; robustesse : pente selon le point de départ, pente glissante sur 15 ans, détection de rupture ; option « en euros » |
 | Fiabilité | 1. historique ≥ 20 ans · 2. pente portée par le BPA et non par la dérive du PER · 3. pas de rupture (pente récente vs pente longue, ou rupture signalée à la main) |
 | Analyse technique | Bougies, MM20/50/200, Bollinger, volume, RSI 14, MACD 12/26/9, volatilité, perte maximale, croisements |
-| Fondamentaux | Ratios Yahoo, tableau annuel éditable (BPA, bénéfice, CA, dividende, PER moyen calculé), import CSV |
+| Bénéfices | Cours face à BPA × PER médian, bande de PER historique, droite du BPA (vérification n°2) |
+| Qualité | Marges, ROE, ROIC, ROCE, dette, FCF, dilution ; scores Piotroski, Altman, Beneish ; note de qualité détaillée |
+| Fondamentaux | Compte de résultat, bilan et flux sur 20 ans, éditables case par case, provenance colorée |
+| Données & réglages | Imports, identifiants (ISIN, LEI, CIK), contrôle qualité des cours, rupture signalée à la main |
 
 ## Formats CSV acceptés
 

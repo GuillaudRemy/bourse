@@ -191,15 +191,18 @@ def main() -> None:
     os.environ.setdefault("DOSSIER_FRONTEND", str(RACINE / "frontend" / "dist"))
     os.environ.setdefault("DB_NAME", str(donnees / "donnees" / "bourse.db"))
     os.environ.setdefault("DOSSIER_SAUVEGARDES", str(donnees / "sauvegardes"))
+    if TEST:
+        os.environ.setdefault("ACTUALISATION_AU_DEMARRAGE", "false")
 
     premiere_fois = not Path(os.environ["DB_NAME"]).exists()
     from backend import migrate
     migrate.main()
     if premiere_fois and not TEST:
-        print("Premier lancement : ajout des valeurs d'exemple (quelques secondes)…")
+        print("Premier lancement : ajout des valeurs d'exemple ; leurs données se téléchargent ensuite "
+              "en arrière-plan (barre de progression dans l'application).")
         try:
             from backend import seed
-            seed.main()
+            seed.main(actualiser=False)
         except Exception as e:   # pas d'internet : la base reste vide, ce n'est pas grave
             print(f"Valeurs d'exemple non ajoutees : {e}")
 
