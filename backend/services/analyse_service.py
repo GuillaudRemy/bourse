@@ -116,29 +116,17 @@ class AnalyseService:
             return resultat
 
         cloture = cours["cloture"]
-        mm20, mm50, mm200 = (ind.moyenne_mobile(cloture, n) for n in (20, 50, 200))
+        mm50, mm200 = ind.moyenne_mobile(cloture, 50), ind.moyenne_mobile(cloture, 200)
         rsi14 = ind.rsi(cloture)
-        macd = ind.macd(cloture)
-        boll = ind.bollinger(cloture)
         fondamentaux = self._fondamentaux(valeur_id, self._cloture_origine)
 
         resultat |= {
             "base_ajustee": base_ajustee,
+            # Cours de cloture et rendement total pour la droite ; bougies et indicateurs : route /technique.
             "series": {
-                "jours":     [d.strftime("%Y-%m-%d") for d in cours.index],
-                "ouverture": _liste(cours["ouverture"]),
-                "haut":      _liste(cours["haut"]),
-                "bas":       _liste(cours["bas"]),
-                "cloture":   _liste(cloture),
-                "ajuste":    _liste(cours["ajuste"]),
-                "volume":    _liste(cours["volume"], 0),
-            },
-            "indicateurs": {
-                "mm20": _liste(mm20), "mm50": _liste(mm50), "mm200": _liste(mm200),
-                "rsi": _liste(rsi14, 2),
-                "macd": _liste(macd["macd"]), "macd_signal": _liste(macd["signal"]),
-                "macd_histogramme": _liste(macd["histogramme"]),
-                "bollinger_haut": _liste(boll["haut"]), "bollinger_bas": _liste(boll["bas"]),
+                "jours":   [d.strftime("%Y-%m-%d") for d in cours.index],
+                "cloture": _liste(cloture),
+                "ajuste":  _liste(cours["ajuste"]),
             },
             "stats": self._stats(cloture, mm50, mm200, rsi14),
             "signaux": ind.signaux(cloture, mm50, mm200, rsi14),

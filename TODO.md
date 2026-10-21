@@ -56,14 +56,14 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 5.4 Backtesting sans biais d'anticipation — §6
 
 ## Phase 6 — Finitions
-- [ ] 6.1 Indicateurs techniques supplémentaires + paramètres — §9
-- [ ] 6.2 Unités de temps hebdo / mensuelle + vue réduite au-delà de 10 ans — §9, §10
-- [ ] 6.3 Tracés et annotations enregistrés — §9
+- [x] 6.1 Indicateurs techniques supplémentaires + paramètres — §9
+- [x] 6.2 Unités de temps hebdo / mensuelle + vue réduite au-delà de 10 ans — §9, §10
+- [x] 6.3 Tracés et annotations enregistrés — §9
 - [ ] 6.4 Mode sombre + taille de police — §10
 - [ ] 6.5 Recherche globale Ctrl+K — §10
 - [ ] 6.6 Aide contextuelle, glossaire, première utilisation guidée — §10
 - [ ] 6.7 Export PDF de la fiche + export Excel — §10
-- [ ] 6.8 Cache des analyses, WAL, synthèse précalculée — §11.3
+- [x] 6.8 Cache des analyses, WAL, synthèse précalculée — §11.3
 - [ ] 6.9 Journal fichier, bouton diagnostic, page « À propos » — §11.4
 - [ ] 6.10 Tests : cas de référence figés, tests d'interface Playwright en CI — §11.1
 - [ ] 6.11 Typage : mypy + TypeScript progressif — §11.2

@@ -27,7 +27,10 @@ def test_parcours_complet(csv_cours):
         assert abs(analyse["regression"]["pente"] - 0.10) < 0.02
         assert analyse["base_ajustee"] is False          # pas de colonne ajustee dans le CSV
         assert len(analyse["fiabilite"]["verifications"]) == 3
-        assert len(analyse["series"]["jours"]) == len(analyse["indicateurs"]["rsi"])
+        technique = client.get(f"/valeurs/{vid}/technique", params={"unite": "semaine", "mm": "10,30"}).json()
+        assert len(technique["jours"]) == len(technique["rsi"]) == len(technique["moyennes"]["30"])
+        assert len(technique["jours"]) < len(analyse["series"]["jours"]) / 4          # bougies hebdomadaires
+        assert all(v is None or 0 <= v <= 100 for v in technique["stochastique_k"])
 
         ligne = next(l for l in client.get("/valeurs/synthese").json() if l["valeur"]["id"] == vid)
         assert ligne["zone"]

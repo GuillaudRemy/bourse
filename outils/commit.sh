@@ -3,6 +3,9 @@
 # Usage : outils/commit.sh "message"
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Jamais de commit qui ne passe pas les linters.
+.venv/bin/ruff check . -q
+(cd frontend && npx eslint . --max-warnings=0)
 git add -A -- . ':!liens.txt'
 git -c user.name="${GIT_AUTHOR_NAME:-GuillaudRemy}" commit -q -m "$1
 

@@ -7,7 +7,7 @@ from sqlmodel import Session
 from backend.analyse.valorisation import Hypotheses
 from backend.db.db import get_session
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services import taches
+from backend.services import taches, technique_service
 from backend.services.analyse_service import AnalyseService
 from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
@@ -72,6 +72,20 @@ def analyse_valeur(
     analyse: AnalyseService = Depends(get_analyse),
 ):
     return analyse.analyse(valeur_id, dividendes, debut, en_euros)
+
+
+@router.get("/{valeur_id}/technique")
+def technique(
+    valeur_id: int,
+    unite: str = "jour",
+    mm: str = Query("20,50,200", pattern=r"^\d{1,3}(,\d{1,3}){0,5}$"),
+    rsi: int = Query(14, ge=2, le=100), bollinger: int = Query(20, ge=5, le=100),
+    stochastique: int = Query(14, ge=3, le=100), atr: int = Query(14, ge=2, le=100), adx: int = Query(14, ge=2, le=100),
+    session: Session = Depends(get_session),
+):
+    """Analyse technique : unite de temps (jour, semaine, mois) et periodes au choix."""
+    periodes = [int(n) for n in mm.split(",") if 0 < int(n) <= 400]
+    return technique_service.technique(session, valeur_id, unite, periodes, rsi, bollinger, stochastique, atr, adx)
 
 
 @router.get("/{valeur_id}/valorisation")

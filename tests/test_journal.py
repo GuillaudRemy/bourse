@@ -26,3 +26,15 @@ def test_journal_complet():
         assert client.get(f"/valeurs/{vid}/journal/pieces/{piece['id']}").content == b"%PDF-1.4 test"
         assert client.delete(f"/valeurs/{vid}/journal/pieces/{piece['id']}").status_code == 204
         assert client.get(f"/valeurs/{vid}/journal/pieces").json() == []
+
+
+def test_annotations():
+    with TestClient(app) as client:
+        vid = client.post("/valeurs", json={"symbole": "ANNOT", "source": "import"}).json()["id"]
+        niveau = client.post(f"/valeurs/{vid}/annotations", json={"type": "niveau", "donnees": {"prix": 152.5}}).json()
+        ligne = {"t1": "2024-01-02", "p1": 10, "t2": "2025-01-02", "p2": 12}
+        client.post(f"/valeurs/{vid}/annotations", json={"type": "ligne", "donnees": ligne})
+        assert [a["type"] for a in client.get(f"/valeurs/{vid}/annotations").json()] == ["niveau", "ligne"]
+        assert client.post(f"/valeurs/{vid}/annotations", json={"type": "fleche", "donnees": {}}).status_code == 422
+        client.delete(f"/valeurs/{vid}/annotations/{niveau['id']}")
+        assert len(client.get(f"/valeurs/{vid}/annotations").json()) == 1

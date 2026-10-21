@@ -108,3 +108,45 @@ def signaux(cloture: pd.Series, mm50: pd.Series, mm200: pd.Series, rsi14: pd.Ser
             resultat.append({"ton": "neutre", "texte": f"RSI neutre ({valeur:.0f})"})
 
     return resultat
+
+
+# ── Indicateurs complementaires ───────────────────────────────────────
+def stochastique(haut: pd.Series, bas: pd.Series, cloture: pd.Series, n: int = 14, d: int = 3) -> pd.DataFrame:
+    """%K : position de la cloture dans la fourchette des n dernieres seances ; %D : sa moyenne."""
+    plus_haut, plus_bas = haut.rolling(n, min_periods=n).max(), bas.rolling(n, min_periods=n).min()
+    k = 100 * (cloture - plus_bas) / (plus_haut - plus_bas).replace(0, np.nan)
+    return pd.DataFrame({"k": k, "d": k.rolling(d, min_periods=d).mean()})
+
+
+def atr(haut: pd.Series, bas: pd.Series, cloture: pd.Series, n: int = 14) -> pd.Series:
+    """Amplitude moyenne reelle (Wilder) : la volatilite en unites de prix."""
+    precedente = cloture.shift(1)
+    vraie = pd.concat([haut - bas, (haut - precedente).abs(), (bas - precedente).abs()], axis=1).max(axis=1)
+    return vraie.ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
+
+
+def adx(haut: pd.Series, bas: pd.Series, cloture: pd.Series, n: int = 14) -> pd.DataFrame:
+    """Force de la tendance (ADX, au-dessus de 25 : tendance marquee) et directions +DI / -DI."""
+    hausse, baisse = haut.diff(), -bas.diff()
+    dm_plus = hausse.where((hausse > baisse) & (hausse > 0), 0.0)
+    dm_moins = baisse.where((baisse > hausse) & (baisse > 0), 0.0)
+    amplitude = atr(haut, bas, cloture, n)
+    di_plus = 100 * dm_plus.ewm(alpha=1 / n, adjust=False, min_periods=n).mean() / amplitude
+    di_moins = 100 * dm_moins.ewm(alpha=1 / n, adjust=False, min_periods=n).mean() / amplitude
+    dx = 100 * (di_plus - di_moins).abs() / (di_plus + di_moins).replace(0, np.nan)
+    lisse = dx.ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
+    return pd.DataFrame({"adx": lisse, "di_plus": di_plus, "di_moins": di_moins})
+
+
+def ichimoku(haut: pd.Series, bas: pd.Series, cloture: pd.Series, tenkan: int = 9, kijun: int = 26,
+             senkou: int = 52) -> pd.DataFrame:
+    """Lignes Ichimoku. Le nuage (senkou A et B) est normalement projete de `kijun` periodes vers
+    l'avant ; on le renvoie ici aligne sur la date de calcul, le graphique le decale."""
+    milieu = lambda n: (haut.rolling(n, min_periods=n).max() + bas.rolling(n, min_periods=n).min()) / 2  # noqa: E731
+    t, k = milieu(tenkan), milieu(kijun)
+    return pd.DataFrame({"tenkan": t, "kijun": k, "senkou_a": (t + k) / 2, "senkou_b": milieu(senkou)})
+
+
+def obv(cloture: pd.Series, volume: pd.Series) -> pd.Series:
+    """On-Balance Volume : volume cumule, ajoute les jours de hausse et retranche les jours de baisse."""
+    return (np.sign(cloture.diff()).fillna(0) * volume.fillna(0)).cumsum()
