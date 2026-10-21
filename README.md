@@ -52,13 +52,6 @@ outils/publier.sh 0.2.0 "Ce qui change"
 GitHub Actions construit alors les deux versions, les installe et les teste sur un vrai Windows et
 un vrai Ubuntu 24.04 ; la publication n'est créée que si tout est vert.
 
-## Lancer avec Docker
-
-```bash
-docker compose up -d --build
-```
-
-Puis http://localhost:8081. La base vit dans `donnees/`, une copie par jour va dans `sauvegardes/`.
 
 ## Ce que calcule l'application
 
