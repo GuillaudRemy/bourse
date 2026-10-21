@@ -220,9 +220,13 @@ def repartition(lignes: list[dict], cle: str) -> list[dict]:
 
 def correlations(prix_eur: dict[int, pd.Series], annees: int = 3) -> dict:
     """Correlations des rendements hebdomadaires sur les dernieres annees."""
+    # Une valeur sans cours (pas encore telechargee, par exemple juste apres un import) est ignoree.
+    prix_eur = {k: s for k, s in prix_eur.items() if s is not None and not s.dropna().empty}
     if len(prix_eur) < 2:
         return {}
-    df = pd.DataFrame(prix_eur).resample("W").last()
+    df = pd.DataFrame(prix_eur)
+    df.index = pd.DatetimeIndex(df.index)
+    df = df.resample("W").last()
     df = df[df.index >= df.index.max() - pd.DateOffset(years=annees)].pct_change().dropna(how="all")
     matrice = df.corr(min_periods=26)
     return {"ids": [int(c) for c in matrice.columns],

@@ -51,6 +51,24 @@ function fichier(f) {
   return { method: 'POST', body: donnees }
 }
 
+/** Reponse texte lue morceau par morceau (assistant) : `surMorceau` recoit le texte deja recu. */
+export async function flux(path, donnees, surMorceau) {
+  const reponse = await fetch(BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) })
+  if (!reponse.ok) {
+    const data = await reponse.json().catch(() => null)
+    throw new Error(messageErreur(data) || `Erreur serveur (${reponse.status}).`)
+  }
+  const lecteur = reponse.body.getReader()
+  const decodeur = new TextDecoder()
+  let texte = ''
+  for (;;) {
+    const { done, value } = await lecteur.read()
+    if (done) return texte
+    texte += decodeur.decode(value, { stream: true })
+    surMorceau(texte)
+  }
+}
+
 export const api = {
   valeurs: {
     list:       ()          => request('/valeurs'),
@@ -151,6 +169,15 @@ export const api = {
 
   champs: () => request('/champs'),
 
+  assistant: {
+    etat:        ()          => request('/assistant'),
+    analyses:    id          => request(`/valeurs/${id}/assistant`),
+    supprimer:   (id, a)     => request(`/valeurs/${id}/assistant/${a}`, { method: 'DELETE' }),
+    lireRapport: (id, f)     => request(`/valeurs/${id}/assistant/rapport`, fichier(f)),
+    relirePiece: (id, piece) => request(`/valeurs/${id}/assistant/rapport/${piece}`, { method: 'POST' }),
+    travail:     t           => request(`/assistant/travaux/${t}`),
+    actualites:  id          => request(`/valeurs/${id}/assistant/actualites`, { method: 'POST' }),
+  },
   systeme: {
     aPropos: () => request('/a-propos'),
     sauvegardes: () => request('/sauvegardes'),

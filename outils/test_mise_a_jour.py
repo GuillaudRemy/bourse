@@ -35,6 +35,8 @@ PORTS = range(int(PORT), int(PORT) + 20)
 def verifier(condition, message):
     print(("  ok    " if condition else "  ECHEC ") + message, flush=True)
     if not condition:
+        for journal in sorted(Path(tempfile.gettempdir()).glob("bourse-maj-*/lancement-*.log")):
+            print(f"--- {journal}\n{journal.read_text(encoding='utf-8', errors='replace')[-3000:]}")
         raise SystemExit(1)
 
 
@@ -99,7 +101,12 @@ def lancer(installe: Path, donnees: Path, api: str | None):
     env = {**os.environ, "BOURSE_TEST": "1", "BOURSE_DONNEES": str(donnees), "BOURSE_PORT": PORT}
     if api:
         env.update({"BOURSE_TEST_MAJ": "1", "BOURSE_MAJ_API": api})
-    processus = subprocess.Popen([str(python), "-m", "backend.lanceur"], cwd=installe, env=env)
+    # Console a part (Windows) : l'installateur ferme l'ancienne version par un Ctrl+C envoye a SA console,
+    # qui ne doit pas atteindre ce script. Sortie gardee dans un fichier, affichee en cas d'echec.
+    journal = open(donnees.parent / f"lancement-{len(LANCES)}.log", "w", encoding="utf-8")  # noqa: SIM115
+    options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | 0x08000000} if os.name == "nt" else {}  # sans fenetre
+    processus = subprocess.Popen([str(python), "-u", "-m", "backend.lanceur"], cwd=installe, env=env,
+                                 stdout=journal, stderr=subprocess.STDOUT, **options)
     LANCES.append(processus)
     return processus
 

@@ -76,6 +76,11 @@ DEFINITIONS = [
         "Exemple : /home/papa/GoogleDrive ou C:\\Users\\Papa\\OneDrive.",
     ),
     Definition(
+        "assistant_modele", "Assistant : modèle Ollama",
+        "Nom d'un modèle installé dans Ollama (liste : commande « ollama list »). Vide : choix automatique "
+        "(qwen3.5 de préférence). L'assistant fonctionne entièrement sur cet ordinateur, sous Ubuntu pour l'instant.",
+    ),
+    Definition(
         "canal_beta", "Recevoir les versions bêta",
         "« oui » : les versions de test (0.6.0-beta.1…) sont installées dès leur publication, pour les essayer "
         "avant tout le monde. « non » (conseillé) : uniquement les versions stables.",

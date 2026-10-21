@@ -109,6 +109,22 @@ Alternative gratuite pour les projets libres : [SignPath Foundation](https://sig
 - **Calendrier** : publications de résultats et dividendes. **Alertes** : position dans le couloir, RSI, cours, croisements de moyennes,
   notifiées dans l'application, sur le bureau et par e-mail.
 
+## Assistant local (facultatif, Ubuntu)
+
+Un onglet « Assistant » apparaît dans chaque fiche si [Ollama](https://ollama.com) tourne sur le PC avec
+au moins un modèle (`ollama pull qwen3.5:9b` conseillé ; une carte graphique de 8 Go ou plus le rend rapide).
+Tout reste sur l'ordinateur : l'application refuse toute adresse d'Ollama non locale.
+
+- **Lire un rapport annuel** (PDF, rangé dans le journal) : pages utiles repérées par mots-clés, points relevés
+  avec leur page, résumé, risques, stratégie, perspectives, signaux à examiner pour la vérification n°3, et
+  questions à vérifier soi-même. Environ 2 à 3 minutes pour un document de 400 pages.
+- **Questions sur la fiche** : réponses à partir des seuls chiffres calculés par l'application.
+- **Résumé des actualités** : à partir des titres des 60 derniers jours.
+
+Choix délibérés, après essais sur de vrais rapports : pas de verdict de rupture produit par le modèle (il ne sait
+pas juger la portée d'un fait), et pas de dépendance au format JSON (ignoré par certains modèles sur de longs
+textes). Modèle réglable dans Réglages (« Assistant : modèle Ollama »).
+
 ## Formats CSV acceptés
 
 Séparateur `;` `,` ou tabulation, virgule décimale, dates ISO ou JJ/MM/AAAA, en-têtes FR ou EN.

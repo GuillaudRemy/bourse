@@ -78,7 +78,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 7.8 Mention légale visible — §12
 
 ## Phase 8 — Pistes avancées
-- [ ] 8.1 Assistant IA (Claude) sur rapports annuels, clé API facultative — §13
+- [x] 8.1 Assistant IA local (Ollama, Ubuntu) : rapports annuels, questions sur la fiche, actualités — §13
 - [x] 8.2 Consensus des analystes — §13
 - [x] ~~8.3 Données ESG~~ — abandonné : pas de source gratuite fiable (décision du 21/10/2026)
 - [x] 8.4 Partage entre plusieurs PC (export / import des fiches) — §13

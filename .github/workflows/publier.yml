@@ -116,7 +116,7 @@ jobs:
           } else {
             Set-Content -Path "$app\VERSION" -Value "0.0.1"
           }
-          python outils/test_mise_a_jour.py "$app" sortie\Bourse-Setup.exe "${{ github.ref_name }}"
+          python -u outils/test_mise_a_jour.py "$app" sortie\Bourse-Setup.exe "${{ github.ref_name }}"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -182,7 +182,7 @@ jobs:
           else
             echo 0.0.1 > "$APP/VERSION"
           fi
-          python outils/test_mise_a_jour.py "$APP" sortie/bourse-linux-x86_64.tar.gz "${{ github.ref_name }}"
+          python -u outils/test_mise_a_jour.py "$APP" sortie/bourse-linux-x86_64.tar.gz "${{ github.ref_name }}"
 
       - uses: actions/upload-artifact@v7
         with:

@@ -542,3 +542,10 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
 /* ─── MENTION LEGALE ─────────────────────────────────────────────── */
 .pied-legal { max-width: 1400px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
 .pied-legal a { color: var(--muted); }
+
+/* ─── ASSISTANT ──────────────────────────────────────────────────── */
+.bulle-question { align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; background: var(--accent-bg); color: var(--ink); }
+.bulle-reponse { align-self: flex-start; max-width: 95%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; background: var(--surface-2);
+  border: 1px solid var(--border); white-space: pre-wrap; line-height: 1.5; }
+.barre-progression { height: 8px; border-radius: 4px; background: var(--ligne); overflow: hidden; }
+.barre-progression > div { height: 100%; background: var(--accent); transition: width .4s; }

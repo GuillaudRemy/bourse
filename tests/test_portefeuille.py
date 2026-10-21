@@ -135,3 +135,15 @@ def test_frais_calcules_si_non_saisis():
         apercu = client.get("/portefeuille/frais", params={"compte_id": compte, "type": "achat", "quantite": 20,
                                                            "prix": 100, "jour": "2026-01-05", "valeur_id": vid}).json()
         assert apercu["courtage"] == 3.0 and apercu["ttf_applicable"] is False
+
+
+def test_correlations_sans_cours():
+    """Positions dont les cours ne sont pas encore telecharges : pas de plantage."""
+    import pandas as pd
+
+    from backend.analyse import portefeuille as pf
+    vide = pd.Series(dtype=float)
+    assert pf.correlations({1: vide, 2: vide}) == {}
+    jours = pd.bdate_range("2023-01-02", periods=900)
+    serie = pd.Series(range(1, 901), index=jours, dtype=float)
+    assert pf.correlations({1: serie, 2: serie * 2, 3: vide})["ids"] == [1, 2]

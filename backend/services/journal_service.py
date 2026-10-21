@@ -11,7 +11,7 @@ from backend.core.config import config
 from backend.db.schema import Decision, PieceJointe, These, Valeur
 from backend.models.journal import DecisionEcriture, DecisionRead, PieceRead, TheseEcriture, TheseRead
 
-TAILLE_MAX = 50 * 1024 * 1024
+TAILLE_MAX = 150 * 1024 * 1024    # un document d'enregistrement universel depasse souvent 50 Mo
 
 
 def dossier_pieces() -> Path:
@@ -77,7 +77,7 @@ class JournalService:
         self._valeur(valeur_id)
         contenu = await fichier.read()
         if len(contenu) > TAILLE_MAX:
-            raise HTTPException(413, "Fichier trop volumineux (50 Mo maximum).")
+            raise HTTPException(413, "Fichier trop volumineux (150 Mo maximum).")
         nom = Path(fichier.filename or "document").name
         disque = f"{uuid.uuid4().hex}{Path(nom).suffix.lower()[:10]}"
         (dossier_pieces() / disque).write_bytes(contenu)

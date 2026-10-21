@@ -12,6 +12,7 @@ import OngletQualite      from '../components/fiche/OngletQualite'
 import OngletValorisation from '../components/fiche/OngletValorisation'
 import OngletJournal      from '../components/fiche/OngletJournal'
 import OngletDonnees      from '../components/fiche/OngletDonnees'
+import OngletAssistant    from '../components/fiche/OngletAssistant'
 
 const ONGLETS = [
   { cle: 'regression',   libelle: 'Droite de régression' },
@@ -20,6 +21,7 @@ const ONGLETS = [
   { cle: 'qualite',      libelle: 'Qualité' },
   { cle: 'valorisation', libelle: 'Valorisation' },
   { cle: 'journal',      libelle: 'Journal' },
+  { cle: 'assistant',    libelle: 'Assistant', ia: true },
   { cle: 'fondamentaux', libelle: 'Fondamentaux' },
   { cle: 'donnees',      libelle: 'Données & réglages' },
 ]
@@ -32,6 +34,9 @@ export default function Fiche() {
   const [analyse, setAnalyse] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [avertissement, setAvertissement] = useState(null)
+  // Assistant local : l'onglet n'existe que si Ollama et un modele sont presents sur ce PC.
+  const [assistant, setAssistant] = useState(null)
+  useEffect(() => { api.assistant.etat().then(setAssistant).catch(() => setAssistant(null)) }, [])
   const [dividendes, setDividendes] = useState(true)
   const [debut, setDebut] = useState('')
   const [enEuros, setEnEuros] = useState(false)
@@ -118,7 +123,7 @@ export default function Fiche() {
       )}
 
       <div className="onglets">
-        {ONGLETS.map(o => (
+        {ONGLETS.filter(o => !o.ia || assistant?.disponible).map(o => (
           <button
             key={o.cle} className={`onglet${onglet === o.cle ? ' actif' : ''}`}
             onClick={() => setRecherche(o.cle === 'regression' ? {} : { onglet: o.cle }, { replace: true })}
@@ -148,6 +153,7 @@ export default function Fiche() {
           {onglet === 'qualite'      && <OngletQualite analyse={analyse} />}
           {onglet === 'valorisation' && <OngletValorisation key={analyse.valeur.id} analyse={analyse} />}
           {onglet === 'journal'      && <OngletJournal analyse={analyse} />}
+          {onglet === 'assistant'    && assistant?.disponible && <OngletAssistant analyse={analyse} etat={assistant} />}
           {onglet === 'fondamentaux' && <OngletFondamentaux analyse={analyse} recharger={charger} />}
           {onglet === 'donnees'      && <OngletDonnees analyse={analyse} recharger={charger} />}
         </>

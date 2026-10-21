@@ -313,3 +313,16 @@ class Annotation(SQLModel, table=True):
     donnees:    str                      # {"prix": …} · {"t1", "p1", "t2", "p2"} · {"jour", "texte"}
 
     valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
+
+
+class AnalyseIA(SQLModel, table=True):
+    """Resultat de l'assistant local (Ollama) : lecture d'un rapport annuel, resume des actualites."""
+    id:         Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    type:       str                      # rapport · actualites
+    titre:      str                      # document lu, ou « Actualites du … »
+    modele:     str
+    duree:      Optional[float] = None   # secondes
+    resultat:   str                      # JSON
+
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
