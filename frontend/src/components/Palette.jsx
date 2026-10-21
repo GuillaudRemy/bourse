@@ -14,16 +14,18 @@ export default function Palette() {
   const naviguer = useNavigate()
   const [ouverte, setOuverte] = useState(false)
   const [texte, setTexte] = useState('')
-  const [valeurs, setValeurs] = useState([])
+  const [valeurs, setValeurs] = useState(null)       // null : pas encore chargees
   const [choix, setChoix] = useState(0)
   const champ = useRef(null)
 
   useEffect(() => {
+    const charger = () => api.valeurs.list().then(setValeurs).catch(() => setValeurs([]))
+    charger()
     const touche = e => {
       const saisie = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
       if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !saisie)) {
         e.preventDefault(); setOuverte(true); setTexte(''); setChoix(0)
-        api.valeurs.list().then(setValeurs).catch(() => {})
+        charger()
       }
     }
     const ouvrir = () => touche({ key: 'k', ctrlKey: true, preventDefault() {} })
@@ -35,10 +37,11 @@ export default function Palette() {
   const resultats = useMemo(() => {
     const t = sansAccents(texte.trim())
     const pages = PAGES.filter(([nom]) => !t || sansAccents(nom).includes(t)).map(([nom, lien]) => ({ nom, lien, type: 'Page' }))
-    const vals = valeurs.filter(v => !t || sansAccents(`${v.nom} ${v.symbole} ${v.isin ?? ''}`).includes(t))
+    const vals = (valeurs ?? []).filter(v => !t || sansAccents(`${v.nom} ${v.symbole} ${v.isin ?? ''}`).includes(t))
       .slice(0, 8).map(v => ({ nom: v.nom, detail: v.symbole, lien: `/valeurs/${v.id}`, type: 'Valeur' }))
     const liste = t ? [...vals, ...pages] : [...pages, ...vals]
-    if (t.length >= 2) liste.push({ nom: `Chercher « ${texte.trim()} » sur Yahoo et l'ajouter`, lien: `/valeurs?ajouter=${encodeURIComponent(texte.trim())}`, type: 'Ajouter' })
+    // Tant que la liste n'est pas chargee, ne pas proposer d'ajouter une valeur peut-etre deja suivie.
+    if (t.length >= 2 && valeurs) liste.push({ nom: `Chercher « ${texte.trim()} » sur Yahoo et l'ajouter`, lien: `/valeurs?ajouter=${encodeURIComponent(texte.trim())}`, type: 'Ajouter' })
     return liste
   }, [texte, valeurs])
 
