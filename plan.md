@@ -157,7 +157,7 @@ C'est le cœur d'une application « sérieuse » : il faut les **trois états fi
 
 ### 5.3 Fiscalité française 🟢 — ⏱ 2 j
 - [ ] Plafond PEA (150 000 €), date d'ouverture et ancienneté (5 ans), éligibilité des titres au PEA.
-- [ ] Estimation de l'imposition au flat tax de 30 % sur le CTO, avec l'option du barème progressif.
+- [ ] Estimation de l'imposition à la flat tax (31,4 % depuis 2026 : 12,8 % d'impôt + 18,6 % de prélèvements sociaux ; 30 % jusqu'en 2025) sur le CTO, avec l'option du barème progressif ; PEA : prélèvements sociaux seuls après 5 ans.
 - [ ] Récapitulatif annuel pour aider à vérifier l'IFU.
 
 ---

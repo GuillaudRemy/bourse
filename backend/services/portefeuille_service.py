@@ -6,6 +6,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+from backend.analyse import fiscalite as fisc
 from backend.analyse import portefeuille as pf
 from backend.analyse.regression import ajuster, zone
 from backend.core import reglages
@@ -15,9 +16,6 @@ from backend.services.stockage import charger_cours, charger_divisions, charger_
 from backend.sources import bce
 from backend.sources.base import SourceIndisponible
 from backend.sources.esef import PAYS_EUROPE
-
-PLAFONDS = {"PEA": 150_000, "PEA-PME": 225_000}     # PEA-PME : plafond commun avec le PEA
-FLAT_TAX = 0.30                                      # 12,8 % d'impot + 17,2 % de prelevements sociaux
 
 
 class PortefeuilleService:
@@ -198,7 +196,7 @@ class PortefeuilleService:
             "performance": performance,
             "correlations": {**pf.correlations({p["valeur_id"]: prix[p["valeur_id"]] for p in ouvertes}),
                              "noms": {p["valeur_id"]: p["nom"] for p in ouvertes}},
-            "fiscalite": self._fiscalite(transactions, divisions, comptes),
+            "fiscalite": self._fiscalite(transactions, divisions, comptes, prix),
         }
 
     def _performance(self, quotidien: pd.DataFrame) -> dict:
@@ -244,46 +242,46 @@ class PortefeuilleService:
         reg = ajuster(base[base.index >= base.index[-1] - pd.DateOffset(years=23)])
         return {"position": reg.position, "zone": zone(reg.position)[0]} if reg else {"position": None, "zone": None}
 
-    def _fiscalite(self, transactions: list[dict], divisions: dict, comptes: dict) -> dict:
+    def _fiscalite(self, transactions: list[dict], divisions: dict, comptes: dict, prix: dict) -> dict:
+        """Estimations fiscales par compte (voir analyse/fiscalite.py pour les regles et les sources)."""
         par_compte = defaultdict(list)
         for t in transactions:
             par_compte[t["compte_id"]].append(t)
-        resultat = []
+        tmi_texte = reglages.lire("tranche_marginale").replace(",", ".").replace("%", "").strip()
+        tmi = float(tmi_texte) / (100 if float(tmi_texte or 0) > 1 else 1) if tmi_texte else None
+        annee = date.today().year
+        resultat, verse_pea_total = [], 0.0
         for cid, ts in par_compte.items():
             compte = comptes.get(cid)
             if not compte:
                 continue
             fiche = {"compte_id": cid, "nom": compte.nom, "type": compte.type}
-            if compte.type in PLAFONDS:
-                depots = sum(t["montant"] for t in ts if t["type"] == "depot") - \
-                    sum(-t["montant"] for t in ts if t["type"] == "retrait")
-                if not any(t["type"] in ("depot", "retrait") for t in ts):
-                    depots = sum(-t["montant"] for t in ts if t["type"] == "achat") - \
-                        sum(t["montant"] for t in ts if t["type"] == "vente")
+            if compte.type in fisc.PLAFONDS:
+                avec_especes = any(t["type"] in ("depot", "retrait") for t in ts)
+                versements = sum(t["montant"] for t in ts if t["type"] in ("depot", "retrait")) if avec_especes else \
+                    sum(-t["montant"] for t in ts if t["type"] in ("achat", "vente"))
                 ouverture = compte.ouverture or min(t["jour"] for t in ts)
-                anciennete = (date.today() - ouverture).days / 365.25
+                quotidien = pf.valeur_quotidienne(ts, prix, divisions)
+                valeur = float(quotidien["valeur"].iloc[-1]) if len(quotidien) else 0.0
                 ids = {t["valeur_id"] for t in ts if t["valeur_id"]}
                 non_eligibles = [v.nom for v in self._db.exec(select(Valeur).where(Valeur.id.in_(ids)))
                                  if _eligible_pea(v) is False]
-                fiche |= {"versements": depots, "plafond": PLAFONDS[compte.type],
-                          "reste": PLAFONDS[compte.type] - depots, "ouverture": ouverture.isoformat(),
-                          "anciennete": anciennete, "cinq_ans": anciennete >= 5, "non_eligibles": non_eligibles}
+                fiche |= fisc.pea(versements, valeur, (date.today() - ouverture).days / 365.25, compte.type, annee)
+                fiche |= {"ouverture": ouverture.isoformat(), "valeur": valeur, "non_eligibles": non_eligibles}
+                verse_pea_total += versements
             elif compte.type == "CTO":
-                annees = defaultdict(lambda: {"plus_values": 0.0, "moins_values": 0.0, "dividendes": 0.0})
-                for l in pf.positions(ts, divisions).values():
-                    for jour, pv in l.ventes:
-                        annees[jour.year]["plus_values" if pv >= 0 else "moins_values"] += pv
+                ventes = [v for l in pf.positions(ts, divisions).values() for v in l.ventes]
+                dividendes = defaultdict(float)
                 for t in ts:
                     if t["type"] == "dividende":
-                        annees[t["jour"].year]["dividendes"] += t["montant"]
-                fiche["annees"] = [
-                    {"annee": a, **v, "base": max(v["plus_values"] + v["moins_values"], 0) + v["dividendes"],
-                     "impot_estime": FLAT_TAX * (max(v["plus_values"] + v["moins_values"], 0) + v["dividendes"]),
-                     "moins_values_reportables": min(v["plus_values"] + v["moins_values"], 0)}
-                    for a, v in sorted(annees.items(), reverse=True)
-                ]
+                        dividendes[t["jour"].year] += t["montant"]
+                fiche["annees"] = fisc.compte_titres(ventes, dividendes, tmi)
             resultat.append(fiche)
-        return {"comptes": resultat, "flat_tax": FLAT_TAX}
+        return {
+            "comptes": resultat, "pfu": fisc.pfu(annee), "prelevements_sociaux": fisc.prelevements_sociaux(annee),
+            "impot_revenu": fisc.IMPOT_REVENU, "tmi": tmi,
+            "plafond_commun": {"verse": verse_pea_total, "plafond": fisc.PLAFOND_COMMUN},
+        }
 
     def _compte(self, compte_id: int) -> Compte:
         compte = self._db.get(Compte, compte_id)

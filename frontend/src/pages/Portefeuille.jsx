@@ -206,45 +206,75 @@ function Correlations({ c }) {
 }
 
 function Fiscalite({ f }) {
+  const taux = v => pct(v, { decimales: 1 })
   return (
-    <div className="resume-grille">
-      {f.comptes.map(c => (
-        <div key={c.compte_id} className="carte">
-          <div className="section-titre">Fiscalité — {c.nom} ({TYPES_COMPTE[c.type]})</div>
-          {c.plafond !== undefined && (
-            <dl className="liste-cle">
-              <div><dt>Versements</dt><dd>{euros(c.versements)} / {euros(c.plafond)}</dd></div>
-              <div><dt>Reste à verser</dt><dd className={c.reste < 0 ? 'negatif' : ''}>{euros(c.reste)}</dd></div>
-              <div><dt>Ouvert le</dt><dd>{date(c.ouverture)}</dd></div>
-              <div><dt>Ancienneté</dt><dd>{nombre(c.anciennete, 1)} ans {c.cinq_ans ? '— plus de 5 ans : retraits sans clôture, gains exonérés d’impôt' : '— avant 5 ans : un retrait clôture le plan'}</dd></div>
-              {c.non_eligibles.length > 0 && <div><dt className="negatif">Titres non éligibles</dt><dd className="negatif">{c.non_eligibles.join(', ')}</dd></div>}
-            </dl>
-          )}
-          {c.annees !== undefined && (
-            <>
-              {c.annees.length === 0 && <div className="carte-corps discret">Aucune vente ni dividende pour l'instant.</div>}
-              <table className="tableau">
-                <thead><tr><th>Année</th><th>Plus-values</th><th>Moins-values</th><th>Dividendes</th><th>Impôt estimé</th></tr></thead>
-                <tbody>
-                  {c.annees.map(a => (
-                    <tr key={a.annee}>
-                      <td style={{ textAlign: 'left' }}>{a.annee}</td>
-                      <td>{nombre(a.plus_values, 0)}</td><td>{nombre(a.moins_values, 0)}</td><td>{nombre(a.dividendes, 0)}</td>
-                      <td>{euros(a.impot_estime)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="carte-corps discret">
-                Estimation au prélèvement forfaitaire unique de {pct(f.flat_tax, { decimales: 0 })} (12,8 % d'impôt + 17,2 % de prélèvements sociaux).
-                Les moins-values s'imputent sur les plus-values de l'année puis des 10 années suivantes. L'option pour le barème progressif peut être plus favorable :
-                vérifiez avec votre IFU. Les dividendes sont comptés bruts.
-              </div>
-            </>
-          )}
-          {c.plafond === undefined && c.annees === undefined && <div className="carte-corps discret">Enveloppe sans suivi fiscal particulier ici (assurance-vie : fiscalité selon l'ancienneté du contrat).</div>}
-        </div>
-      ))}
+    <div className="pile" style={{ gap: 16 }}>
+      <div className="resume-grille">
+        {f.comptes.map(c => (
+          <div key={c.compte_id} className="carte">
+            <div className="section-titre">Fiscalité — {c.nom} ({TYPES_COMPTE[c.type]})</div>
+            {c.plafond !== undefined && (
+              <>
+                <dl className="liste-cle">
+                  <div><dt>Versements</dt><dd>{euros(c.versements)} / {euros(c.plafond)}</dd></div>
+                  <div><dt>Reste à verser</dt><dd className={c.reste < 0 ? 'negatif' : ''}>{euros(c.reste)}</dd></div>
+                  <div><dt>Ouvert le · ancienneté</dt><dd>{date(c.ouverture)} · {nombre(c.anciennete, 1)} ans</dd></div>
+                  <div><dt>Gain latent (valeur {euros(c.valeur)})</dt><dd>{euros(c.gain_latent)}</dd></div>
+                  <div><dt>Si retrait total aujourd'hui</dt><dd>{euros(c.impot_retrait)} <span className="discret">({taux(c.taux_retrait)} du gain)</span></dd></div>
+                  {c.non_eligibles.length > 0 && <div><dt className="negatif">Titres non éligibles</dt><dd className="negatif">{c.non_eligibles.join(', ')}</dd></div>}
+                </dl>
+                <div className="carte-corps discret">
+                  {c.cinq_ans
+                    ? <>Plus de 5 ans : les gains sont exonérés d'impôt sur le revenu, mais les prélèvements sociaux ({taux(f.prelevements_sociaux)}) restent dus au retrait.
+                        Un retrait partiel ne clôture pas le plan et les versements restent possibles. Certaines analyses appliquent
+                        l'ancien taux de 17,2 % à la part des gains acquis avant 2026 : à vérifier avec votre banque.</>
+                    : <>Moins de 5 ans : un retrait, même partiel, clôture en principe le plan (sauf licenciement, invalidité, retraite anticipée,
+                        titres d'une société liquidée, ou création d'entreprise) et les gains sont imposés à la flat tax de {taux(f.pfu)}.</>}
+                </div>
+              </>
+            )}
+            {c.annees !== undefined && (
+              <>
+                {c.annees.length === 0 && <div className="carte-corps discret">Aucune vente ni dividende pour l'instant.</div>}
+                {c.annees.length > 0 && (
+                  <div className="tableau-conteneur">
+                    <table className="tableau">
+                      <thead><tr><th>Année</th><th>Plus-values</th><th>Moins-values</th><th>Reports imputés</th><th>Dividendes</th><th>Flat tax</th>{f.tmi !== null && <th>Barème ({taux(f.tmi)})</th>}<th>Report restant</th></tr></thead>
+                      <tbody>
+                        {c.annees.map(a => (
+                          <tr key={a.annee}>
+                            <td style={{ textAlign: 'left' }}>{a.annee}</td>
+                            <td>{nombre(a.plus_values, 0)}</td><td>{nombre(a.moins_values, 0)}</td>
+                            <td>{nombre(a.moins_values_anterieures_imputees, 0)}</td><td>{nombre(a.dividendes, 0)}</td>
+                            <td title={`taux ${taux(a.taux_pfu)}`}>{euros(a.impot_pfu)}</td>
+                            {f.tmi !== null && <td className={a.impot_bareme < a.impot_pfu ? 'positif' : ''}>{euros(a.impot_bareme)}</td>}
+                            <td>{euros(a.report_disponible)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="carte-corps discret">
+                  Flat tax (PFU) de {taux(f.pfu)} depuis 2026 : {taux(f.impot_revenu)} d'impôt sur le revenu + {taux(f.prelevements_sociaux)} de
+                  prélèvements sociaux (30 % jusqu'en 2025, quand les prélèvements étaient de 17,2 %). Les moins-values s'imputent sur les
+                  plus-values de l'année puis des 10 années suivantes. L'option pour le barème progressif (abattement de 40 % sur les dividendes,
+                  prélèvements sociaux toujours dus) s'applique à tous les revenus de placement de l'année ;
+                  {f.tmi === null ? ' indiquez votre tranche marginale dans les Réglages pour la comparer.' : ' en vert, elle serait plus avantageuse.'}
+                </div>
+              </>
+            )}
+            {c.plafond === undefined && c.annees === undefined && <div className="carte-corps discret">Enveloppe sans suivi fiscal ici (assurance-vie : fiscalité selon l'ancienneté du contrat).</div>}
+          </div>
+        ))}
+      </div>
+      {f.plafond_commun.verse > 0 && (
+        <div className="discret">PEA et PEA-PME : {euros(f.plafond_commun.verse)} versés sur le plafond commun de {euros(f.plafond_commun.plafond)} (150 000 € au plus sur le PEA classique).</div>
+      )}
+      <div className="discret">
+        Estimations indicatives, sources : <a className="lien-poste" href="https://www.service-public.gouv.fr/particuliers/vosdroits/F21618" target="_blank" rel="noreferrer">service-public.gouv.fr (plus-values)</a>,{' '}
+        <a className="lien-poste" href="https://www.service-public.gouv.fr/particuliers/vosdroits/F2385" target="_blank" rel="noreferrer">service-public.gouv.fr (PEA)</a>. L'IFU de votre établissement et votre déclaration font foi.
+      </div>
     </div>
   )
 }

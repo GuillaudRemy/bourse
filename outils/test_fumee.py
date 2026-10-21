@@ -85,6 +85,8 @@ def main(dossier: Path) -> None:
         verifier(statut == 200, f"l'application repond (version {sante['version']})")
         statut, page = appel("GET", "/valeurs/1")
         verifier(statut == 200 and b'id="root"' in page, "l'interface est servie")
+        statut, icone = appel("GET", "/favicon.ico")
+        verifier(statut == 200 and icone[:4] == b"\x00\x00\x01\x00", "l'icone du navigateur est servie")
         statut, _ = appel("GET", "/assets/inexistant.js")
         verifier(statut == 200, "les adresses inconnues renvoient l'interface")
 

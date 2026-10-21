@@ -58,7 +58,7 @@ def test_parcours_portefeuille_et_fiscalite(csv_cours):
         assert position["quantite"] == 6 and position["pru"] == pytest.approx(100.2)
         assert position["plus_value_realisee"] == pytest.approx(598 - 4 * 100.2)
         annee = s["fiscalite"]["comptes"][0]["annees"][0]
-        assert annee["annee"] == 2018 and annee["impot_estime"] == pytest.approx(0.30 * (598 - 400.8 + 12))
+        assert annee["annee"] == 2018 and annee["impot_pfu"] == pytest.approx(0.30 * (598 - 400.8 + 12))
         assert s["performance"]["xirr"] is not None
 
 
@@ -91,3 +91,21 @@ def test_divisions_ramenees_a_la_base_actuelle():
     quotidien = pf.valeur_quotidienne(t, {1: prix}, divisions)
     assert quotidien["valeur"].iloc[-1] == pytest.approx(4800)
     assert abs(pf.twr(quotidien[quotidien.index <= jours[-1]]).iloc[-1]) < 1e-9
+
+
+def test_fiscalite_taux_par_annee_et_report_des_moins_values():
+    from backend.analyse import fiscalite as f
+    assert f.pfu(2025) == pytest.approx(0.30) and f.pfu(2026) == pytest.approx(0.314)
+    ventes = [(date(2024, 5, 1), -1000.0), (date(2026, 3, 1), 1500.0), (date(2026, 9, 1), 200.0)]
+    lignes = {l["annee"]: l for l in f.compte_titres(ventes, {2026: 100.0}, tmi=0.11)}
+    assert lignes[2024]["impot_pfu"] == 0 and lignes[2024]["report_disponible"] == 1000
+    # 2026 : 1 700 de plus-values - 1 000 de moins-values reportees = 700, + 100 de dividendes, a 31,4 %.
+    assert lignes[2026]["moins_values_anterieures_imputees"] == 1000
+    assert lignes[2026]["impot_pfu"] == pytest.approx(0.314 * 800)
+    assert lignes[2026]["impot_bareme"] == pytest.approx(0.11 * (700 + 60) + 0.186 * 800)
+    # Moins-value trop ancienne (plus de 10 ans) : perdue.
+    vieilles = {l["annee"]: l for l in f.compte_titres([(date(2010, 1, 1), -500.0), (date(2021, 1, 1), 500.0)], {})}
+    assert vieilles[2021]["moins_values_anterieures_imputees"] == 0
+    p = f.pea(versements=10000, valeur=16000, anciennete=6, type_="PEA", annee=2026)
+    assert p["impot_retrait"] == pytest.approx(0.186 * 6000) and p["reste"] == 140000
+    assert f.pea(10000, 16000, 3, "PEA", 2026)["impot_retrait"] == pytest.approx(0.314 * 6000)

@@ -34,6 +34,11 @@ DEFINITIONS = [
         defaut="CAC.PA",
     ),
     Definition(
+        "tranche_marginale", "Tranche marginale d'imposition (TMI)",
+        "En % : 0, 11, 30, 41 ou 45. Facultatif : sert à comparer la flat tax à l'option pour le barème progressif "
+        "dans la fiscalité du compte-titres.",
+    ),
+    Definition(
         "notifications_bureau", "Notifications sur le bureau",
         "« oui » : une alerte déclenchée s'affiche aussi en notification Windows ou Ubuntu.", defaut="oui",
     ),
