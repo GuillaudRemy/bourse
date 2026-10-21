@@ -71,7 +71,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 ## Phase 7 — Distribution et sécurité
 - [x] 7.1 Empreintes SHA-256 publiées et vérifiées avant toute mise à jour — §12
 - [x] 7.2 Retour arrière automatique si la nouvelle version ne démarre pas — §12
-- [ ] 7.3 Test de mise à jour N−1 → N en CI (Windows et Linux) — §11.1
+- [x] 7.3 Test de mise à jour N−1 → N en CI (Windows et Linux) — §11.1
 - [x] 7.4 Canal bêta — §12
 - [x] 7.5 Sauvegarde externe vers un dossier synchronisé — §12
 - [x] 7.7 Signature de code Windows (prête, activée par un secret) — §12
