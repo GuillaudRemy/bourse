@@ -63,6 +63,8 @@ export const api = {
     actualiser: (id)        => request(`/valeurs/${id}/actualiser`, { method: 'POST' }),
     actualiserTout: ()      => request('/valeurs/actualiser', { method: 'POST' }),
     actualisation:  ()      => request('/valeurs/actualisation'),
+    valorisation:   (id, h)  => request(`/valeurs/${id}/valorisation${parametres(h)}`),
+    secteur:        (id)     => request(`/valeurs/${id}/secteur`),
   },
 
   fondamentaux: {
@@ -77,6 +79,19 @@ export const api = {
     pdf:          (id, f) => request(`/valeurs/${id}/import/pdf`, fichier(f)),
     lot:          (id, annees, source = 'pdf') => request(`/valeurs/${id}/import/lot`, { method: 'POST', ...corps({ annees, source }) }),
     coller:       (id, texte) => request(`/valeurs/${id}/import/fondamentaux/texte`, { method: 'POST', ...corps({ texte }) }),
+  },
+
+  journal: {
+    these:          (id)          => request(`/valeurs/${id}/journal/these`),
+    ecrireThese:    (id, data)    => request(`/valeurs/${id}/journal/these`, { method: 'PUT', ...corps(data) }),
+    decisions:      (id)          => request(`/valeurs/${id}/journal/decisions`),
+    ajouterDecision:(id, data)    => request(`/valeurs/${id}/journal/decisions`, { method: 'POST', ...corps(data) }),
+    modifierDecision:(id, d, data) => request(`/valeurs/${id}/journal/decisions/${d}`, { method: 'PUT', ...corps(data) }),
+    supprimerDecision:(id, d)     => request(`/valeurs/${id}/journal/decisions/${d}`, { method: 'DELETE' }),
+    pieces:         (id)          => request(`/valeurs/${id}/journal/pieces`),
+    ajouterPiece:   (id, f)       => request(`/valeurs/${id}/journal/pieces`, fichier(f)),
+    supprimerPiece: (id, p)       => request(`/valeurs/${id}/journal/pieces/${p}`, { method: 'DELETE' }),
+    lienPiece:      (id, p)       => `${BASE}/valeurs/${id}/journal/pieces/${p}`,
   },
 
   champs: () => request('/champs'),

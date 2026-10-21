@@ -8,8 +8,9 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from backend.analyse import benefices, fiabilite, indices, qualite, ratios, robustesse, scores
+from backend.analyse import benefices, fiabilite, indices, projection, qualite, ratios, robustesse, scores
 from backend.analyse import indicateurs as ind
+from backend.analyse import valorisation as valo
 from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
 from backend.db.schema import Valeur
@@ -142,7 +143,8 @@ class AnalyseService:
             "qualite": qualite.controler(cours),
             "avertissement_indice": indices.avertissement(valeur.symbole, valeur.nom, valeur.type),
             "fondamentaux": fondamentaux,
-            "comptes": self._comptes(valeur, fondamentaux),
+            "comptes": (comptes := self._comptes(valeur, fondamentaux)),
+            "valorisation": self._valorisation(valeur, fondamentaux, comptes),
             "benefices": benefices.analyser(self._cloture_origine, fondamentaux),
         }
 
@@ -151,6 +153,7 @@ class AnalyseService:
             return resultat
 
         resultat["regression"] = self._regression(reg, fenetre)
+        resultat["projection"] = projection.analyser(reg, reg.fin)
         base = (cours["ajuste"] if base_ajustee else cours["cloture"]).dropna()
         coupure = robustesse.rupture(fenetre)
         resultat["robustesse"] = {
@@ -185,6 +188,55 @@ class AnalyseService:
             "altman": self._altman(valeur, comptes),
             "beneish": beneish[-10:],
         }
+
+    def _valorisation(self, valeur: Valeur, fondamentaux: list[dict], comptes: dict | None,
+                      hypotheses: valo.Hypotheses | None = None) -> dict | None:
+        """Multiples situes dans leur histoire, et modeles de valeur intrinseque. Calcules dans la
+        devise des comptes ; si la cotation est dans une autre devise, les multiples seraient faux."""
+        if comptes is None or self._cloture_origine.empty:
+            return None
+        if valeur.devise_comptes and valeur.devise and valeur.devise_comptes != valeur.devise:
+            return {"indisponible": f"Cotation en {valeur.devise}, comptes en {valeur.devise_comptes} : "
+                                    "multiples non calculés pour éviter un mélange de devises."}
+        lignes = [f for f in fondamentaux if f.get("chiffre_affaires") is not None or f.get("benefice_net") is not None]
+        cours = float(self._cloture_origine.iloc[-1])
+        historique = valo.multiples_annuels(self._cloture_origine, lignes)
+        hypotheses = hypotheses or valo.hypotheses_par_defaut(lignes, comptes["synthese"])
+        return {
+            "multiples": valo.situer(cours, lignes, historique),
+            "historique": historique,
+            "modeles": valo.modeles(cours, lignes, comptes["synthese"], hypotheses),
+        }
+
+    def valorisation(self, valeur_id: int, hypotheses: valo.Hypotheses) -> dict:
+        """Recalcul des modeles avec les hypotheses choisies par l'utilisateur."""
+        valeur, cours, *_ = self._contexte(valeur_id, True, None)
+        fond = self._fondamentaux(valeur_id, self._cloture_origine)
+        comptes = self._comptes(valeur, fond)
+        resultat = self._valorisation(valeur, fond, comptes, hypotheses)
+        if not resultat or "modeles" not in resultat:
+            raise HTTPException(409, "Comptes insuffisants pour une valorisation.")
+        return resultat["modeles"]
+
+    def secteur(self, valeur_id: int) -> dict:
+        """Multiples actuels des valeurs suivies du meme secteur, et leur mediane."""
+        valeur = self._db.get(Valeur, valeur_id)
+        if not valeur or not valeur.secteur:
+            return {"secteur": None, "valeurs": [], "medianes": {}}
+        lignes = []
+        for autre in self._db.exec(select(Valeur).where(Valeur.secteur == valeur.secteur, Valeur.type == "action")):
+            cloture = charger_cours(self._db, autre.id)["cloture"]
+            fond = [f for f in charger_fondamentaux(self._db, autre.id) if f.get("chiffre_affaires") is not None]
+            if cloture.empty or not fond:
+                continue
+            situation = valo.situer(float(cloture.iloc[-1]), fond, [])
+            lignes.append({"id": autre.id, "nom": autre.nom, **situation.get("actuels", {})})
+        medianes = {}
+        for cle in valo.MULTIPLES:
+            serie = [l[cle] for l in lignes if l.get(cle) is not None]
+            if serie:
+                medianes[cle] = float(pd.Series(serie).median())
+        return {"secteur": valeur.secteur, "valeurs": lignes, "medianes": medianes}
 
     def _altman(self, valeur: Valeur, comptes: list[dict]) -> list[dict]:
         """La capitalisation (cours de fin d'annee x nombre d'actions) doit etre dans la devise des

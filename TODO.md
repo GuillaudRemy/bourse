@@ -34,10 +34,10 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 2.9 Départ par défaut selon le secteur (banques, défense) — §2.4
 
 ## Phase 3 — Décider
-- [ ] 3.1 Multiples (VE/EBITDA, VE/EBIT, P/B, P/FCF…) + percentile historique + médiane du secteur — §3.1
-- [ ] 3.2 DCF, DCF inversé, Gordon, Graham, PEG, marge de sécurité — §3.2
-- [ ] 3.3 Cône de projection, Monte-Carlo (normale, Student), probabilité de retour — §3.3
-- [ ] 3.4 Journal : thèse, checklist, pièces jointes, décisions et relecture — §8
+- [x] 3.1 Multiples (VE/EBITDA, VE/EBIT, P/B, P/FCF…) + percentile historique + médiane du secteur — §3.1
+- [x] 3.2 DCF, DCF inversé, Gordon, Graham, PEG, marge de sécurité — §3.2
+- [x] 3.3 Cône de projection, Monte-Carlo (normale, Student), probabilité de retour — §3.3
+- [x] 3.4 Journal : thèse, checklist, pièces jointes, décisions et relecture — §8
 
 ## Phase 4 — Suivre
 - [ ] 4.1 Portefeuille : comptes, transactions, PRU, plus-values, dividendes — §5.1

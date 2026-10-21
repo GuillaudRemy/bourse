@@ -8,6 +8,8 @@ import OngletTechnique    from '../components/fiche/OngletTechnique'
 import OngletFondamentaux from '../components/fiche/OngletFondamentaux'
 import OngletBenefices    from '../components/fiche/OngletBenefices'
 import OngletQualite      from '../components/fiche/OngletQualite'
+import OngletValorisation from '../components/fiche/OngletValorisation'
+import OngletJournal      from '../components/fiche/OngletJournal'
 import OngletDonnees      from '../components/fiche/OngletDonnees'
 
 const ONGLETS = [
@@ -15,6 +17,8 @@ const ONGLETS = [
   { cle: 'technique',    libelle: 'Analyse technique' },
   { cle: 'benefices',    libelle: 'Bénéfices' },
   { cle: 'qualite',      libelle: 'Qualité' },
+  { cle: 'valorisation', libelle: 'Valorisation' },
+  { cle: 'journal',      libelle: 'Journal' },
   { cle: 'fondamentaux', libelle: 'Fondamentaux' },
   { cle: 'donnees',      libelle: 'Données & réglages' },
 ]
@@ -139,6 +143,8 @@ export default function Fiche() {
           {onglet === 'technique'    && <OngletTechnique analyse={analyse} enEuros={enEuros} setEnEuros={setEnEuros} />}
           {onglet === 'benefices'    && <OngletBenefices analyse={analyse} />}
           {onglet === 'qualite'      && <OngletQualite analyse={analyse} />}
+          {onglet === 'valorisation' && <OngletValorisation key={analyse.valeur.id} analyse={analyse} />}
+          {onglet === 'journal'      && <OngletJournal analyse={analyse} />}
           {onglet === 'fondamentaux' && <OngletFondamentaux analyse={analyse} recharger={charger} />}
           {onglet === 'donnees'      && <OngletDonnees analyse={analyse} recharger={charger} />}
         </>

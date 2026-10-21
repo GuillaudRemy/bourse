@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
+from backend.analyse.valorisation import Hypotheses
 from backend.db.db import get_session
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services import taches
@@ -71,6 +72,26 @@ def analyse_valeur(
     analyse: AnalyseService = Depends(get_analyse),
 ):
     return analyse.analyse(valeur_id, dividendes, debut, en_euros)
+
+
+@router.get("/{valeur_id}/valorisation")
+def valorisation(
+    valeur_id: int,
+    croissance: float = Query(0.06, ge=-0.2, le=0.5),
+    annees: int = Query(10, ge=1, le=30),
+    terminale: float = Query(0.02, ge=-0.02, le=0.05),
+    actualisation: float = Query(0.08, ge=0.02, le=0.3),
+    base_fcf: Optional[float] = None,
+    analyse: AnalyseService = Depends(get_analyse),
+):
+    """Modeles de valeur intrinseque avec des hypotheses choisies."""
+    return analyse.valorisation(valeur_id, Hypotheses(croissance, annees, terminale, actualisation, base_fcf))
+
+
+@router.get("/{valeur_id}/secteur")
+def secteur(valeur_id: int, analyse: AnalyseService = Depends(get_analyse)):
+    """Multiples des valeurs suivies du meme secteur."""
+    return analyse.secteur(valeur_id)
 
 
 @router.patch("/{valeur_id}", response_model=ValeurRead)

@@ -15,6 +15,7 @@ const COULEURS_ZONES = {
 
 export default function OngletRegression({ analyse, dividendes, setDividendes, debut, setDebut, enEuros, setEnEuros }) {
   const [log, setLog] = useState(true)
+  const [cone, setCone] = useState(false)
   const { regression: reg, valeur, fiabilite, base_ajustee } = analyse
   if (!reg) return <div className="carte vide">Pas assez de cours pour tracer une droite (30 séances minimum).</div>
 
@@ -48,6 +49,12 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
                 Dividendes réinvestis
               </label>
               <InterrupteurEuros valeur={valeur} enEuros={enEuros} setEnEuros={setEnEuros} />
+              {analyse.projection?.cone && (
+                <label className="interrupteur" title="Trajectoires simulées si la tendance passée se prolonge">
+                  <input type="checkbox" checked={cone} onChange={e => setCone(e.target.checked)} />
+                  Projection
+                </label>
+              )}
               <span className="espaceur" />
               <label className="interrupteur">
                 Début
@@ -64,7 +71,7 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
                 Pas de cours « dividendes réinvestis » pour cette valeur : la droite est tracée sur la clôture.
               </div>
             )}
-            <GraphiqueRegression analyse={analyse} log={log} />
+            <GraphiqueRegression analyse={analyse} log={log} afficherCone={cone} />
           </div>
 
           <div className="carte">
@@ -88,6 +95,7 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
           </div>
 
           {analyse.robustesse && <Robustesse robustesse={analyse.robustesse} pente={reg.pente} />}
+          {analyse.projection?.student && <Projection projection={analyse.projection} />}
         </div>
 
         <div className="pile" style={{ gap: 16 }}>
@@ -125,6 +133,54 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
           )}
 
           <div className="regle-or">La droite donne le cadre, les comptes la valident.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Projection({ projection }) {
+  const [loi, setLoi] = useState('student')
+  const p = projection[loi]
+  const r = projection.retour
+  return (
+    <div className="carte">
+      <div className="section-titre">Projection probabiliste — si la tendance passée se prolonge</div>
+      <div className="graphique-barre">
+        <div className="segments">
+          <button className={`segment${loi === 'student' ? ' actif' : ''}`} onClick={() => setLoi('student')}>Queues épaisses (Student)</button>
+          <button className={`segment${loi === 'normale' ? ' actif' : ''}`} onClick={() => setLoi('normale')}>Loi normale</button>
+        </div>
+        <span className="espaceur" />
+        <span className="discret">retour à la droite : demi-vie ≈ {p.demi_vie_mois ? `${Math.round(p.demi_vie_mois)} mois` : '—'}</span>
+      </div>
+      <div className="tableau-conteneur">
+        <table className="tableau">
+          <thead><tr><th>Horizon</th><th>5 % pire</th><th>1 sur 4</th><th>Médiane</th><th>3 sur 4</th><th>5 % meilleur</th><th>Probabilité de gain</th></tr></thead>
+          <tbody>
+            {p.horizons.map(h => (
+              <tr key={h.annees}>
+                <td className="texte">{h.annees} an{h.annees > 1 ? 's' : ''}</td>
+                {['p5', 'p25', 'mediane', 'p75', 'p95'].map(c => <td key={c} className={h[c] >= 0 ? 'positif' : 'negatif'}>{pct(h[c], { signe: true })}/an</td>)}
+                <td>{pct(h.proba_gain, { decimales: 0 })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="carte-corps pile">
+        {r && !r.sur_la_droite && r.horizons?.length > 0 && (
+          <div className="info">
+            Dans le passé de cette action, partant d'un écart d'au moins {sigma(r.position)} :
+            {' '}{r.horizons.map(h => `${pct(h.proba, { decimales: 0 })} de retours à la droite en ${h.annees} an${h.annees > 1 ? 's' : ''}`).join(', ')}
+            {' '}— sur {r.episodes} épisode{r.episodes > 1 ? 's' : ''} distinct{r.episodes > 1 ? 's' : ''}
+            {r.episodes < 4 ? ' seulement : trop peu pour en tirer une règle.' : '.'}
+          </div>
+        )}
+        <div className="discret">
+          Rendements annuels simulés (4 000 trajectoires) : la tendance de la droite, avec son incertitude
+          (± {pct(p.erreur_pente)}/an), et l'écart à la droite qui revient vers elle comme dans l'historique de l'action.
+          Ce n'est pas une prévision : si l'une des trois vérifications échoue, ces chiffres ne valent rien.
         </div>
       </div>
     </div>
