@@ -206,7 +206,7 @@ function Robustesse({ robustesse, pente }) {
         <div className="discret">Le « rythme de croisière » ralentit-il ou accélère-t-il ? Chaque point : pente des 15 années précédentes.</div>
 
         {rupture && (
-          <div className={rupture.nette ? 'info' : 'discret'} style={rupture.nette ? { background: '#FFF7ED', color: '#9A3412', borderColor: '#FED7AA' } : {}}>
+          <div className={rupture.nette ? 'info' : 'discret'} style={rupture.nette ? { background: 'var(--alerte-bg)', color: 'var(--alerte-fonce)', borderColor: 'var(--alerte-bord)' } : {}}>
             {rupture.nette
               ? `Changement de régime net vers ${date(rupture.date)} : ${pct(rupture.pente_avant, { signe: true })}/an avant, ${pct(rupture.pente_apres, { signe: true })}/an après.`
               : `Pas de rupture nette (coupure la plus marquée vers ${date(rupture.date)} : ${pct(rupture.pente_avant, { signe: true })} puis ${pct(rupture.pente_apres, { signe: true })}/an).`}
@@ -242,7 +242,7 @@ function AvertissementIndice({ avertissement }) {
     } catch (e) { setErreur(e.message) } finally { setOccupe(false) }
   }
   return (
-    <div className="info" style={{ background: '#FFF7ED', color: '#9A3412', borderColor: '#FED7AA' }}>
+    <div className="info" style={{ background: 'var(--alerte-bg)', color: 'var(--alerte-fonce)', borderColor: 'var(--alerte-bord)' }}>
       <span>{erreur || avertissement.texte}</span>
       {avertissement.symbole && (
         <button className="btn btn-mini" onClick={suivre} disabled={occupe}>

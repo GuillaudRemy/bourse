@@ -59,7 +59,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 6.1 Indicateurs techniques supplémentaires + paramètres — §9
 - [x] 6.2 Unités de temps hebdo / mensuelle + vue réduite au-delà de 10 ans — §9, §10
 - [x] 6.3 Tracés et annotations enregistrés — §9
-- [ ] 6.4 Mode sombre + taille de police — §10
+- [x] 6.4 Mode sombre + taille de police — §10
 - [ ] 6.5 Recherche globale Ctrl+K — §10
 - [ ] 6.6 Aide contextuelle, glossaire, première utilisation guidée — §10
 - [ ] 6.7 Export PDF de la fiche + export Excel — §10

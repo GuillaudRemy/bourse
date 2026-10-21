@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createChart, PriceScaleMode, CrosshairMode } from 'lightweight-charts'
 
 const css = nom => getComputedStyle(document.documentElement).getPropertyValue(nom).trim()
@@ -17,8 +17,8 @@ export function optionsCommunes() {
       attributionLogo: false,
     },
     grid: {
-      vertLines: { color: '#F2F3F5' },
-      horzLines: { color: '#F2F3F5' },
+      vertLines: { color: css('--ligne') },
+      horzLines: { color: css('--ligne') },
     },
     rightPriceScale: { borderColor: css('--border') },
     timeScale: { borderColor: css('--border'), minBarSpacing: 0.05 },
@@ -53,6 +53,13 @@ export const echelle = log => ({ mode: log ? PriceScaleMode.Logarithmic : PriceS
  */
 export function useGraphique(construire, deps, cle) {
   const conteneur = useRef(null)
+  // Changement de theme : les couleurs sont lues a la creation, on redessine.
+  const [theme, setTheme] = useState(0)
+  useEffect(() => {
+    const changer = () => setTheme(v => v + 1)
+    window.addEventListener('bourse-theme', changer)
+    return () => window.removeEventListener('bourse-theme', changer)
+  }, [])
   const fenetre = useRef(null)
   const derniereCle = useRef(cle)
 
@@ -75,7 +82,7 @@ export function useGraphique(construire, deps, cle) {
       chart.remove()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  }, [...deps, theme])
 
   return conteneur
 }

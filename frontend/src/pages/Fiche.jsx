@@ -102,7 +102,7 @@ export default function Fiche() {
 
       {erreur && <div className="erreur" style={{ marginBottom: 12 }}>{erreur}</div>}
       {analyse.qualite?.statut === 'alerte' && onglet !== 'donnees' && (
-        <div className="info" style={{ marginBottom: 12, background: '#FEF2F2', color: 'var(--danger)', borderColor: '#F3C9C9' }}>
+        <div className="info" style={{ marginBottom: 12, background: 'var(--erreur-bg)', color: 'var(--danger)', borderColor: 'var(--erreur-bord)' }}>
           <span>Données de cours suspectes : {analyse.qualite.anomalies.filter(a => a.gravite === 'alerte').length} anomalie(s) grave(s).</span>
           <button className="btn btn-mini" onClick={() => setRecherche({ onglet: 'donnees' })}>Voir</button>
         </div>
