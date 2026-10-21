@@ -11,8 +11,9 @@ VERSION="${1:?Usage : outils/publier.sh X.Y.Z \"description\"}"
 NOTES="${2:?Ajoutez une description des changements}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version attendue : X.Y.Z (ex. 0.2.0)"; exit 1; }
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "Des modifications ne sont pas commitees :"; git status --short; exit 1
+# liens.txt : fichier personnel, jamais publie.
+if [ -n "$(git status --porcelain -- . ':!liens.txt')" ]; then
+  echo "Des modifications ne sont pas commitees :"; git status --short -- . ':!liens.txt'; exit 1
 fi
 if git rev-parse "v$VERSION" >/dev/null 2>&1; then
   echo "La version v$VERSION existe deja."; exit 1
@@ -26,6 +27,7 @@ echo "→ Tests"
 .venv/bin/python -m pytest -q tests
 
 echo "→ Envoi de v$VERSION"
+DEPART=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 git push origin HEAD
 git tag -a "v$VERSION" -m "$NOTES"
 git push origin "v$VERSION"
