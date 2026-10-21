@@ -53,10 +53,20 @@ export default function APropos() {
           </dl>
         </div>
       </div>
-      <p className="discret" style={{ marginTop: 20 }}>
-        Données : Yahoo Finance, SEC EDGAR, filings.xbrl.org (ESEF), Banque centrale européenne, Wikipédia, Google Actualités.
-        Outil d'aide à l'analyse, pas un conseil en investissement.
-      </p>
+      <div className="carte prose" style={{ marginTop: 20, padding: '14px 18px' }}>
+        <div className="section-titre" style={{ padding: 0, border: 'none' }}>Mentions</div>
+        <p><b>Pas un conseil en investissement.</b> Bourse est un outil d'aide à l'analyse. Ses calculs (droite de régression,
+          scores, valorisations, projections, backtests) reposent sur le passé et sur des hypothèses ; ils peuvent être faux
+          et ne garantissent rien. Toute décision d'investissement reste la vôtre. Investir en actions expose à une perte en capital.</p>
+        <p><b>Sources de données.</b> Cours et ratios : Yahoo Finance, dont les données sont destinées à un usage personnel
+          et non commercial. Comptes : SEC EDGAR (domaine public) et filings.xbrl.org (rapports ESEF). Taux de change :
+          Banque centrale européenne. Compositions d'indices : Wikipédia (CC BY-SA). Actualités : Google Actualités.
+          Les données peuvent comporter des erreurs ou des retards.</p>
+        <p><b>Fiscalité.</b> Les estimations fiscales suivent les règles publiées sur service-public.fr ; elles ne remplacent
+          pas votre déclaration ni l'avis d'un professionnel.</p>
+        <p><b>Vos données</b> restent sur cet ordinateur. L'application ne contacte que les sources ci-dessus et GitHub
+          (mises à jour).</p>
+      </div>
     </div>
   )
 }

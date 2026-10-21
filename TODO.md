@@ -75,7 +75,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [ ] 7.4 Canal bêta — §12
 - [ ] 7.5 Sauvegarde externe vers un dossier synchronisé — §12
 - [ ] 7.7 Signature de code Windows (prête, activée par un secret) — §12
-- [ ] 7.8 Mention légale visible — §12
+- [x] 7.8 Mention légale visible — §12
 
 ## Phase 8 — Pistes avancées
 - [ ] 8.1 Assistant IA (Claude) sur rapports annuels, clé API facultative — §13

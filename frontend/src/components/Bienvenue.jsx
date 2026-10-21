@@ -19,7 +19,8 @@ const ETAPES = [
   ['Pour aller plus loin', <>
     <p><b>Ctrl + K</b> (ou la touche /) ouvre la recherche : une valeur, une page, ou une action à ajouter.</p>
     <p>Les « ? » à côté des chiffres en donnent la définition ; tout est aussi dans le <b>Glossaire</b>. Le thème sombre et la taille du texte se règlent en haut à droite.</p>
-    <p className="discret">Outil d'aide à l'analyse, pas un conseil en investissement.</p></>],
+    <p className="discret">Outil d'aide à l'analyse, pas un conseil en investissement : les décisions restent les vôtres,
+      et les performances passées ne préjugent pas des performances futures.</p></>],
 ]
 
 export default function Bienvenue() {

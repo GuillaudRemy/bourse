@@ -538,3 +538,7 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
   .tableau-conteneur { overflow: visible; }
 }
 @media print { @page { margin: 12mm; } }
+
+/* ─── MENTION LEGALE ─────────────────────────────────────────────── */
+.pied-legal { max-width: 1400px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+.pied-legal a { color: var(--muted); }

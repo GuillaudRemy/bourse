@@ -42,6 +42,10 @@ export default function App() {
         <Route path="/reglages"    element={<Reglages />} />
         <Route path="*"            element={<Navigate to="/accueil" replace />} />
       </Routes>
+      <footer className="pied-legal no-print">
+        Outil d'aide à l'analyse, pas un conseil en investissement : les performances passées ne préjugent pas des
+        performances futures. Données de marché Yahoo Finance réservées à un usage personnel. <a href="/a-propos">À propos</a>
+      </footer>
     </>
   )
 }
