@@ -1,3 +1,4 @@
+// @ts-check
 import { pct } from '../lib/format'
 
 /** Petite courbe SVG : x = annees, y = valeurs (en %), avec la ligne de reference `ref`. */

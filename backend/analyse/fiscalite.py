@@ -36,7 +36,7 @@ def compte_titres(ventes: list[tuple], dividendes: dict[int, float], tmi: float 
 
     `ventes` : (jour, plus-value) ; `tmi` : tranche marginale d'imposition (0,11 ; 0,30…) pour
     estimer l'option pour le bareme."""
-    par_annee = defaultdict(lambda: {"plus_values": 0.0, "moins_values": 0.0})
+    par_annee: defaultdict[int, dict[str, float]] = defaultdict(lambda: {"plus_values": 0.0, "moins_values": 0.0})
     for jour, pv in ventes:
         par_annee[jour.year]["plus_values" if pv >= 0 else "moins_values"] += pv
     annees = sorted(set(par_annee) | set(dividendes))

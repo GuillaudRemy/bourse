@@ -1,3 +1,4 @@
+// @ts-check
 // Preferences d'affichage, propres a cet ordinateur : theme et taille du texte.
 const CLE = 'bourse.apparence'
 export const THEMES = { auto: 'Automatique', clair: 'Clair', sombre: 'Sombre' }

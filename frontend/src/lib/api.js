@@ -1,3 +1,4 @@
+// @ts-check
 const BASE = '/api'
 
 function messageErreur(data) {

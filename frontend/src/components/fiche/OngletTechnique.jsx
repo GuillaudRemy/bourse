@@ -1,3 +1,4 @@
+// @ts-check
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { pct, prix, nombre, date, ton } from '../../lib/format'

@@ -15,6 +15,7 @@ Conventions :
 import math
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,7 +39,7 @@ class Ligne:
         return self.cout / self.quantite if self.quantite > 1e-9 else None
 
 
-def facteur(divisions: dict[int, list], valeur_id: int, jour: date) -> float:
+def facteur(divisions: dict[Any, list], valeur_id: int | None, jour: date) -> float:
     """Multiplicateur d'une quantite echangee le `jour` vers la base d'actions actuelle."""
     resultat = 1.0
     for d, ratio in divisions.get(valeur_id, []):
@@ -47,12 +48,12 @@ def facteur(divisions: dict[int, list], valeur_id: int, jour: date) -> float:
     return resultat
 
 
-def _manuelle(t: dict, divisions: dict[int, list]) -> bool:
+def _manuelle(t: dict, divisions: dict[Any, list]) -> bool:
     """Division saisie a la main : prise en compte seulement si les divisions sont inconnues."""
     return t["type"] == "division" and not divisions.get(t.get("valeur_id"))
 
 
-def positions(transactions: list[dict], divisions: dict[int, list] | None = None) -> dict[int, Ligne]:
+def positions(transactions: list[dict], divisions: dict[Any, list] | None = None) -> dict[int, Ligne]:
     """Rejoue les transactions dans l'ordre chronologique (quantites en base d'actions actuelle)."""
     divisions = divisions or {}
     lignes: dict[int, Ligne] = {}
@@ -104,7 +105,7 @@ def flux_externes(transactions: list[dict]) -> pd.Series:
 
 
 def valeur_quotidienne(transactions: list[dict], prix_eur: dict[int, pd.Series],
-                       divisions: dict[int, list] | None = None) -> pd.DataFrame:
+                       divisions: dict[Any, list] | None = None) -> pd.DataFrame:
     """Valeur de marche quotidienne (titres + especes) et flux externes du jour.
     `prix_eur` : cloture en euros de chaque valeur, indexee par date."""
     divisions = divisions or {}

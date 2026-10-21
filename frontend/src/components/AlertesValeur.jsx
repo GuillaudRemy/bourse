@@ -1,7 +1,9 @@
+// @ts-check
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 
 /** Regles d'alerte : celles d'une valeur (valeurId), ou toutes. */
+/** @param {{ valeurId?: number, titre?: string }} props  (sans valeurId : toutes les regles) */
 export default function AlertesValeur({ valeurId, titre = 'Alertes' }) {
   const [donnees, setDonnees] = useState(null)
   const [nouvelle, setNouvelle] = useState({ type: 'sigma_sous', seuil: '-1' })

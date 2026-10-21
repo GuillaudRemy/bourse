@@ -1,3 +1,4 @@
+// @ts-check
 import { useState } from 'react'
 import { pct, nombre } from '../../lib/format'
 import GraphiqueBenefices from '../GraphiqueBenefices'

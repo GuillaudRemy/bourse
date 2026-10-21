@@ -170,7 +170,7 @@ def divisions(symbole: str) -> list[tuple[date, float]]:
 def evenements(symbole: str) -> list[tuple[date, str, str | None]]:
     """Prochaines dates (resultats, dividende) et detachements des trois dernieres annees."""
     ticker = yf.Ticker(symbole)
-    resultat = []
+    resultat: list[tuple[date, str, str | None]] = []
     try:
         calendrier = avec_tentatives(lambda: ticker.calendar, tentatives=2) or {}
     except Exception:

@@ -69,12 +69,14 @@ def rupture(cours: pd.Series) -> dict | None:
         return float(np.sum((yy - (a + b * tt)) ** 2)), float(b)
 
     sse_total, _ = sse(t, y)
-    meilleur = None
+    meilleur: tuple[float, int, float, float] | None = None
     for k in range(DUREE_MIN_SEGMENT, n - DUREE_MIN_SEGMENT):
         sse_a, pente_a = sse(t[:k], y[:k])
         sse_b, pente_b = sse(t[k:], y[k:])
         if meilleur is None or sse_a + sse_b < meilleur[0]:
             meilleur = (sse_a + sse_b, k, pente_a, pente_b)
+    if meilleur is None:
+        return None
     sse_coupe, k, pente_avant, pente_apres = meilleur
     f = ((sse_total - sse_coupe) / 2) / (sse_coupe / (n - 4)) if sse_coupe > 0 else float("inf")
     avant, apres = float(np.exp(pente_avant) - 1), float(np.exp(pente_apres) - 1)

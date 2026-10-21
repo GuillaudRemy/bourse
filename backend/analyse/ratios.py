@@ -5,10 +5,17 @@ deja ramenes a la base d'actions actuelle. Un ratio dont un terme manque vaut No
 on ne devine jamais un chiffre absent.
 """
 import math
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
 IMPOT_THEORIQUE = 0.25    # pour le ROIC : les comptes stockes ne detaillent pas l'impot
+
+
+def lecteur(c: dict) -> Callable[[str], Any]:
+    """`g = lecteur(c)` puis `g("bpa")` : poste ou None. (Type Any : les calculs sont gardes par des tests a None.)"""
+    return c.get
 
 
 def _div(a, b):
@@ -39,7 +46,7 @@ def annuels(comptes: list[dict]) -> list[dict]:
     precedent: dict = {}
     for c in comptes:
         c = {**c, "ebitda": ebitda(c)}
-        g = c.get
+        g = lecteur(c)
         dette_nette = g("dette_financiere") - (g("tresorerie") or 0) if g("dette_financiere") is not None else None
         fcf = g("flux_operationnel") - g("capex") if g("flux_operationnel") is not None and g("capex") is not None \
             else None
@@ -115,7 +122,7 @@ def synthese(comptes: list[dict], ratios: list[dict]) -> dict:
         return float(np.mean(valeurs)) if valeurs else None
 
     marges_10 = _derniers(marges, 10)
-    nombres = [c.get("nombre_actions") for c in comptes if c.get("nombre_actions")]
+    nombres: list[float] = [c["nombre_actions"] for c in comptes if c.get("nombre_actions")]
     return {
         # Annees reellement couvertes : « 10 ans » ne veut rien dire avec 4 ans de comptes.
         "annees_comptes": len(comptes),

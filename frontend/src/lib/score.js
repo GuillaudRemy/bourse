@@ -1,3 +1,4 @@
+// @ts-check
 // Score composite du screener : chaque composante est ramenee entre 0 et 1, puis ponderee.
 const borne = v => Math.max(0, Math.min(1, v))
 const FIABILITE = { ok: 1, attention: 0.6, inconnu: 0.5, alerte: 0 }

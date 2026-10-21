@@ -23,7 +23,7 @@ BIBLIOTHEQUES = ["fastapi", "sqlmodel", "sqlalchemy", "alembic", "pandas", "nump
 
 
 def _versions() -> dict:
-    v = {}
+    v: dict[str, str | None] = {}
     for nom in BIBLIOTHEQUES:
         try:
             v[nom] = metadata.version(nom)
@@ -32,8 +32,10 @@ def _versions() -> dict:
     return v
 
 
-def _comptages(db: Session) -> dict:
-    return {t: db.exec(text(f'SELECT COUNT(*) FROM "{t}"')).one()[0] for t in sorted(inspect(engine).get_table_names())}
+def _comptages() -> dict:
+    with engine.connect() as connexion:
+        return {t: connexion.execute(text(f'SELECT COUNT(*) FROM "{t}"')).scalar_one()
+                for t in sorted(inspect(engine).get_table_names())}
 
 
 @router.get("/a-propos")
@@ -48,7 +50,7 @@ def a_propos(db: Session = Depends(get_session)):
         "journal": str(journal.dossier()),
         "derniere_actualisation": reglages.lire("derniere_actualisation") or None,
         "bibliotheques": _versions(),
-        "enregistrements": _comptages(db),
+        "enregistrements": _comptages(),
         "depot": "https://github.com/GuillaudRemy/bourse",
     }
 

@@ -1,3 +1,4 @@
+// @ts-check
 import { LineSeries, LineStyle } from 'lightweight-charts'
 import { useGraphique, points, echelle, couleur, alpha } from '../lib/graphique'
 

@@ -40,7 +40,7 @@ def _google(nom: str, nombre: int) -> list[dict]:
     articles = []
     for item in racine.findall("./channel/item")[:max(nombre * 3, 60)]:
         try:
-            moment = parsedate_to_datetime(item.findtext("pubDate")).isoformat()
+            moment = parsedate_to_datetime(item.findtext("pubDate") or "").isoformat()
         except (TypeError, ValueError):
             moment = None
         source = item.findtext("source") or ""

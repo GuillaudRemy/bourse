@@ -1,5 +1,9 @@
+// @ts-check
 import { useEffect } from 'react'
 
+/**
+ * @param {{ titre: React.ReactNode, onFermer: () => void, children?: React.ReactNode, pied?: React.ReactNode, large?: boolean }} props
+ */
 export default function Modale({ titre, onFermer, children, pied, large = false }) {
   useEffect(() => {
     const surTouche = e => { if (e.key === 'Escape') onFermer() }

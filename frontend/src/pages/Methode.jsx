@@ -1,3 +1,4 @@
+// @ts-check
 import { ZONES } from '../lib/zones'
 
 export default function Methode() {

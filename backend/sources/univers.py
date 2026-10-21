@@ -5,13 +5,14 @@ Attention : c'est la composition ACTUELLE (biais du survivant pour un backtest).
 """
 import io
 import time
+from typing import Any
 
 import pandas as pd
 
 from backend.sources.base import SourceIndisponible
 from backend.sources.reseau import ErreurReseau, obtenir
 
-UNIVERS = {
+UNIVERS: dict[str, dict[str, Any]] = {
     "cac40": {"nom": "CAC 40", "url": "https://fr.wikipedia.org/wiki/CAC_40",
               "colonnes": ("Mnémo", "Société", "Secteur"), "suffixe": ".PA"},
     "dax": {"nom": "DAX 40", "url": "https://en.wikipedia.org/wiki/DAX",

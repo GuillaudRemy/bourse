@@ -1,3 +1,4 @@
+// @ts-check
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
@@ -264,6 +265,9 @@ function texteZone(zone) {
   }[zone] ?? ZONES[zone]?.libelle
 }
 
+/**
+ * @param {{ libelle: React.ReactNode, valeur: React.ReactNode, detail?: React.ReactNode, classe?: string, aide?: string }} props
+ */
 export function Stat({ libelle, valeur, detail, classe = '', aide }) {
   return (
     <div className="carte stat">

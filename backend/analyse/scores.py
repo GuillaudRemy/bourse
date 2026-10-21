@@ -9,7 +9,7 @@ Chaque critere est renvoye avec sa valeur et son explication : un score n'est ut
 l'on comprend d'ou il vient. Un critere incalculable (donnee absente) est marque comme tel
 et n'entre pas dans le total.
 """
-from backend.analyse.ratios import _div
+from backend.analyse.ratios import _div, lecteur
 
 
 def _critere(nom: str, ok: bool | None, detail: str) -> dict:
@@ -19,7 +19,7 @@ def _critere(nom: str, ok: bool | None, detail: str) -> dict:
 def piotroski(avant: dict, precedent: dict, actuel: dict) -> dict:
     """Compare l'annee `actuel` a `precedent` ; `avant` (l'annee d'avant, peut etre vide)
     sert aux ratios rapportes a l'actif de debut d'exercice."""
-    v, p, a = avant.get, precedent.get, actuel.get
+    v, p, a = lecteur(avant), lecteur(precedent), lecteur(actuel)
     roa, roa_avant = _div(a("benefice_net"), p("total_actif")), _div(p("benefice_net"), v("total_actif"))
     levier, levier_avant = _div(a("dette_long_terme"), a("total_actif")), _div(p("dette_long_terme"), p("total_actif"))
     liquidite = _div(a("actifs_courants"), a("passifs_courants"))
@@ -77,7 +77,7 @@ def altman(comptes: dict, capitalisation: float | None) -> dict | None:
 
 
 def beneish(precedent: dict, actuel: dict) -> dict | None:
-    p, a = precedent.get, actuel.get
+    p, a = lecteur(precedent), lecteur(actuel)
     if not (a("chiffre_affaires") and p("chiffre_affaires") and a("total_actif") and p("total_actif")):
         return None
 

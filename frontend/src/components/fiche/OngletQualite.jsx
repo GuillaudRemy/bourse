@@ -1,3 +1,4 @@
+// @ts-check
 import { useEffect, useRef, useState } from 'react'
 import { pct, nombre, grand } from '../../lib/format'
 import Barres from '../Barres'

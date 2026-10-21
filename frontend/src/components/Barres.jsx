@@ -1,3 +1,4 @@
+// @ts-check
 /** Petit graphique en barres (une barre par annee), barres negatives vers le bas. */
 export default function Barres({ points, format, hauteur = 120 }) {
   const valeurs = points.map(p => p.y).filter(v => v !== null && v !== undefined)

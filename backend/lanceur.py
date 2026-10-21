@@ -103,7 +103,8 @@ def _installer_windows(installateur: Path) -> None:
     # Detache : l'installateur doit survivre a ce processus, qui quitte pour liberer ses fichiers.
     subprocess.Popen(
         [str(installateur), "/SILENT", "/SP-", "/NOCANCEL", "/NORESTART", "/SUPPRESSMSGBOXES"],
-        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+        # Constantes propres a Windows (absentes ailleurs, d'ou getattr).
+        creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
         close_fds=True,
     )
 

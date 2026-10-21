@@ -1,3 +1,4 @@
+// @ts-check
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Nav from './components/Nav'
 import Palette from './components/Palette'

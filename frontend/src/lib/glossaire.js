@@ -1,3 +1,4 @@
+// @ts-check
 // Definitions courtes, affichees par le « ? » a cote des indicateurs et dans la page Glossaire.
 export const GLOSSAIRE = {
   droite: ['Droite de régression', "Tendance de fond du cours : la droite qui passe au plus près de tous les cours en échelle logarithmique, sur 20 ans ou plus. Le cours oscille autour d'elle."],

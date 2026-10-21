@@ -1,3 +1,4 @@
+// @ts-check
 // Les cinq zones du couloir de regression, du bas vers le haut.
 export const ZONES = {
   opportunite_manifeste:   { libelle: 'Opportunité manifeste',   court: '< −2σ',     classe: 'zone-om' },

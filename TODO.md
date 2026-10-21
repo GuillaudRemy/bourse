@@ -66,7 +66,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 6.8 Cache des analyses, WAL, synthèse précalculée — §11.3
 - [x] 6.9 Journal fichier, bouton diagnostic, page « À propos » — §11.4
 - [x] 6.10 Tests : cas de référence figés, tests d'interface Playwright en CI — §11.1
-- [ ] 6.11 Typage : mypy + TypeScript progressif — §11.2
+- [x] 6.11 Typage : mypy + TypeScript progressif — §11.2
 
 ## Phase 7 — Distribution et sécurité
 - [ ] 7.1 Empreintes SHA-256 publiées et vérifiées avant toute mise à jour — §12

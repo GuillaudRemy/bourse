@@ -5,12 +5,12 @@ from pydantic import BaseModel, create_model
 from backend.db.champs import CLES
 
 # Un champ facultatif par poste de champs.py : seuls les postes envoyes sont modifies.
-FondamentalEcriture = create_model(
+FondamentalEcriture = create_model(  # type: ignore[call-overload]
     "FondamentalEcriture", __base__=BaseModel, **{cle: (Optional[float], None) for cle in CLES},
 )
 
 
-class FondamentalRead(FondamentalEcriture):
+class FondamentalRead(FondamentalEcriture):  # type: ignore[valid-type, misc]
     annee:   int
     source:  str
     sources: dict[str, str] = {}     # provenance de chaque case

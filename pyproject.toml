@@ -21,3 +21,22 @@ known-first-party = ["backend", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Typage progressif : tout le backend est verifie, sauf les modules de la liste ci-dessous,
+# a retirer un par un en les corrigeant (surtout des requetes SQLModel et des Valeur | None).
+[tool.mypy]
+python_version = "3.12"
+files = ["backend"]
+exclude = ["backend/migrations/"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "backend.api.journal", "backend.api.recherche", "backend.api.suivi", "backend.api.univers",
+    "backend.services.alertes_service", "backend.services.analyse_service", "backend.services.export_service",
+    "backend.services.import_service", "backend.services.journal_service", "backend.services.portefeuille_service",
+    "backend.services.releve_service", "backend.services.stockage", "backend.services.valeur_service",
+    "backend.sources.sec",
+]
+ignore_errors = true

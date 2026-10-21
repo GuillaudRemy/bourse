@@ -2,3 +2,4 @@
 pytest==8.4.2
 httpx2
 ruff==0.14.1
+mypy==2.4.0

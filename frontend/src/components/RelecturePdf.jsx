@@ -1,3 +1,4 @@
+// @ts-check
 import { useState } from 'react'
 import Modale from './Modale'
 import { nombre } from '../lib/format'

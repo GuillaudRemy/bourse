@@ -1,4 +1,6 @@
 """Analyse technique a la demande : unite de temps et parametres choisis par l'utilisateur."""
+from collections.abc import Sequence
+
 import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session
@@ -25,7 +27,7 @@ def regrouper(cours: pd.DataFrame, unite: str) -> pd.DataFrame:
     return df.dropna(subset=["cloture"])
 
 
-def technique(db: Session, valeur_id: int, unite: str = "jour", mm: list[int] = (20, 50, 200), rsi: int = 14,
+def technique(db: Session, valeur_id: int, unite: str = "jour", mm: Sequence[int] = (20, 50, 200), rsi: int = 14,
               bollinger: int = 20, stochastique: int = 14, atr: int = 14, adx: int = 14) -> dict:
     if unite not in UNITES:
         raise HTTPException(422, "Unité inconnue (jour, semaine ou mois).")

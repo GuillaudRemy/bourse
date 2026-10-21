@@ -1,0 +1,18 @@
+{
+  // Typage progressif : le JavaScript n'est verifie que dans les fichiers qui commencent par
+  // « // @ts-check ». En ajouter au fil de l'eau ; `npm run types` en CI.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"]
+}

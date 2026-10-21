@@ -1,3 +1,4 @@
+// @ts-check
 import { useRef, useState } from 'react'
 
 /** Zone de depot : glisser-deposer ou clic pour choisir un CSV. */

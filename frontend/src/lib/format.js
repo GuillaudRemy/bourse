@@ -1,3 +1,4 @@
+// @ts-check
 const nf = (min, max) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: min, maximumFractionDigits: max })
 const N0 = nf(0, 0), N1 = nf(1, 1), N2 = nf(2, 2)
 

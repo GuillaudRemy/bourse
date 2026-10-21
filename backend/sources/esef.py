@@ -13,6 +13,7 @@ ou trouve en comparant le nom de la societe a la liste des emetteurs ESEF.
 import json
 import re
 import unicodedata
+from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -89,7 +90,7 @@ def trouver_lei(nom: str) -> str | None:
 
 
 # ── Comptes ──────────────────────────────────────────────────────────
-def comptes(identite: Identite, divisions: list[tuple[date, float]] = ()) -> Comptes:
+def comptes(identite: Identite, divisions: Sequence[tuple[date, float]] = ()) -> Comptes:
     lei = identite.lei or trouver_lei(identite.nom)
     if not lei:
         raise SourceIndisponible(
@@ -177,7 +178,7 @@ def _extraire(depot: dict) -> dict:
             if len(morceaux) == len(parties):
                 valeurs[cle] = sum(morceaux)
 
-    extraits = {"annees": annees, "devise": max(devises, key=devises.get) if devises else None}
+    extraits = {"annees": annees, "devise": max(devises, key=lambda d: devises[d]) if devises else None}
     fichier.write_text(json.dumps(extraits))
     return extraits
 

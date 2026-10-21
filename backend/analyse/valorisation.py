@@ -14,11 +14,12 @@ Une valeur intrinseque n'est jamais un chiffre exact : on presente une fourchett
 """
 import math
 from dataclasses import asdict, dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from backend.analyse.ratios import _div, ebitda
+from backend.analyse.ratios import _div, ebitda, lecteur
 
 ANNEES_HISTORIQUE = 20
 
@@ -45,7 +46,7 @@ def multiples_annuels(cloture: pd.Series, comptes: list[dict]) -> list[dict]:
 
 
 def _multiples(cours: float, c: dict) -> dict:
-    g = c.get
+    g = lecteur(c)
     capitalisation = cours * g("nombre_actions") if g("nombre_actions") else None
     dette_nette = g("dette_financiere") - (g("tresorerie") or 0) if g("dette_financiere") is not None else None
     ve = capitalisation + dette_nette if capitalisation is not None and dette_nette is not None else None
@@ -150,7 +151,7 @@ def fcf_par_action(comptes: list[dict]) -> float | None:
 def modeles(cours: float, comptes: list[dict], synthese: dict, h: Hypotheses) -> dict:
     dernier = comptes[-1] if comptes else {}
     base = h.base_fcf if h.base_fcf is not None else fcf_par_action(comptes)
-    resultats = []
+    resultats: list[dict[str, Any]] = []
 
     if base and base > 0:
         valeur = _dcf(base, h)

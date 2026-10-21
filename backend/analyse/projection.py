@@ -15,6 +15,8 @@ A cote, la probabilite OBSERVEE dans le passe de l'action : partant d'un ecart s
 celui d'aujourd'hui, combien de fois le cours est-il revenu a sa droite en 1, 3, 5 ans ?
 Le passe ne garantit rien, mais il dit ce que cette action a l'habitude de faire.
 """
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -91,7 +93,7 @@ def retour_observe(reg: Regression) -> dict:
     seances = 252
     # Jours consecutifs = un seul episode : c'est le nombre d'episodes qui dit si la statistique est solide.
     episodes = int(1 + np.sum(np.diff(departs) > 20)) if len(departs) else 0
-    resultat = {"position": float(actuel), "sur_la_droite": False, "cas": int(len(departs)),
+    resultat: dict[str, Any] = {"position": float(actuel), "sur_la_droite": False, "cas": int(len(departs)),
                 "episodes": episodes, "horizons": []}
     for annees in (1, 3, 5):
         h = annees * seances

@@ -1,3 +1,4 @@
+// @ts-check
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -282,6 +283,7 @@ function Fiscalite({ f }) {
   )
 }
 
+/** @param {{ onFermer: (message?: string) => void, compte?: object }} props  (sans compte : creation) */
 function ModaleCompte({ onFermer, compte }) {
   const vide = v => v === null || v === undefined ? '' : String(v).replace('.', ',')
   const [c, setC] = useState(compte ? {

@@ -1,3 +1,4 @@
+// @ts-check
 import { ZONES } from '../lib/zones'
 
 const BORNE = 3   // la jauge va de -3σ a +3σ
