@@ -109,3 +109,29 @@ def test_fiscalite_taux_par_annee_et_report_des_moins_values():
     p = f.pea(versements=10000, valeur=16000, anciennete=6, type_="PEA", annee=2026)
     assert p["impot_retrait"] == pytest.approx(0.186 * 6000) and p["reste"] == 140000
     assert f.pea(10000, 16000, 3, "PEA", 2026)["impot_retrait"] == pytest.approx(0.314 * 6000)
+
+
+def test_frais_courtier_et_ttf():
+    from backend.analyse import frais as f
+    assert f.taux_ttf(date(2025, 4, 1)) == 0.004 and f.taux_ttf(date(2024, 6, 1)) == 0.003
+    assert f.taux_ttf(date(2015, 1, 1)) == 0.002 and f.taux_ttf(date(2010, 1, 1)) == 0
+    assert f.assujetti_ttf("action", "France", 5e9) and not f.assujetti_ttf("etf", "France", 5e9)
+    assert not f.assujetti_ttf("action", "Netherlands", 5e10)            # Airbus : siege aux Pays-Bas
+    # 1 € + 0,1 % sur 2 000 € = 3 € ; TTF 0,4 % = 8 € a l'achat seulement.
+    achat = f.ordre(2000, "achat", date(2026, 1, 5), {"fixe": 1, "pct": 0.001, "min": 0}, True)
+    assert achat == {"courtage": 3.0, "ttf": 8.0, "total": 11.0, "taux_ttf": 0.004}
+    assert f.ordre(2000, "vente", date(2026, 1, 5), {"fixe": 1, "pct": 0.001}, True)["ttf"] == 0
+    assert f.courtage(100, fixe=0, pct=0.001, minimum=2.5) == 2.5
+
+
+def test_frais_calcules_si_non_saisis():
+    with TestClient(app) as client:
+        vid = client.post("/valeurs", json={"symbole": "FRAIS", "source": "import", "devise": "EUR"}).json()["id"]
+        compte = client.post("/portefeuille/comptes", json={"nom": "Courtier X", "type": "CTO",
+                                                            "frais_fixe": 1, "frais_pct": 0.001}).json()["id"]
+        t = client.post("/portefeuille/transactions", json={"compte_id": compte, "valeur_id": vid, "jour": "2026-01-05",
+                                                            "type": "achat", "quantite": 20, "prix": 100}).json()
+        assert t["frais"] == 3.0 and t["ttf"] == 0 and t["montant"] == -2003.0     # valeur sans pays : pas de TTF
+        apercu = client.get("/portefeuille/frais", params={"compte_id": compte, "type": "achat", "quantite": 20,
+                                                           "prix": 100, "jour": "2026-01-05", "valeur_id": vid}).json()
+        assert apercu["courtage"] == 3.0 and apercu["ttf_applicable"] is False

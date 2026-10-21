@@ -48,6 +48,7 @@ export default function Portefeuille() {
             {comptes.map(c => <option key={c.id} value={c.id}>{c.nom} ({TYPES_COMPTE[c.type]})</option>)}
           </select>
           <button className="btn" onClick={() => setModale('compte')}>+ Compte</button>
+          {compteId && <button className="btn" onClick={() => setModale('modifier')}>Modifier le compte</button>}
           <button className="btn" onClick={() => setModale('releve')} disabled={!comptes.length}>Importer un relevé</button>
           <button className="btn btn-primaire" onClick={() => setModale('operation')} disabled={!comptes.length}>+ Opération</button>
         </div>
@@ -78,7 +79,7 @@ export default function Portefeuille() {
                     <td className="texte">{o.valeur_id ? <Link className="lien-poste" to={`/valeurs/${o.valeur_id}`}>{nomValeur[o.valeur_id]}</Link> : '—'}</td>
                     <td>{o.quantite ? nombre(o.quantite, 4).replace(/,?0+$/, '') : '—'}</td>
                     <td>{o.prix ? nombre(o.prix, 2) : '—'}</td>
-                    <td>{o.frais ? nombre(o.frais, 2) : '—'}</td>
+                    <td title={o.ttf ? `dont TTF ${nombre(o.ttf, 2)} €` : ''}>{o.frais ? nombre(o.frais, 2) : '—'}{o.ttf ? <sup className="discret"> TTF</sup> : null}</td>
                     <td className={ton(o.montant)}>{nombre(o.montant, 2)}</td>
                     <td><button className="btn btn-mini btn-fantome" onClick={async () => { if (confirm('Supprimer cette opération ?')) { await api.portefeuille.supprimerTransaction(o.id); charger() } }}>×</button></td>
                   </tr>
@@ -90,6 +91,7 @@ export default function Portefeuille() {
       )}
 
       {modale === 'compte' && <ModaleCompte onFermer={fermer} />}
+      {modale === 'modifier' && <ModaleCompte onFermer={fermer} compte={comptes.find(c => String(c.id) === String(compteId))} />}
       {modale === 'operation' && <ModaleOperation comptes={comptes} valeurs={valeurs} compteId={compteId} onFermer={fermer} />}
       {modale === 'releve' && <ModaleReleve comptes={comptes} compteId={compteId} onFermer={fermer} />}
     </div>
@@ -279,20 +281,41 @@ function Fiscalite({ f }) {
   )
 }
 
-function ModaleCompte({ onFermer }) {
-  const [c, setC] = useState({ nom: '', type: 'PEA', ouverture: '', courtier: '' })
+function ModaleCompte({ onFermer, compte }) {
+  const vide = v => v === null || v === undefined ? '' : String(v).replace('.', ',')
+  const [c, setC] = useState(compte ? {
+    nom: compte.nom, type: compte.type, ouverture: compte.ouverture ?? '', courtier: compte.courtier ?? '',
+    frais_fixe: vide(compte.frais_fixe), frais_pct: compte.frais_pct == null ? '' : vide(+(compte.frais_pct * 100).toFixed(4)),
+    frais_min: vide(compte.frais_min),
+  } : { nom: '', type: 'PEA', ouverture: '', courtier: '', frais_fixe: '', frais_pct: '', frais_min: '' })
   const [erreur, setErreur] = useState(null)
+  const n = v => v === '' ? null : Number(String(v).replace(',', '.'))
   const enregistrer = async () => {
-    try { await api.portefeuille.creerCompte({ ...c, ouverture: c.ouverture || null, courtier: c.courtier || null }); onFermer('Compte créé.') }
-    catch (e) { setErreur(e.message) }
+    try {
+      const donnees = { nom: c.nom, type: c.type, ouverture: c.ouverture || null, courtier: c.courtier || null,
+        frais_fixe: n(c.frais_fixe), frais_pct: c.frais_pct === '' ? null : n(c.frais_pct) / 100, frais_min: n(c.frais_min) }
+      if (compte) await api.portefeuille.modifierCompte(compte.id, donnees)
+      else await api.portefeuille.creerCompte(donnees)
+      onFermer(compte ? 'Compte modifié.' : 'Compte créé.')
+    } catch (e) { setErreur(e.message) }
   }
   return (
-    <Modale titre="Nouveau compte" onFermer={() => onFermer()} pied={<><button className="btn" onClick={() => onFermer()}>Annuler</button><button className="btn btn-primaire" onClick={enregistrer} disabled={!c.nom.trim()}>Créer</button></>}>
+    <Modale titre={compte ? `Modifier « ${compte.nom} »` : 'Nouveau compte'} onFermer={() => onFermer()} pied={<><button className="btn" onClick={() => onFermer()}>Annuler</button><button className="btn btn-primaire" onClick={enregistrer} disabled={!c.nom.trim()}>{compte ? 'Enregistrer' : 'Créer'}</button></>}>
       <div className="champ-groupe"><label className="champ-label">Nom</label><input className="champ" autoFocus value={c.nom} onChange={e => setC({ ...c, nom: e.target.value })} placeholder="PEA Boursorama" /></div>
       <div className="champ-groupe"><label className="champ-label">Type</label>
         <select className="champ" value={c.type} onChange={e => setC({ ...c, type: e.target.value })}>{Object.entries(TYPES_COMPTE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
       <div className="champ-groupe"><label className="champ-label">Date d'ouverture (compte le délai de 5 ans du PEA)</label><input type="date" className="champ" value={c.ouverture} onChange={e => setC({ ...c, ouverture: e.target.value })} /></div>
       <div className="champ-groupe"><label className="champ-label">Courtier</label><input className="champ" value={c.courtier} onChange={e => setC({ ...c, courtier: e.target.value })} /></div>
+      <div className="champ-groupe">
+        <label className="champ-label">Frais de courtage par ordre (vide : réglages par défaut)</label>
+        <div className="rangee">
+          <input className="champ champ-mono" placeholder="Fixe (€)" value={c.frais_fixe} onChange={e => setC({ ...c, frais_fixe: e.target.value })} />
+          <span>+</span>
+          <input className="champ champ-mono" placeholder="Proportion (%)" value={c.frais_pct} onChange={e => setC({ ...c, frais_pct: e.target.value })} />
+          <input className="champ champ-mono" placeholder="Minimum (€)" value={c.frais_min} onChange={e => setC({ ...c, frais_min: e.target.value })} />
+        </div>
+        <span className="discret">Exemple : 1 € + 0,1 %, minimum 0 €. La TTF (0,4 % sur les achats d'actions françaises de plus d'un milliard) s'ajoute automatiquement.</span>
+      </div>
       {erreur && <div className="erreur">{erreur}</div>}
     </Modale>
   )
@@ -303,6 +326,13 @@ function ModaleOperation({ comptes, valeurs, compteId, onFermer }) {
   const [erreur, setErreur] = useState(null)
   const n = v => v === '' || v === null ? null : Number(String(v).replace(',', '.'))
   const titres = ['achat', 'vente', 'dividende', 'division'].includes(o.type)
+  const [apercu, setApercu] = useState(null)
+  useEffect(() => {
+    if (!['achat', 'vente'].includes(o.type) || !n(o.quantite) || !n(o.prix) || o.frais !== '') { setApercu(null); return }
+    const minuterie = setTimeout(() => api.portefeuille.frais({ compte_id: o.compte_id, type: o.type, quantite: n(o.quantite),
+      prix: n(o.prix), jour: o.jour, valeur_id: o.valeur_id || undefined }).then(setApercu).catch(() => setApercu(null)), 300)
+    return () => clearTimeout(minuterie)
+  }, [o.type, o.quantite, o.prix, o.frais, o.jour, o.valeur_id, o.compte_id])
   const enregistrer = async () => {
     try {
       await api.portefeuille.creerTransaction({ compte_id: Number(o.compte_id), jour: o.jour, type: o.type, valeur_id: o.valeur_id ? Number(o.valeur_id) : null,
@@ -327,7 +357,13 @@ function ModaleOperation({ comptes, valeurs, compteId, onFermer }) {
         <div className="rangee">
           <input className="champ champ-mono" placeholder="Quantité" value={o.quantite} onChange={e => setO({ ...o, quantite: e.target.value })} />
           <input className="champ champ-mono" placeholder="Prix unitaire (devise du titre)" value={o.prix} onChange={e => setO({ ...o, prix: e.target.value })} />
-          <input className="champ champ-mono" placeholder="Frais (€)" value={o.frais} onChange={e => setO({ ...o, frais: e.target.value })} />
+          <input className="champ champ-mono" placeholder="Frais (€) : auto" value={o.frais} onChange={e => setO({ ...o, frais: e.target.value })} />
+        </div>
+      )}
+      {apercu && (
+        <div className="info">
+          <span>Frais estimés : courtage {euros(apercu.courtage)}{apercu.ttf > 0 ? ` + TTF ${euros(apercu.ttf)} (${pct(apercu.taux_ttf)})` : ''} = <b>{euros(apercu.total)}</b>
+            {o.type === 'achat' && !apercu.ttf_applicable && <span className="discret"> · pas de TTF (titre étranger, ETF ou moins d'un milliard)</span>}</span>
         </div>
       )}
       {o.type === 'division' && <input className="champ champ-mono" placeholder="Ratio (2 pour une division par 2, 1,1 pour 1 gratuite pour 10)" value={o.quantite} onChange={e => setO({ ...o, quantite: e.target.value })} />}

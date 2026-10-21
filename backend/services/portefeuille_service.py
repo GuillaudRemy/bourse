@@ -1,4 +1,5 @@
 """Portefeuille : comptes, transactions, positions, performance, risque et fiscalite."""
+import json
 from collections import defaultdict
 from datetime import date
 
@@ -8,6 +9,7 @@ from sqlmodel import Session, select
 
 from backend.analyse import fiscalite as fisc
 from backend.analyse import portefeuille as pf
+from backend.analyse.frais import assujetti_ttf, ordre
 from backend.analyse.regression import ajuster, zone
 from backend.core import reglages
 from backend.db.schema import Compte, Transaction, Valeur
@@ -61,6 +63,13 @@ class PortefeuilleService:
             raise HTTPException(422, "Indiquez le montant en euros.")
 
         champs = data.model_dump()
+        champs["ttf"] = 0.0
+        if data.type in ("achat", "vente") and data.frais is None:
+            # Frais non saisis : courtage du compte + TTF (achat d'action francaise de plus d'un milliard).
+            detail = self.frais(data.compte_id, valeur, data.type, data.quantite * data.prix, data.jour)
+            champs["frais"], champs["ttf"] = detail["total"], detail["ttf"]
+            data = data.model_copy(update={"frais": detail["total"]})
+        champs["frais"] = champs["frais"] or 0.0
         champs["montant"] = self._montant(data, valeur)
         t = self._db.get(Transaction, transaction_id) if transaction_id else Transaction(**champs)
         if transaction_id and not t:
@@ -88,12 +97,26 @@ class PortefeuilleService:
             brut = data.quantite * data.prix / self._taux(valeur.devise if valeur else "EUR", data.jour)
             if data.montant is not None:                     # montant reel du releve : prioritaire
                 return -abs(data.montant) if data.type == "achat" else abs(data.montant)
-            return -(brut + data.frais) if data.type == "achat" else brut - data.frais
+            frais = data.frais or 0.0
+            return -(brut + frais) if data.type == "achat" else brut - frais
         if data.type in ("frais", "retrait"):
-            return -abs(data.montant if data.montant is not None else data.frais)
+            return -abs(data.montant if data.montant is not None else data.frais or 0.0)
         if data.type == "division":
             return 0.0
         return abs(data.montant)                              # dividende, depot
+
+    def frais(self, compte_id: int, valeur: Valeur | None, sens: str, quantite_x_prix: float, jour: date) -> dict:
+        """Frais estimes d'un ordre (montant en devise du titre, converti en euros)."""
+        compte = self._compte(compte_id)
+        defaut = reglages.grille_frais()
+        grille = {"fixe": compte.frais_fixe if compte.frais_fixe is not None else defaut["fixe"],
+                  "pct": compte.frais_pct if compte.frais_pct is not None else defaut["pct"],
+                  "min": compte.frais_min if compte.frais_min is not None else defaut["min"]}
+        montant = quantite_x_prix / self._taux(valeur.devise if valeur else "EUR", jour)
+        infos = json.loads(valeur.infos) if valeur and valeur.infos else {}
+        applicable = valeur is not None and assujetti_ttf(valeur.type, valeur.pays, infos.get("capitalisation"))
+        return ordre(montant, sens, jour, grille, applicable) | {"montant": round(montant, 2), "grille": grille,
+                                                                  "ttf_applicable": applicable}
 
     def _taux(self, devise_brute: str | None, jour: date) -> float:
         """Unites de devise pour 1 euro au jour donne (dernier taux connu) ; sous-unites (pence) incluses."""

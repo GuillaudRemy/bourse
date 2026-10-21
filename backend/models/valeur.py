@@ -15,6 +15,7 @@ class ValeurCreate(BaseModel):
     nom:     Optional[str] = Field(default=None, max_length=120)
     type:    TypeValeur = "action"
     devise:  Optional[str] = Field(default=None, max_length=10)
+    isin:    Optional[str] = Field(default=None, max_length=12)   # si la valeur a ete trouvee par son ISIN
 
 
 class ValeurUpdate(BaseModel):

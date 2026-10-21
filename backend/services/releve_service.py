@@ -84,7 +84,7 @@ def proposer(db: Session, compte_id: int, contenu: bytes) -> dict:
             "symbole": symbole, "valeur_id": valeur.id if valeur else None, "valeur_nom": valeur.nom if valeur else None,
             "quantite": abs(quantite) if quantite is not None else None,
             "prix": abs(brut["prix"]) if brut.get("prix") is not None else None,
-            "frais": abs(brut.get("frais") or 0.0),
+            "frais": abs(brut["frais"]) if brut.get("frais") is not None else None,
             "montant": abs(brut["montant"]) if brut.get("montant") is not None else None,
         })
     if not lignes:
@@ -127,7 +127,7 @@ def valider(db: Session, compte_id: int, lignes: list[dict]) -> dict:
         try:
             service.ecrire_transaction(TransactionEcriture(
                 compte_id=compte_id, valeur_id=l.get("valeur_id"), jour=l["jour"], type=l["type"],
-                quantite=l.get("quantite"), prix=l.get("prix"), frais=l.get("frais") or 0.0,
+                quantite=l.get("quantite"), prix=l.get("prix"), frais=l.get("frais"),
                 montant=l.get("montant"), note=(l.get("libelle") or "")[:500] or None,
             ), commit=False)
             crees += 1

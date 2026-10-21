@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, UploadFile
@@ -20,6 +21,15 @@ def get_service(session: Session = Depends(get_session)) -> PortefeuilleService:
 def synthese(compte_id: Optional[int] = None, service: PortefeuilleService = Depends(get_service)):
     """Positions, performance, risque, repartition et fiscalite (d'un compte, ou de tous)."""
     return service.synthese(compte_id)
+
+
+@router.get("/frais")
+def frais(compte_id: int, type: str, quantite: float, prix: float, jour: date, valeur_id: Optional[int] = None,
+          db: Session = Depends(get_session)):
+    """Apercu des frais d'un ordre : courtage du compte et TTF."""
+    from backend.db.schema import Valeur
+    valeur = db.get(Valeur, valeur_id) if valeur_id else None
+    return PortefeuilleService(db).frais(compte_id, valeur, type, quantite * prix, jour)
 
 
 @router.get("/comptes", response_model=list[CompteRead])

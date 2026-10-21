@@ -34,6 +34,19 @@ DEFINITIONS = [
         defaut="CAC.PA",
     ),
     Definition(
+        "frais_fixe", "Courtage par défaut : part fixe (€ par ordre)",
+        "Utilisé pour les nouveaux comptes et le backtest. Exemple : 1 pour « 1 € + 0,1 % ».", defaut="0",
+    ),
+    Definition(
+        "frais_pct", "Courtage par défaut : part proportionnelle (%)",
+        "En pourcentage du montant de l'ordre. Exemple : 0,1 pour « 1 € + 0,1 % ».", defaut="0,1",
+    ),
+    Definition("frais_min", "Courtage par défaut : minimum par ordre (€)", "0 si votre courtier n'en a pas.", defaut="0"),
+    Definition(
+        "montant_ordre", "Montant habituel d'un ordre (€)",
+        "Sert au backtest pour traduire une part fixe de courtage en pourcentage.", defaut="2000",
+    ),
+    Definition(
         "tranche_marginale", "Tranche marginale d'imposition (TMI)",
         "En % : 0, 11, 30, 41 ou 45. Facultatif : sert à comparer la flat tax à l'option pour le barème progressif "
         "dans la fiscalité du compte-titres.",
@@ -87,3 +100,16 @@ def tous() -> list[dict]:
         {**asdict(d), "valeur": ("••••••" if d.secret and valeurs.get(d.cle) else valeurs.get(d.cle) or "")}
         for d in DEFINITIONS
     ]
+
+
+def nombre(cle: str, defaut: float = 0.0) -> float:
+    """Reglage numerique (« 0,1 » ou « 0.1 ») ; `defaut` si vide ou illisible."""
+    try:
+        return float(lire(cle).replace(",", ".").replace("%", "").replace("€", "").strip())
+    except ValueError:
+        return defaut
+
+
+def grille_frais() -> dict:
+    """Grille de courtage par defaut, pourcentage en fraction."""
+    return {"fixe": nombre("frais_fixe"), "pct": nombre("frais_pct") / 100, "min": nombre("frais_min")}

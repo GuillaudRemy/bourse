@@ -103,6 +103,7 @@ export const api = {
     transactions:  (compteId)     => request(`/portefeuille/transactions${parametres({ compte_id: compteId })}`),
     creerTransaction:(data)       => request('/portefeuille/transactions', { method: 'POST', ...corps(data) }),
     supprimerTransaction:(id)     => request(`/portefeuille/transactions/${id}`, { method: 'DELETE' }),
+    frais:         (opts)         => request(`/portefeuille/frais${parametres(opts)}`),
     lireReleve:    (compteId, f)  => request(`/portefeuille/comptes/${compteId}/releve`, fichier(f)),
     validerReleve: (compteId, lignes) => request(`/portefeuille/comptes/${compteId}/releve/valider`, { method: 'POST', ...corps({ lignes }) }),
   },

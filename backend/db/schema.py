@@ -220,6 +220,10 @@ class Compte(SQLModel, table=True):
     type:          str = "CTO"           # PEA · PEA-PME · CTO · AV · autre
     ouverture:     Optional[date] = None
     courtier:      Optional[str] = None
+    # Grille de frais du courtier : max(minimum, fixe + pourcentage x montant). Vide = reglages par defaut.
+    frais_fixe:    Optional[float] = None    # euros par ordre
+    frais_pct:     Optional[float] = None    # en fraction (0,001 = 0,1 %)
+    frais_min:     Optional[float] = None    # euros
 
 
 class Transaction(SQLModel, table=True):
@@ -229,7 +233,8 @@ class Transaction(SQLModel, table=True):
     type:      str                       # achat · vente · dividende · frais · depot · retrait · division
     quantite:  Optional[float] = None
     prix:      Optional[float] = None    # prix unitaire, devise du titre
-    frais:     float = 0.0               # en euros
+    frais:     float = 0.0               # en euros, TTF comprise
+    ttf:       float = 0.0               # dont taxe sur les transactions financieres (achats d'actions francaises)
     montant:   Optional[float] = None    # en euros (signe : + entree d'argent, - sortie)
     note:      Optional[str] = None
 

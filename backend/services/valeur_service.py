@@ -48,7 +48,7 @@ class ValeurService:
             valeur = Valeur(
                 symbole=symbole, source="yahoo", nom=data.nom or fiche.nom, type=fiche.type,
                 devise=fiche.devise, place=fiche.place, secteur=fiche.secteur, pays=fiche.pays,
-                infos=json.dumps(fiche.infos),
+                infos=json.dumps(fiche.infos), isin=(data.isin or "").upper() or None,
             )
         else:
             valeur = Valeur(

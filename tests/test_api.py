@@ -94,8 +94,9 @@ def test_actualisation_en_tache_de_fond():
 def test_indice_en_points(csv_cours):
     """Un indice se lit en points ; un ETF ou une action, dans sa devise."""
     with TestClient(app) as client:
-        indice = client.post("/valeurs", json={"symbole": "IDXTEST", "source": "import", "type": "indice", "devise": "EUR"}).json()
-        etf = client.post("/valeurs", json={"symbole": "ETFTEST", "source": "import", "type": "etf", "devise": "EUR"}).json()
+        def creer(symbole, type_):
+            return client.post("/valeurs", json={"symbole": symbole, "source": "import", "type": type_, "devise": "EUR"}).json()
+        indice, etf = creer("IDXTEST", "indice"), creer("ETFTEST", "etf")
         for v in (indice, etf):
             client.post(f"/valeurs/{v['id']}/import/cours", files={"fichier": ("c.csv", csv_cours)})
         assert client.get(f"/valeurs/{indice['id']}/analyse").json()["devise_affichee"] == "pts"
