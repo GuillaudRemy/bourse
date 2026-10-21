@@ -79,6 +79,6 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 
 ## Phase 8 — Pistes avancées
 - [ ] 8.1 Assistant IA (Claude) sur rapports annuels, clé API facultative — §13
-- [ ] 8.2 Consensus des analystes — §13
+- [x] 8.2 Consensus des analystes — §13
 - [ ] 8.3 Données ESG — §13
 - [ ] 8.4 Partage entre plusieurs PC (export / import des fiches) — §13

@@ -4,6 +4,7 @@ import { pct, nombre } from '../../lib/format'
 import GraphiqueBenefices from '../GraphiqueBenefices'
 import Barres from '../Barres'
 import { Stat } from './OngletRegression'
+import Consensus from './Consensus'
 
 /** Verification n°2 de la methode : la pente est-elle portee par les benefices ? */
 export default function OngletBenefices({ analyse }) {
@@ -13,9 +14,12 @@ export default function OngletBenefices({ analyse }) {
 
   if (!b) {
     return (
-      <div className="carte vide">
-        Il faut au moins 3 années de BPA positif pour confronter le cours aux bénéfices.<br />
-        Complétez l'historique dans l'onglet « Fondamentaux » (rapport PDF, tableur, saisie).
+      <div className="pile" style={{ gap: 16 }}>
+        <div className="carte vide">
+          Il faut au moins 3 années de BPA positif pour confronter le cours aux bénéfices.<br />
+          Complétez l'historique dans l'onglet « Fondamentaux » (rapport PDF, tableur, saisie).
+        </div>
+        {analyse.valeur.type !== 'indice' && <Consensus valeurId={analyse.valeur.id} benefices={null} />}
       </div>
     )
   }
@@ -70,6 +74,7 @@ export default function OngletBenefices({ analyse }) {
           </div>
         </div>
       </div>
+      <Consensus valeurId={analyse.valeur.id} benefices={b} />
     </div>
   )
 }

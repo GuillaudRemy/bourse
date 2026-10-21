@@ -1,3 +1,4 @@
+import time
 from datetime import date
 from typing import Optional
 
@@ -12,8 +13,10 @@ from backend.services import export_service, taches, technique_service
 from backend.services.analyse_service import AnalyseService
 from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
+from backend.sources.base import SourceIndisponible
 
 router = APIRouter(tags=["Valeurs"], prefix="/valeurs")
+_CONSENSUS: dict[str, tuple[float, dict]] = {}
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
@@ -88,6 +91,26 @@ def technique(
     """Analyse technique : unite de temps (jour, semaine, mois) et periodes au choix."""
     periodes = [int(n) for n in mm.split(",") if 0 < int(n) <= 400]
     return technique_service.technique(session, valeur_id, unite, periodes, rsi, bollinger, stochastique, atr, adx)
+
+
+@router.get("/{valeur_id}/consensus")
+def consensus(valeur_id: int, session: Session = Depends(get_session)):
+    """Previsions des analystes (Yahoo), gardees 12 h en memoire : elles bougent peu dans la journee."""
+    valeur = session.get(Valeur, valeur_id)
+    if not valeur:
+        raise HTTPException(404, "Valeur introuvable.")
+    if valeur.type == "indice" or valeur.source != "yahoo":
+        return {"indisponible": "Pas de prévisions d'analystes pour ce type de valeur."}
+    en_cache = _CONSENSUS.get(valeur.symbole)
+    if en_cache and time.monotonic() - en_cache[0] < 12 * 3600:
+        return en_cache[1]
+    try:
+        donnees = yahoo.consensus(valeur.symbole)
+    except SourceIndisponible as e:
+        return {"indisponible": str(e)}
+    resultat = donnees or {"indisponible": "Aucun analyste ne suit cette valeur chez Yahoo."}
+    _CONSENSUS[valeur.symbole] = (time.monotonic(), resultat)
+    return resultat
 
 
 @router.get("/{valeur_id}/export.xlsx")

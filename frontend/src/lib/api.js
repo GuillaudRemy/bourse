@@ -69,6 +69,7 @@ export const api = {
     annoter:        (id, data) => request(`/valeurs/${id}/annotations`, { method: 'POST', ...corps(data) }),
     effacerAnnotation: (id, a) => request(`/valeurs/${id}/annotations/${a}`, { method: 'DELETE' }),
     valorisation:   (id, h)  => request(`/valeurs/${id}/valorisation${parametres(h)}`),
+    consensus:      (id)     => request(`/valeurs/${id}/consensus`),
     secteur:        (id)     => request(`/valeurs/${id}/secteur`),
   },
 

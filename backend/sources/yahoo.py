@@ -236,3 +236,51 @@ def _propre(valeur):
     except (TypeError, ValueError):
         return None
     return None if math.isnan(nombre) or math.isinf(nombre) else nombre
+
+
+def consensus(symbole: str) -> dict | None:
+    """Previsions des analystes : BPA de l'exercice en cours (« 0y ») et du suivant (« +1y »),
+    leur evolution sur 90 jours, les revisions, l'objectif de cours et les recommandations.
+    None si Yahoo n'a aucune prevision pour cette valeur."""
+    ticker = yf.Ticker(symbole)
+    try:
+        estimations = avec_tentatives(lambda: ticker.earnings_estimate, tentatives=2)
+        tendance = avec_tentatives(lambda: ticker.eps_trend, tentatives=2)
+        revisions = avec_tentatives(lambda: ticker.eps_revisions, tentatives=2)
+        objectifs = avec_tentatives(lambda: ticker.analyst_price_targets, tentatives=2) or {}
+        recommandations = avec_tentatives(lambda: ticker.recommendations_summary, tentatives=2)
+    except Exception as e:
+        raise SourceIndisponible(f"Consensus indisponible : {e}") from e
+
+    def ligne(df, periode, colonne):
+        if df is None or df.empty or periode not in df.index or colonne not in df.columns:
+            return None
+        return _propre(df.loc[periode, colonne])
+
+    exercices = []
+    for periode, decalage in (("0y", 0), ("+1y", 1)):
+        bpa = ligne(estimations, periode, "avg")
+        if bpa is None:
+            continue
+        il_y_a_90_jours = ligne(tendance, periode, "90daysAgo")
+        exercices.append({
+            "decalage": decalage, "bpa": bpa,
+            "bas": ligne(estimations, periode, "low"), "haut": ligne(estimations, periode, "high"),
+            "analystes": ligne(estimations, periode, "numberOfAnalysts"),
+            "croissance": ligne(estimations, periode, "growth"),
+            "bpa_annee_precedente": ligne(estimations, periode, "yearAgoEps"),
+            "evolution_90j": bpa / il_y_a_90_jours - 1 if il_y_a_90_jours else None,
+            "hausses_30j": ligne(revisions, periode, "upLast30days"),
+            "baisses_30j": ligne(revisions, periode, "downLast30days"),
+        })
+    avis = None
+    if recommandations is not None and not recommandations.empty:
+        derniere = recommandations.iloc[0]
+        avis = {k: int(derniere.get(k) or 0) for k in ("strongBuy", "buy", "hold", "sell", "strongSell")}
+    objectif = {k: _propre(objectifs.get(k)) for k in ("mean", "median", "low", "high", "current")}
+    if not exercices and not avis and objectif.get("mean") is None:
+        return None
+    devise = None
+    if estimations is not None and "currency" in getattr(estimations, "columns", []):
+        devise = next((d for d in estimations["currency"] if isinstance(d, str)), None)
+    return {"exercices": exercices, "objectif": objectif, "recommandations": avis, "devise": devise}
