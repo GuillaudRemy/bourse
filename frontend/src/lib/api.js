@@ -156,6 +156,8 @@ export const api = {
     sauvegardes: () => request('/sauvegardes'),
     sauvegarder: () => request('/sauvegardes', { method: 'POST' }),
     restaurer: chemin => request('/sauvegardes/restaurer', { method: 'POST', ...corps({ chemin }) }),
+    apercuPartage: f => request('/partage/apercu', fichier(f)),
+    importerPartage: (f, portefeuille) => request(`/partage/importer${parametres({ portefeuille })}`, fichier(f)),
   },
   reglages: {
     list:   ()            => request('/reglages'),

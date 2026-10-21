@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlmodel import Session
@@ -107,3 +107,25 @@ def restaurer(demande: Restauration):
     from backend.services import cache
     cache.invalider()
     return {"message": f"Base restaurée. L'état précédent est gardé dans {securite.name}."}
+
+
+@router.get("/partage/export")
+def exporter_partage(portefeuille: bool = False, db: Session = Depends(get_session)):
+    """Fichier a ouvrir dans Bourse sur un autre PC (Reglages > Partage)."""
+    from backend.services import partage_service
+    contenu = json.dumps(partage_service.exporter(db, portefeuille), ensure_ascii=False, indent=1)
+    nom = f"bourse-partage-{datetime.now():%Y-%m-%d}.bourse.json"
+    return Response(contenu.encode(), media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+@router.post("/partage/apercu")
+async def apercu_partage(fichier: UploadFile = File(...), db: Session = Depends(get_session)):
+    from backend.services import partage_service
+    return partage_service.apercu(db, await fichier.read())
+
+
+@router.post("/partage/importer")
+async def importer_partage(portefeuille: bool = False, fichier: UploadFile = File(...), db: Session = Depends(get_session)):
+    from backend.services import partage_service
+    return partage_service.importer(db, await fichier.read(), portefeuille)

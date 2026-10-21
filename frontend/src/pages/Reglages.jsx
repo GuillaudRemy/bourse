@@ -1,5 +1,6 @@
 // @ts-check
 import { useEffect, useState } from 'react'
+import Partage from '../components/Partage'
 import { api } from '../lib/api'
 
 export default function Reglages() {
@@ -49,6 +50,7 @@ export default function Reglages() {
           </form>
         ))}
       </div>
+      <Partage />
       <p className="discret" style={{ marginTop: 16 }}>
         Version, emplacement des données et diagnostic de dépannage : page <a href="/a-propos">À propos</a>.
       </p>
