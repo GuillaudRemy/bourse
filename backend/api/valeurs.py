@@ -1,18 +1,20 @@
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlmodel import Session
 
 from backend.analyse.valorisation import Hypotheses
 from backend.db.db import get_session
+from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services import taches, technique_service
+from backend.services import export_service, taches, technique_service
 from backend.services.analyse_service import AnalyseService
 from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
 
 router = APIRouter(tags=["Valeurs"], prefix="/valeurs")
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def get_service(session: Session = Depends(get_session)) -> ValeurService:
@@ -86,6 +88,15 @@ def technique(
     """Analyse technique : unite de temps (jour, semaine, mois) et periodes au choix."""
     periodes = [int(n) for n in mm.split(",") if 0 < int(n) <= 400]
     return technique_service.technique(session, valeur_id, unite, periodes, rsi, bollinger, stochastique, atr, adx)
+
+
+@router.get("/{valeur_id}/export.xlsx")
+def exporter(valeur_id: int, session: Session = Depends(get_session)):
+    """Classeur Excel : resume, cours mensuels, comptes, ratios, multiples."""
+    if not session.get(Valeur, valeur_id):
+        raise HTTPException(404, "Valeur introuvable.")
+    nom, contenu = export_service.valeur(session, valeur_id)
+    return Response(contenu, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{nom}.xlsx"'})
 
 
 @router.get("/{valeur_id}/valorisation")

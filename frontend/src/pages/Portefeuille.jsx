@@ -50,6 +50,7 @@ export default function Portefeuille() {
           <button className="btn" onClick={() => setModale('compte')}>+ Compte</button>
           {compteId && <button className="btn" onClick={() => setModale('modifier')}>Modifier le compte</button>}
           <button className="btn" onClick={() => setModale('releve')} disabled={!comptes.length}>Importer un relevé</button>
+          <a className="btn" href={`/api/portefeuille/export.xlsx${compteId ? `?compte_id=${compteId}` : ''}`}>Excel</a>
           <button className="btn btn-primaire" onClick={() => setModale('operation')} disabled={!comptes.length}>+ Opération</button>
         </div>
       </div>

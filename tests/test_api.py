@@ -104,3 +104,19 @@ def test_indice_en_points(csv_cours):
             client.post(f"/valeurs/{v['id']}/import/cours", files={"fichier": ("c.csv", csv_cours)})
         assert client.get(f"/valeurs/{indice['id']}/analyse").json()["devise_affichee"] == "pts"
         assert client.get(f"/valeurs/{etf['id']}/analyse").json()["devise_affichee"] == "EUR"
+
+
+def test_exports_excel(csv_cours):
+    import io
+
+    import openpyxl
+    with TestClient(app) as client:
+        vid = client.post("/valeurs", json={"symbole": "EXPORT", "source": "import", "nom": "Export SA"}).json()["id"]
+        client.post(f"/valeurs/{vid}/import/cours", files={"fichier": ("c.csv", csv_cours)})
+        client.put(f"/valeurs/{vid}/fondamentaux/2024", json={"bpa": 5.0, "chiffre_affaires": 1e9})
+        r = client.get(f"/valeurs/{vid}/export.xlsx")
+        assert r.status_code == 200 and "EXPORT" in r.headers["content-disposition"]
+        classeur = openpyxl.load_workbook(io.BytesIO(r.content))
+        assert {"Résumé", "Cours mensuels", "Comptes annuels"} <= set(classeur.sheetnames)
+        assert classeur["Cours mensuels"].max_row > 200
+        assert client.get("/portefeuille/export.xlsx").status_code == 200

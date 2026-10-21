@@ -62,7 +62,7 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 6.4 Mode sombre + taille de police — §10
 - [x] 6.5 Recherche globale Ctrl+K — §10
 - [x] 6.6 Aide contextuelle, glossaire, première utilisation guidée — §10
-- [ ] 6.7 Export PDF de la fiche + export Excel — §10
+- [x] 6.7 Export PDF de la fiche + export Excel — §10
 - [x] 6.8 Cache des analyses, WAL, synthèse précalculée — §11.3
 - [ ] 6.9 Journal fichier, bouton diagnostic, page « À propos » — §11.4
 - [ ] 6.10 Tests : cas de référence figés, tests d'interface Playwright en CI — §11.1

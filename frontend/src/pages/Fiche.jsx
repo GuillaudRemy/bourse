@@ -87,6 +87,8 @@ export default function Fiche() {
                     title={valeur.source === 'yahoo' ? 'Cours, divisions et comptes' : 'Comptes officiels (ESEF, SEC)'}>
               {actualisation ? 'Actualisation…' : 'Actualiser'}
             </button>
+            <a className="btn btn-mini" href={`/valeurs/${valeur.id}/rapport`} target="_blank" rel="noreferrer">Rapport PDF</a>
+            <a className="btn btn-mini" href={`/api/valeurs/${valeur.id}/export.xlsx`}>Excel</a>
           </div>
         </div>
         {stats && (

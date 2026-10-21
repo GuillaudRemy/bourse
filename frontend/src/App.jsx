@@ -3,6 +3,7 @@ import Nav from './components/Nav'
 import Palette from './components/Palette'
 import Bienvenue from './components/Bienvenue'
 import Glossaire from './pages/Glossaire'
+import Rapport from './pages/Rapport'
 import Tableau from './pages/Tableau'
 import Fiche   from './pages/Fiche'
 import Methode from './pages/Methode'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/comparer"    element={<Comparer />} />
         <Route path="/backtest"    element={<Backtest />} />
         <Route path="/glossaire"   element={<Glossaire />} />
+        <Route path="/valeurs/:id/rapport" element={<Rapport />} />
         <Route path="/valeurs"     element={<Tableau />} />
         <Route path="/valeurs/:id" element={<Fiche />} />
         <Route path="/methode"     element={<Methode />} />

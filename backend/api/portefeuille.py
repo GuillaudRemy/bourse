@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
 
@@ -30,6 +30,15 @@ def frais(compte_id: int, type: str, quantite: float, prix: float, jour: date, v
     from backend.db.schema import Valeur
     valeur = db.get(Valeur, valeur_id) if valeur_id else None
     return PortefeuilleService(db).frais(compte_id, valeur, type, quantite * prix, jour)
+
+
+@router.get("/export.xlsx")
+def exporter(compte_id: Optional[int] = None, db: Session = Depends(get_session)):
+    """Classeur Excel : positions, operations, fiscalite."""
+    from backend.services import export_service
+    contenu = export_service.portefeuille(db, compte_id)
+    return Response(contenu, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="portefeuille.xlsx"'})
 
 
 @router.get("/comptes", response_model=list[CompteRead])

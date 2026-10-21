@@ -522,3 +522,19 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
 .bienvenue-points { display: flex; gap: 6px; justify-content: center; }
 .bienvenue-points span { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
 .bienvenue-points span.actif { background: var(--accent); }
+
+/* ─── RAPPORT ET IMPRESSION ──────────────────────────────────────── */
+.rapport-section { margin-top: 28px; }
+.rapport-titre { font-size: 18px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+@media print {
+  :root { --bg: #fff; }
+  .nav, .no-print, .graphique-barre, .onglets, .btn, .aide, input[type=range] { display: none !important; }
+  body { background: #fff; }
+  .page { max-width: none; padding: 0; }
+  .rapport-section { break-before: page; }
+  .rapport-section:first-of-type { break-before: auto; }
+  .carte, .stat, .verif, tr { break-inside: avoid; }
+  .grille-2 { grid-template-columns: 1fr !important; }
+  .tableau-conteneur { overflow: visible; }
+}
+@media print { @page { margin: 12mm; } }
