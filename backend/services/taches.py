@@ -10,9 +10,11 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from backend.core import reglages
+from backend.core.journal import journal
 from backend.db.db import engine
 from backend.db.schema import Valeur
 
+_log = journal("taches")
 _verrou = threading.Lock()
 _etat: dict = {"en_cours": False, "total": 0, "faits": 0, "courant": None, "echecs": [],
                "avertissements": [], "debut": None, "fin": None}
@@ -53,15 +55,18 @@ def _travailler(ids: list[tuple[int, str]]) -> None:
                             _etat["avertissements"].append(f"{nom} : {' · '.join(resultat.avertissements)}")
                 except HTTPException as e:
                     db.rollback()
+                    _log.warning("actualisation de %s : %s", nom, e.detail)
                     with _verrou:
                         _etat["echecs"].append(f"{nom} : {e.detail}")
                 except Exception as e:     # jamais laisser une valeur bloquer les suivantes
                     db.rollback()
+                    _log.exception("actualisation de %s : erreur inattendue", nom)
                     with _verrou:
                         _etat["echecs"].append(f"{nom} : {e}")
             with _verrou:
                 _etat["faits"] += 1
         reglages.ecrire("derniere_actualisation", date.today().isoformat())
+        _log.info("actualisation terminee : %d valeur(s), %d echec(s)", len(ids), len(_etat["echecs"]))
     finally:
         with _verrou:
             _etat.update(en_cours=False, courant=None, fin=datetime.now(UTC).isoformat())

@@ -48,6 +48,9 @@ export default function Reglages() {
           </form>
         ))}
       </div>
+      <p className="discret" style={{ marginTop: 16 }}>
+        Version, emplacement des données et diagnostic de dépannage : page <a href="/a-propos">À propos</a>.
+      </p>
     </div>
   )
 }

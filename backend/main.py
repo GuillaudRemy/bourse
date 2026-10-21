@@ -7,7 +7,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
 from backend import migrate
-from backend.api import fondamentaux, imports, journal, portefeuille, recherche, reglages, suivi, univers, valeurs
+from backend.api import fondamentaux, imports, journal, portefeuille, recherche, reglages, suivi, systeme, univers, valeurs
+from backend.core import journal as journal_evenements
 from backend.core.config import config
 from backend.services import taches
 
@@ -16,6 +17,7 @@ from backend.services import taches
 async def lifespan(app: FastAPI):
     # Sauvegarde du jour puis migrations : les fondamentaux saisis a la main
     # sont ce qui a le plus de valeur ici.
+    journal_evenements.configurer().info("demarrage de Bourse %s", config.APP_VERSION)
     migrate.main()
     if config.ACTUALISATION_AU_DEMARRAGE:
         taches.lancer_si_besoin()
@@ -49,6 +51,7 @@ app.include_router(portefeuille.router, prefix=config.API_PREFIX)
 app.include_router(suivi.router,        prefix=config.API_PREFIX)
 app.include_router(univers.router,      prefix=config.API_PREFIX)
 app.include_router(recherche.router,    prefix=config.API_PREFIX)
+app.include_router(systeme.router,      prefix=config.API_PREFIX)
 
 
 @app.get("/health")

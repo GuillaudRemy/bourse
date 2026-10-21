@@ -120,3 +120,18 @@ def test_exports_excel(csv_cours):
         assert {"Résumé", "Cours mensuels", "Comptes annuels"} <= set(classeur.sheetnames)
         assert classeur["Cours mensuels"].max_row > 200
         assert client.get("/portefeuille/export.xlsx").status_code == 200
+
+
+def test_a_propos_et_diagnostic_sans_donnees_personnelles():
+    import io
+    import json
+    import zipfile
+    with TestClient(app) as client:
+        client.put("/reglages/contact_sec", json={"valeur": "personne@exemple.fr"})
+        infos = client.get("/a-propos").json()
+        assert infos["version"] and "valeur" in infos["enregistrements"]
+        r = client.get("/diagnostic.zip")
+        archive = zipfile.ZipFile(io.BytesIO(r.content))
+        contenu = json.loads(archive.read("diagnostic.json"))
+        assert contenu["reglages"]["contact_sec"] == "(renseigné)"
+        assert "personne@exemple.fr" not in archive.read("diagnostic.json").decode()

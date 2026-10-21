@@ -149,6 +149,9 @@ export const api = {
 
   champs: () => request('/champs'),
 
+  systeme: {
+    aPropos: () => request('/a-propos'),
+  },
   reglages: {
     list:   ()            => request('/reglages'),
     ecrire: (cle, valeur) => request(`/reglages/${cle}`, { method: 'PUT', ...corps({ valeur }) }),
