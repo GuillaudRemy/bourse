@@ -74,7 +74,6 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [ ] 7.3 Test de mise à jour N−1 → N en CI (Windows et Linux) — §11.1
 - [ ] 7.4 Canal bêta — §12
 - [ ] 7.5 Sauvegarde externe vers un dossier synchronisé — §12
-- [ ] 7.6 Version macOS — §12
 - [ ] 7.7 Signature de code Windows (prête, activée par un secret) — §12
 - [ ] 7.8 Mention légale visible — §12
 
