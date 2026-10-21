@@ -221,6 +221,7 @@ class AnalyseService:
                     "perf_1an": ind.performance(cloture, 365),
                     "rsi": _f(rsi14.iloc[-1]),
                     "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
+                    "qualite": qualite.controler(cours)["statut"],
                 }
             if reg is not None:
                 cle_zone, libelle = zone(reg.position)

@@ -74,8 +74,8 @@ def test_controle_qualite(cours_synthetiques):
 
 def test_avertissement_indice_prix():
     from backend.analyse.indices import avertissement
-    assert avertissement("^FCHI", "CAC 40", "indice")["symbole"] == "PX1GR.PA"
-    assert avertissement("PX1GR.PA", "CAC 40 GR", "indice") is None
+    assert avertissement("^FCHI", "CAC 40", "indice")["symbole"] == "CAC.PA"
+    assert avertissement("^SP500TR", "S&P 500 (TR)", "indice") is None
     assert avertissement("^990100-USD-NETR", "MSCI WORLD NETR USD", "indice") is None
     assert avertissement("AI.PA", "Air Liquide", "action") is None
     assert avertissement("^N225", "Nikkei 225", "indice")["symbole"] is None

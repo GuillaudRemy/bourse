@@ -150,7 +150,10 @@ export default function Tableau() {
                 {triees.map(l => (
                   <tr key={l.valeur.id} className="cliquable" onClick={() => naviguer(`/valeurs/${l.valeur.id}`)}>
                     <td className="texte">
-                      <div className="valeur-nom">{l.valeur.nom}</div>
+                      <div className="valeur-nom">
+                        {l.valeur.nom}
+                        {l.qualite === 'alerte' && <span className="badge statut-alerte" style={{ marginLeft: 6 }} title="Données de cours suspectes : voir l'onglet Données de la fiche">données suspectes</span>}
+                      </div>
                       <div className="valeur-symbole">
                         {l.valeur.symbole} · {TYPES[l.valeur.type]}{l.valeur.source === 'import' ? ' · importé' : ''}
                       </div>

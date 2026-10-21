@@ -7,13 +7,15 @@ regression, il faut la version dividendes reinvestis (GR, TR, Net Return).
 import re
 
 # Indice prix -> equivalent dividendes reinvestis disponible chez Yahoo.
+# Pour le CAC 40, Yahoo n'a plus d'historique du CAC 40 GR (PX1GR.PA s'arrete en 2015) :
+# l'ETF Amundi CAC 40, dont le cours ajuste integre les dividendes, prend le relais (depuis 2008).
 EQUIVALENTS = {
-    "^FCHI": ("PX1GR.PA", "CAC 40 GR"),
+    "^FCHI": ("CAC.PA", "ETF Amundi CAC 40 (dividendes réinvestis)"),
     "^GSPC": ("^SP500TR", "S&P 500 Total Return"),
-    "^NDX": ("^NDXT", "Nasdaq-100 Total Return"),
+    "^NDX": ("QQQ", "ETF Invesco QQQ (Nasdaq-100, dividendes réinvestis)"),
 }
 # Indices deja dividendes reinvestis, par construction ou par leur nom.
-RENDEMENT_TOTAL = {"PX1GR.PA", "^SP500TR", "^NDXT", "^GDAXI"}
+RENDEMENT_TOTAL = {"^SP500TR", "^GDAXI"}
 MOTIF = re.compile(r"\b(GR|TR|NR|NETR|gross|net return|total return|rendement total)\b", re.IGNORECASE)
 
 

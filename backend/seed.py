@@ -15,7 +15,7 @@ EXEMPLES = [
     "AM.PA",    # Dassault Aviation : plus agitee
     "OPM.PA",   # OPmobility (ex-Plastic Omnium) : cyclique, couloir tres large
     "OR.PA",    # L'Oreal : PER structurellement eleve
-    "PX1GR.PA", # CAC 40 dividendes reinvestis (le ^FCHI « prix » sous-estime la pente)
+    "CAC.PA",   # ETF CAC 40, cours ajuste = dividendes reinvestis (le ^FCHI « prix » sous-estime la pente)
     "^SP500TR", # S&P 500 dividendes reinvestis
 ]
 
