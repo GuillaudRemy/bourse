@@ -50,3 +50,6 @@ export function dateHeure(iso) {
 
 /** Classe de couleur pour un nombre signe. */
 export const ton = v => absent(v) || v === 0 ? '' : v > 0 ? 'positif' : 'negatif'
+
+/** Unite d'affichage d'un cours : points pour un indice, devise sinon (un ETF a un prix en euros). */
+export const unite = valeur => valeur?.type === 'indice' ? 'pts' : valeur?.devise

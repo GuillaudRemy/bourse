@@ -92,7 +92,7 @@ def resume(db: Session = Depends(get_session)):
     def court(l):
         return {"id": l["valeur"]["id"], "nom": l["valeur"]["nom"], "variation_jour": l.get("variation_jour"),
                 "position": l.get("position"), "zone": l.get("zone"), "dernier": l.get("dernier"),
-                "devise": l["valeur"].get("devise")}
+                "devise": "pts" if l["valeur"].get("type") == "indice" else l["valeur"].get("devise")}
     return {
         "derniere_actualisation": reglages.lire("derniere_actualisation") or None,
         "portefeuille": None if porte.get("vide") else {

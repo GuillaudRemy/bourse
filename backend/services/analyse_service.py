@@ -15,6 +15,7 @@ from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
 from backend.db.schema import Valeur
 from backend.models.valeur import ValeurRead
+from backend.services import cache
 from backend.services.stockage import charger_cours, charger_fondamentaux, charger_taux
 from backend.sources import bce
 
@@ -106,7 +107,8 @@ class AnalyseService:
             "valeur": ValeurRead.model_validate(valeur).model_dump(mode="json"),
             "debut_defaut": debut_par_defaut(valeur)[0].isoformat(),
             "debut_defaut_raison": debut_par_defaut(valeur)[1],
-            "devise_affichee": self._devise,
+            # Un indice se lit en points, pas dans une devise (un ETF, lui, a bien un prix en euros).
+            "devise_affichee": "pts" if valeur.type == "indice" else self._devise,
             "en_euros": en_euros,
             "vide": cours.empty,
         }
@@ -314,37 +316,66 @@ class AnalyseService:
             "plus_bas_52s": _f(cloture.tail(252).min()),
         }
 
-    # ── Tableau de synthese ───────────────────────────────────────────
+    # ── Fiches resumees (synthese, screener, comparaison) ─────────────
     def synthese(self) -> list[dict]:
-        lignes = []
-        for valeur in self._db.exec(select(Valeur).order_by(Valeur.nom)).all():
-            ligne = {"valeur": ValeurRead.model_validate(valeur).model_dump(mode="json")}
-            _, cours, _, fenetre, reg = self._contexte(valeur.id, True, None)
-            if not cours.empty:
-                cloture = cours["cloture"]
-                mm200 = ind.moyenne_mobile(cloture, 200)
-                rsi14 = ind.rsi(cloture)
+        return [self.fiche_resumee(v) for v in self._db.exec(select(Valeur).order_by(Valeur.nom)).all()]
+
+    def fiche_resumee(self, valeur: Valeur) -> dict:
+        """Tout ce qui resume une valeur en une ligne ; calculee une fois, puis gardee en cache."""
+        if (en_cache := cache.lire(valeur.id)) is not None:
+            return en_cache
+        ligne = {"valeur": ValeurRead.model_validate(valeur).model_dump(mode="json")}
+        _, cours, _, fenetre, reg = self._contexte(valeur.id, True, None)
+        if not cours.empty:
+            cloture = cours["cloture"]
+            mm200 = ind.moyenne_mobile(cloture, 200)
+            rsi14 = ind.rsi(cloture)
+            ligne |= {
+                "dernier": float(cloture.iloc[-1]),
+                "jour": cloture.index[-1].strftime("%Y-%m-%d"),
+                "variation_jour": _f(cloture.iloc[-1] / cloture.iloc[-2] - 1) if len(cloture) > 1 else None,
+                "perf_1an": ind.performance(cloture, 365),
+                "perf_5ans": ind.performance(cloture, 5 * 365),
+                "volatilite": ind.volatilite_annuelle(cloture),
+                "rsi": _f(rsi14.iloc[-1]),
+                "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
+                "qualite": qualite.controler(cours)["statut"],
+            }
+        fondamentaux = self._fondamentaux(valeur.id, self._cloture_origine) if not cours.empty else []
+        if reg is not None:
+            cle_zone, libelle = zone(reg.position)
+            verifs = [
+                fiabilite.historique(reg),
+                fiabilite.per(reg, self._cloture_origine, fondamentaux),
+                fiabilite.rupture(reg, fenetre, valeur.rupture),
+            ]
+            ligne |= {
+                "pente": reg.pente, "ecart_type": reg.ecart_type, "position": reg.position,
+                "zone": cle_zone, "zone_libelle": libelle, "retour_droite": reg.retour_droite,
+                "annees": round((reg.fin - reg.debut).days / 365.25, 1), "r2": reg.r2,
+                "fiabilite": fiabilite.verdict(verifs)["statut"],
+            }
+        comptes = self._comptes(valeur, fondamentaux) if fondamentaux else None
+        if comptes:
+            s = comptes["synthese"]
+            ligne |= {
+                "note": comptes["note"]["note"],
+                "roic": s.get("roic_moyen_5"), "roe": s.get("roe_moyen_5"),
+                "croissance_bpa_10": s.get("croissance_bpa_10") or s.get("croissance_bpa_5"),
+                "croissance_ca_10": s.get("croissance_ca_10") or s.get("croissance_ca_5"),
+                "dette_nette_ebitda": s.get("dette_nette_ebitda"),
+                "marge_operationnelle": s.get("marge_operationnelle_moyenne_10"),
+                "piotroski": comptes["piotroski"][-1]["score"] if comptes["piotroski"] else None,
+            }
+            valo_ = self._valorisation(valeur, fondamentaux, comptes)
+            if valo_ and "multiples" in valo_:
+                actuels, historique = valo_["multiples"].get("actuels", {}), valo_["multiples"].get("historique", {})
                 ligne |= {
-                    "dernier": float(cloture.iloc[-1]),
-                    "jour": cloture.index[-1].strftime("%Y-%m-%d"),
-                    "variation_jour": _f(cloture.iloc[-1] / cloture.iloc[-2] - 1) if len(cloture) > 1 else None,
-                    "perf_1an": ind.performance(cloture, 365),
-                    "rsi": _f(rsi14.iloc[-1]),
-                    "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
-                    "qualite": qualite.controler(cours)["statut"],
+                    "per": actuels.get("per"), "ve_ebitda": actuels.get("ve_ebitda"),
+                    "rendement_fcf": actuels.get("rendement_fcf"), "rendement_dividende": actuels.get("rendement_dividende"),
+                    "capitalisation": actuels.get("capitalisation"),
+                    "cherte_per": historique.get("per", {}).get("cherte"),
+                    "dcf_inverse": valo_["modeles"].get("dcf_inverse"),
                 }
-            if reg is not None:
-                cle_zone, libelle = zone(reg.position)
-                verifs = [
-                    fiabilite.historique(reg),
-                    fiabilite.per(reg, cours["cloture"], self._fondamentaux(valeur.id, cours["cloture"])),
-                    fiabilite.rupture(reg, fenetre, valeur.rupture),
-                ]
-                ligne |= {
-                    "pente": reg.pente, "ecart_type": reg.ecart_type, "position": reg.position,
-                    "zone": cle_zone, "zone_libelle": libelle, "retour_droite": reg.retour_droite,
-                    "annees": round((reg.fin - reg.debut).days / 365.25, 1),
-                    "fiabilite": fiabilite.verdict(verifs)["statut"],
-                }
-            lignes.append(ligne)
-        return lignes
+        cache.ecrire(valeur.id, ligne)
+        return ligne

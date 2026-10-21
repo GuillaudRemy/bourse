@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { pct, prix, nombre, grand } from '../../lib/format'
+import { pct, prix, nombre, grand, unite } from '../../lib/format'
 import { Stat } from './OngletRegression'
 
 const MULTIPLES = [
@@ -18,7 +18,7 @@ const CURSEURS = [
 
 export default function OngletValorisation({ analyse }) {
   const v = analyse.valorisation
-  const devise = analyse.valeur.devise
+  const devise = unite(analyse.valeur)
   const [hyp, setHyp] = useState(v?.modeles?.hypotheses ?? null)
   const [modeles, setModeles] = useState(v?.modeles ?? null)
   const [secteur, setSecteur] = useState(null)

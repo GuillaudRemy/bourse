@@ -218,7 +218,8 @@ function Robustesse({ robustesse, pente }) {
 }
 
 export function InterrupteurEuros({ valeur, enEuros, setEnEuros }) {
-  if (!valeur.devise || valeur.devise === 'EUR') return null
+  // Pas de conversion pour un indice : il se lit en points.
+  if (!valeur.devise || valeur.devise === 'EUR' || valeur.type === 'indice') return null
   return (
     <label className="interrupteur" title="Cours convertis au taux de référence BCE du jour : la pente inclut l'effet de change, comme pour un investisseur en euros.">
       <input type="checkbox" checked={enEuros} onChange={e => setEnEuros(e.target.checked)} />

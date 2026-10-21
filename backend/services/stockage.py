@@ -9,6 +9,7 @@ from sqlmodel import Session, func, select
 
 from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
 from backend.db.schema import Cours, Division, Evenement, Fondamental, TauxChange
+from backend.services import cache
 from backend.sources.xbrl import DELAI_PUBLICATION, ajuster_divisions, facteur_divisions
 
 COLONNES_COURS = ["ouverture", "haut", "bas", "cloture", "ajuste", "volume"]
@@ -29,6 +30,7 @@ def _nombre(v):
 
 def enregistrer_cours(db: Session, valeur_id: int, df: pd.DataFrame) -> int:
     """Insere ou remplace les seances de `df` (colonne `jour` + COLONNES_COURS)."""
+    cache.invalider(valeur_id)
     lignes = [
         {"valeur_id": valeur_id, "jour": ligne["jour"],
          **{c: _nombre(ligne.get(c)) for c in COLONNES_COURS}}
@@ -69,6 +71,7 @@ def enregistrer_fondamentaux(db: Session, valeur_id: int, annees: dict[int, dict
     """Fusionne des comptes annuels case par case : une case n'est remplacee que par une
     source au moins aussi fiable (champs.PRIORITE). Une saisie manuelle n'est donc jamais
     ecrasee par une actualisation, mais une source officielle (SEC, ESEF) remplace Yahoo."""
+    cache.invalider(valeur_id)
     rang = PRIORITE[source]
     existantes = {f.annee: f for f in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id))}
     total = 0
@@ -98,6 +101,7 @@ def enregistrer_fondamentaux(db: Session, valeur_id: int, annees: dict[int, dict
 
 def enregistrer_divisions(db: Session, valeur_id: int, divisions: list[tuple]) -> None:
     """Remplace la liste des divisions d'actions de la valeur."""
+    cache.invalider(valeur_id)
     for ancienne in db.exec(select(Division).where(Division.valeur_id == valeur_id)):
         db.delete(ancienne)
     db.flush()
@@ -136,6 +140,7 @@ def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
 
 
 def enregistrer_taux(db: Session, devise: str, serie: pd.Series) -> int:
+    cache.invalider()
     lignes = [{"devise": devise, "jour": jour.date(), "taux": float(v)} for jour, v in serie.items()]
     table = TauxChange.__table__
     for i in range(0, len(lignes), PAQUET):

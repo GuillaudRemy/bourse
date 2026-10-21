@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services import alertes_service
+from backend.services import alertes_service, cache
 from backend.services.stockage import (
     charger_divisions,
     dernier_taux,
@@ -68,6 +68,7 @@ class ValeurService:
 
     def update(self, valeur_id: int, data: ValeurUpdate) -> ValeurRead:
         valeur = self._get(valeur_id)
+        cache.invalider(valeur_id)
         for cle, v in data.model_dump(exclude_unset=True).items():
             if isinstance(v, str):
                 v = v.strip() or None
@@ -80,6 +81,7 @@ class ValeurService:
 
     def delete(self, valeur_id: int) -> None:
         """Supprime la valeur et, en cascade, ses cours et ses fondamentaux."""
+        cache.invalider(valeur_id)
         self._db.delete(self._get(valeur_id))
         self._db.commit()
 

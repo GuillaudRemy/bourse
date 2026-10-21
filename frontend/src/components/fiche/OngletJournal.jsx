@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { date, prix, dateHeure } from '../../lib/format'
+import { date, prix, dateHeure, unite } from '../../lib/format'
 import DepotFichier from '../DepotFichier'
 import AlertesValeur from '../AlertesValeur'
 import Actualites from '../Actualites'
@@ -17,7 +17,7 @@ const aujourdhui = () => new Date().toISOString().slice(0, 10)
 
 export default function OngletJournal({ analyse }) {
   const id = analyse.valeur.id
-  const devise = analyse.valeur.devise
+  const devise = unite(analyse.valeur)
   const [these, setThese] = useState(null)
   const [decisions, setDecisions] = useState([])
   const [pieces, setPieces] = useState([])

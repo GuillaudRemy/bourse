@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
-import { pct, prix, nombre, sigma, ton, dateHeure } from '../lib/format'
+import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
 import { STATUTS, TYPES } from '../lib/zones'
 import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
@@ -158,7 +158,7 @@ export default function Tableau() {
                         {l.valeur.symbole} · {TYPES[l.valeur.type]}{l.valeur.source === 'import' ? ' · importé' : ''}
                       </div>
                     </td>
-                    <td>{prix(l.dernier, l.valeur.devise)}</td>
+                    <td>{prix(l.dernier, unite(l.valeur))}</td>
                     <td className={ton(l.variation_jour)}>{pct(l.variation_jour, { signe: true, decimales: 2 })}</td>
                     <td className={ton(l.perf_1an)}>{pct(l.perf_1an, { signe: true })}</td>
                     <td className={ton(l.pente)}>{pct(l.pente, { signe: true })}</td>

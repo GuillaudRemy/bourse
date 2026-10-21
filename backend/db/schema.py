@@ -276,3 +276,35 @@ class Evenement(SQLModel, table=True):
 
     valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"),
                                             index=True, nullable=False))
+
+
+# ── Listes, filtres, annotations ─────────────────────────────────────
+class Liste(SQLModel, table=True):
+    """Liste personnelle de valeurs : « À surveiller », « PEA », « Rendement »…"""
+    id:   Optional[int] = Field(default=None, primary_key=True)
+    nom:  str = Field(unique=True)
+
+
+class ListeValeur(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("liste_id", "valeur_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    liste_id: int = Field(sa_column=Column(Integer, ForeignKey("liste.id", ondelete="CASCADE"), index=True, nullable=False))
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
+
+
+class Filtre(SQLModel, table=True):
+    """Filtre enregistre du screener : criteres et ponderations du score, en JSON."""
+    id:        Optional[int] = Field(default=None, primary_key=True)
+    nom:       str = Field(unique=True)
+    criteres:  str = "{}"
+
+
+class Annotation(SQLModel, table=True):
+    """Trace sur un graphique : niveau horizontal, ligne de tendance ou note datee (donnees en JSON)."""
+    id:         Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    type:       str                      # niveau · ligne · note
+    donnees:    str                      # {"prix": …} · {"t1", "p1", "t2", "p2"} · {"jour", "texte"}
+
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))

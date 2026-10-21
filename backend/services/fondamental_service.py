@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from backend.db.schema import Fondamental, Valeur
 from backend.models.fondamental import FondamentalEcriture, FondamentalRead
+from backend.services import cache
 from backend.services.stockage import charger_fondamentaux, provenance
 
 
@@ -20,6 +21,7 @@ class FondamentalService:
         """Modifie les postes envoyes (et eux seuls) : ils deviennent des saisies manuelles,
         que plus aucune actualisation n'ecrasera. Envoyer null efface la case et la protege."""
         self._valeur(valeur_id)
+        cache.invalider(valeur_id)
         if not 1900 <= annee <= 2200:
             raise HTTPException(422, "Année invalide.")
         ligne = self._ligne(valeur_id, annee) or Fondamental(valeur_id=valeur_id, annee=annee, source="manuel")
@@ -38,6 +40,7 @@ class FondamentalService:
         ligne = self._ligne(valeur_id, annee)
         if not ligne:
             raise HTTPException(404, "Année introuvable.")
+        cache.invalider(valeur_id)
         self._db.delete(ligne)
         self._db.commit()
 
