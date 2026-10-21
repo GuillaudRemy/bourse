@@ -8,11 +8,13 @@ from sqlmodel import Session, select
 
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
+from backend.services import alertes_service
 from backend.services.stockage import (
     charger_divisions,
     dernier_taux,
     enregistrer_cours,
     enregistrer_divisions,
+    enregistrer_evenements,
     enregistrer_fondamentaux,
     enregistrer_taux,
 )
@@ -57,6 +59,8 @@ class ValeurService:
         self._db.add(valeur)
         self._db.commit()
         self._db.refresh(valeur)
+        alertes_service.creer_par_defaut(self._db, valeur)
+        self._db.commit()
 
         if valeur.source == "yahoo" and actualiser:
             self.actualiser(valeur.id)
@@ -103,6 +107,10 @@ class ValeurService:
                 enregistrer_divisions(self._db, valeur.id, divisions)
 
             try:
+                enregistrer_evenements(self._db, valeur.id, yahoo.evenements(valeur.symbole))
+            except SourceIndisponible as e:
+                avertissements.append(str(e))
+            try:
                 fiche = yahoo.fiche(valeur.symbole)
                 valeur.infos = json.dumps(fiche.infos)
                 valeur.devise = valeur.devise or fiche.devise
@@ -117,6 +125,7 @@ class ValeurService:
         nb_fond, sources = self._actualiser_comptes(valeur, avertissements)
         valeur.maj_le = datetime.now(UTC)
         self._db.commit()
+        alertes_service.evaluer(self._db, valeur.id)
 
         message = f"{valeur.nom} : {nb_cours} séances, {nb_fond} années de comptes"
         message += f" ({', '.join(sources)})." if sources else "."

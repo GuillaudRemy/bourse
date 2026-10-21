@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { date, prix, dateHeure } from '../../lib/format'
 import DepotFichier from '../DepotFichier'
+import AlertesValeur from '../AlertesValeur'
+import Actualites from '../Actualites'
 
 const TYPES = { achat: 'Achat', renforcement: 'Renforcement', allegement: 'Allègement', vente: 'Vente', attente: 'Attente' }
 const VERDICTS = { bonne: 'Bonne décision', mauvaise: 'Mauvaise décision', neutre: 'Neutre' }
@@ -115,6 +117,8 @@ export default function OngletJournal({ analyse }) {
                                         supprimer={() => confirm('Supprimer cette décision ?') && action(() => api.journal.supprimerDecision(id, d.id))} />)}
         </div>
 
+        <div className="pile" style={{ gap: 16 }}>
+        <AlertesValeur valeurId={id} titre="Alertes sur cette valeur" />
         <div className="carte">
           <div className="section-titre">Documents</div>
           <div className="carte-corps pile">
@@ -128,6 +132,8 @@ export default function OngletJournal({ analyse }) {
               <button className="btn btn-mini btn-fantome" onClick={() => confirm(`Supprimer « ${p.nom} » ?`) && action(() => api.journal.supprimerPiece(id, p.id))}>×</button>
             </div>
           ))}
+        </div>
+        <Actualites valeurId={id} />
         </div>
       </div>
     </div>

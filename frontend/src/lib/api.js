@@ -94,6 +94,33 @@ export const api = {
     lienPiece:      (id, p)       => `${BASE}/valeurs/${id}/journal/pieces/${p}`,
   },
 
+  portefeuille: {
+    synthese:      (compteId)     => request(`/portefeuille${parametres({ compte_id: compteId })}`),
+    comptes:       ()             => request('/portefeuille/comptes'),
+    creerCompte:   (data)         => request('/portefeuille/comptes', { method: 'POST', ...corps(data) }),
+    modifierCompte:(id, data)     => request(`/portefeuille/comptes/${id}`, { method: 'PUT', ...corps(data) }),
+    supprimerCompte:(id)          => request(`/portefeuille/comptes/${id}`, { method: 'DELETE' }),
+    transactions:  (compteId)     => request(`/portefeuille/transactions${parametres({ compte_id: compteId })}`),
+    creerTransaction:(data)       => request('/portefeuille/transactions', { method: 'POST', ...corps(data) }),
+    supprimerTransaction:(id)     => request(`/portefeuille/transactions/${id}`, { method: 'DELETE' }),
+    lireReleve:    (compteId, f)  => request(`/portefeuille/comptes/${compteId}/releve`, fichier(f)),
+    validerReleve: (compteId, lignes) => request(`/portefeuille/comptes/${compteId}/releve/valider`, { method: 'POST', ...corps({ lignes }) }),
+  },
+
+  alertes: {
+    list:           (valeurId) => request(`/alertes${parametres({ valeur_id: valeurId })}`),
+    creer:          (data)     => request('/alertes', { method: 'POST', ...corps(data) }),
+    modifier:       (id, data) => request(`/alertes/${id}`, { method: 'PUT', ...corps(data) }),
+    supprimer:      (id)       => request(`/alertes/${id}`, { method: 'DELETE' }),
+    declenchements: ()         => request('/alertes/declenchements'),
+    marquerLues:    ()         => request('/alertes/lues', { method: 'POST' }),
+    essai:          ()         => request('/alertes/essai', { method: 'POST' }),
+  },
+
+  calendrier:  (opts) => request(`/calendrier${parametres(opts || {})}`),
+  actualites:  (id)   => request(`/valeurs/${id}/actualites`),
+  resume:      ()     => request('/resume'),
+
   champs: () => request('/champs'),
 
   reglages: {

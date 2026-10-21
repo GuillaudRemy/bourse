@@ -28,6 +28,25 @@ DEFINITIONS = [
         defaut="oui",
     ),
     Definition(
+        "indice_reference", "Indice de référence du portefeuille",
+        "Symbole d'une valeur suivie, de préférence dividendes réinvestis (ETF Amundi CAC 40 « CAC.PA », "
+        "« ^SP500TR »…). Le portefeuille est comparé au même argent placé dans cet indice aux mêmes dates.",
+        defaut="CAC.PA",
+    ),
+    Definition(
+        "notifications_bureau", "Notifications sur le bureau",
+        "« oui » : une alerte déclenchée s'affiche aussi en notification Windows ou Ubuntu.", defaut="oui",
+    ),
+    Definition(
+        "email_alertes", "E-mail pour recevoir les alertes",
+        "Adresse qui reçoit les alertes. Nécessite un serveur d'envoi (SMTP) ci-dessous ; vide : pas d'e-mail.",
+    ),
+    Definition("smtp_serveur", "Serveur d'envoi (SMTP)", "Exemple : smtp.gmail.com (port 587)."),
+    Definition("smtp_port", "Port SMTP", "587 en général (STARTTLS).", defaut="587"),
+    Definition("smtp_utilisateur", "Identifiant SMTP", "Souvent l'adresse e-mail elle-même."),
+    Definition("smtp_mot_de_passe", "Mot de passe SMTP",
+               "Pour Gmail : un « mot de passe d'application », pas le mot de passe du compte.", secret=True),
+    Definition(
         "contact_sec", "E-mail de contact pour la SEC",
         "L'administration américaine (SEC) exige une adresse e-mail dans chaque requête. "
         "Sans elle, les comptes des sociétés américaines ne sont pas téléchargés.",
@@ -37,7 +56,7 @@ PAR_CLE = {d.cle: d for d in DEFINITIONS}
 
 
 # Valeurs internes, memorisees mais non affichees dans les reglages.
-INTERNES = {"derniere_actualisation"}
+INTERNES = {"derniere_actualisation", "alertes_initialisees"}
 
 
 def lire(cle: str) -> str:

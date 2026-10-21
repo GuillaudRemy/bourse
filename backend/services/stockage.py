@@ -8,7 +8,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, func, select
 
 from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
-from backend.db.schema import Cours, Division, Fondamental, TauxChange
+from backend.db.schema import Cours, Division, Evenement, Fondamental, TauxChange
 from backend.sources.xbrl import DELAI_PUBLICATION, ajuster_divisions, facteur_divisions
 
 COLONNES_COURS = ["ouverture", "haut", "bas", "cloture", "ajuste", "volume"]
@@ -152,3 +152,16 @@ def charger_taux(db: Session, devise: str) -> pd.Series:
 
 def dernier_taux(db: Session, devise: str) -> date | None:
     return db.exec(select(func.max(TauxChange.jour)).where(TauxChange.devise == devise)).first()
+
+
+def enregistrer_evenements(db: Session, valeur_id: int, evenements: list[tuple]) -> None:
+    """Remplace les evenements a venir (les dates changent) et ajoute les passes manquants."""
+    aujourd_hui = date.today()
+    for e in db.exec(select(Evenement).where(Evenement.valeur_id == valeur_id, Evenement.jour >= aujourd_hui)):
+        db.delete(e)
+    db.flush()
+    existants = {(e.jour, e.type) for e in db.exec(select(Evenement).where(Evenement.valeur_id == valeur_id))}
+    for jour, type_, detail in sorted(set(evenements)):
+        if (jour, type_) not in existants:
+            db.add(Evenement(valeur_id=valeur_id, jour=jour, type=type_, detail=detail))
+            existants.add((jour, type_))

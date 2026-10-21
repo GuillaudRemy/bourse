@@ -16,7 +16,7 @@ import yfinance as yf
 from backend.sources.base import Comptes, Identite, SourceIndisponible
 from backend.sources.reseau import avec_tentatives
 
-__all__ = ["SourceIndisponible", "Fiche", "rechercher", "fiche", "cours", "comptes", "divisions"]
+__all__ = ["SourceIndisponible", "Fiche", "rechercher", "fiche", "cours", "comptes", "divisions", "evenements"]
 
 NOM = "yahoo"
 
@@ -165,6 +165,31 @@ def divisions(symbole: str) -> list[tuple[date, float]]:
     if serie is None or serie.empty:
         return []
     return [(jour.date(), float(ratio)) for jour, ratio in serie.items() if ratio and ratio > 0 and ratio != 1]
+
+
+def evenements(symbole: str) -> list[tuple[date, str, str | None]]:
+    """Prochaines dates (resultats, dividende) et detachements des trois dernieres annees."""
+    ticker = yf.Ticker(symbole)
+    resultat = []
+    try:
+        calendrier = avec_tentatives(lambda: ticker.calendar, tentatives=2) or {}
+    except Exception:
+        calendrier = {}
+    for jour in calendrier.get("Earnings Date") or []:
+        if isinstance(jour, date):
+            resultat.append((jour, "resultats", "Publication des résultats"))
+    if isinstance(calendrier.get("Ex-Dividend Date"), date):
+        resultat.append((calendrier["Ex-Dividend Date"], "detachement", "Détachement du dividende"))
+    if isinstance(calendrier.get("Dividend Date"), date):
+        resultat.append((calendrier["Dividend Date"], "paiement", "Paiement du dividende"))
+    try:
+        dividendes = avec_tentatives(lambda: ticker.dividends, tentatives=2)
+    except Exception:
+        dividendes = pd.Series(dtype=float)
+    if dividendes is not None and not dividendes.empty:
+        for jour, montant in dividendes[dividendes.index >= dividendes.index.max() - pd.DateOffset(years=3)].items():
+            resultat.append((jour.date(), "detachement", f"Dividende de {montant:.2f}".replace(".", ",")))
+    return resultat
 
 
 def comptes(identite: Identite) -> Comptes:

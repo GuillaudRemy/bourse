@@ -16,6 +16,9 @@ export default function Reglages() {
 
   const enregistrer = async cle => {
     setErreur(null); setInfo(null)
+    const definition = reglages.find(r => r.cle === cle)
+    // Un secret laisse vide n'efface pas celui deja enregistre.
+    if (definition.secret && !brouillon[cle] && definition.valeur) { setInfo('Mot de passe inchangé.'); return }
     try { setReglages(await api.reglages.ecrire(cle, brouillon[cle])); setInfo('Réglage enregistré.') }
     catch (e) { setErreur(e.message) }
   }
@@ -25,7 +28,7 @@ export default function Reglages() {
       <div className="page-entete">
         <div>
           <h1 className="page-titre">Réglages</h1>
-          <div className="page-sous-titre">Sources de données et préférences</div>
+          <div className="page-sous-titre">Sources de données, notifications et préférences · <a className="lien-poste" href="/alertes">tester les notifications</a></div>
         </div>
       </div>
       {erreur && <div className="erreur" style={{ marginBottom: 12 }}>{erreur}</div>}

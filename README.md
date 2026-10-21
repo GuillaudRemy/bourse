@@ -63,7 +63,17 @@ un vrai Ubuntu 24.04 ; la publication n'est créée que si tout est vert.
 | Bénéfices | Cours face à BPA × PER médian, bande de PER historique, droite du BPA (vérification n°2) |
 | Qualité | Marges, ROE, ROIC, ROCE, dette, FCF, dilution ; scores Piotroski, Altman, Beneish ; note de qualité détaillée |
 | Fondamentaux | Compte de résultat, bilan et flux sur 20 ans, éditables case par case, provenance colorée |
+| Valorisation | Multiples (PER, VE/EBITDA, P/FCF…) situés dans leur historique et face au secteur ; DCF, DCF inversé, Gordon, Graham, PEG avec hypothèses réglables |
+| Journal | Thèse d'investissement, checklist, décisions et relecture, documents joints, alertes de la valeur, actualités |
 | Données & réglages | Imports, identifiants (ISIN, LEI, CIK), contrôle qualité des cours, rupture signalée à la main |
+
+## Pages
+
+- **Aujourd'hui** : portefeuille du jour, valeurs sous leur droite ou tout en haut du couloir, plus fortes variations, alertes, événements à venir.
+- **Portefeuille** : comptes (PEA, compte-titres…), opérations (saisie ou import du relevé du courtier), positions avec PRU,
+  performance (TWR et TRI) face à un indice de référence, risque, corrélations, répartition, fiscalité (plafond et ancienneté du PEA, flat tax du CTO).
+- **Calendrier** : publications de résultats et dividendes. **Alertes** : position dans le couloir, RSI, cours, croisements de moyennes,
+  notifiées dans l'application, sur le bureau et par e-mail.
 
 ## Formats CSV acceptés
 

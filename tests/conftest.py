@@ -7,6 +7,7 @@ _TMP = Path(tempfile.mkdtemp(prefix="bourse-tests-"))
 os.environ["DB_NAME"] = str(_TMP / "test.db")
 os.environ["DOSSIER_SAUVEGARDES"] = str(_TMP / "sauvegardes")
 os.environ["ACTUALISATION_AU_DEMARRAGE"] = "false"
+os.environ["NOTIFICATIONS"] = "false"
 
 import numpy as np
 import pandas as pd

@@ -45,7 +45,26 @@ def main() -> None:
         print("base d'avant les migrations : marquee comme version initiale")
         command.stamp(alembic, BASE_INITIALE)
     command.upgrade(alembic, "head")
+    _initialiser_alertes()
     print("base a jour")
+
+
+def _initialiser_alertes() -> None:
+    """Une seule fois : les actions suivies avant l'arrivee des alertes recoivent celles par defaut."""
+    from sqlmodel import Session, select
+
+    from backend.core import reglages
+    from backend.db.schema import Alerte, Valeur
+    from backend.services.alertes_service import creer_par_defaut
+
+    if reglages.lire("alertes_initialisees") == "oui":
+        return
+    with Session(engine) as db:
+        if not db.exec(select(Alerte)).first():
+            for valeur in db.exec(select(Valeur)):
+                creer_par_defaut(db, valeur)
+            db.commit()
+    reglages.ecrire("alertes_initialisees", "oui")
 
 
 def nouvelle(message: str) -> None:

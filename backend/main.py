@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
 from backend import migrate
-from backend.api import fondamentaux, imports, journal, reglages, valeurs
+from backend.api import fondamentaux, imports, journal, portefeuille, reglages, suivi, valeurs
 from backend.core.config import config
 from backend.services import taches
 
@@ -44,6 +44,8 @@ app.include_router(fondamentaux.router, prefix=config.API_PREFIX)
 app.include_router(imports.router,      prefix=config.API_PREFIX)
 app.include_router(reglages.router,     prefix=config.API_PREFIX)
 app.include_router(journal.router,      prefix=config.API_PREFIX)
+app.include_router(portefeuille.router, prefix=config.API_PREFIX)
+app.include_router(suivi.router,        prefix=config.API_PREFIX)
 
 
 @app.get("/health")

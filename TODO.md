@@ -40,14 +40,14 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 3.4 Journal : thèse, checklist, pièces jointes, décisions et relecture — §8
 
 ## Phase 4 — Suivre
-- [ ] 4.1 Portefeuille : comptes, transactions, PRU, plus-values, dividendes — §5.1
-- [ ] 4.2 Import des relevés de courtier — §5.1
-- [ ] 4.3 Performance TWR / XIRR, indice de référence, répartition, risque — §5.2
-- [ ] 4.4 Fiscalité PEA / CTO — §5.3
-- [ ] 4.5 Alertes + notifications bureau / e-mail — §7
-- [ ] 4.6 Calendrier (résultats, dividendes) — §7
-- [ ] 4.7 Actualités par valeur — §7
-- [ ] 4.8 Résumé du jour — §7
+- [x] 4.1 Portefeuille : comptes, transactions, PRU, plus-values, dividendes — §5.1
+- [x] 4.2 Import des relevés de courtier — §5.1
+- [x] 4.3 Performance TWR / XIRR, indice de référence, répartition, risque — §5.2
+- [x] 4.4 Fiscalité PEA / CTO — §5.3
+- [x] 4.5 Alertes + notifications bureau / e-mail — §7
+- [x] 4.6 Calendrier (résultats, dividendes) — §7
+- [x] 4.7 Actualités par valeur — §7
+- [x] 4.8 Résumé du jour — §7
 
 ## Phase 5 — Chercher
 - [ ] 5.1 Univers : import des indices (CAC 40, SBF 120, S&P 500…), recherche ISIN, listes — §4.1

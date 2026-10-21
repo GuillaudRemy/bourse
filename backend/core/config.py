@@ -30,6 +30,8 @@ class Config(BaseSettings):
     DOSSIER_FRONTEND: str = ""
     # Actualisation quotidienne au demarrage (desactivee par les tests).
     ACTUALISATION_AU_DEMARRAGE: bool = True
+    # Notifications de bureau et e-mails d'alerte (desactives par les tests).
+    NOTIFICATIONS: bool = True
 
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8081"
 
