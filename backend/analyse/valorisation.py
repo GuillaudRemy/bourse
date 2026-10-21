@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import pandas as pd
 
-from backend.analyse.ratios import _div
+from backend.analyse.ratios import _div, ebitda
 
 ANNEES_HISTORIQUE = 20
 
@@ -54,7 +54,7 @@ def _multiples(cours: float, c: dict) -> dict:
     positif = lambda x: x if x is not None and x > 0 else None  # noqa: E731 — un multiple sur un negatif n'a pas de sens
     return {
         "per": _div(cours, positif(g("bpa"))),
-        "ve_ebitda": _div(ve, positif(g("ebitda"))),
+        "ve_ebitda": _div(ve, positif(ebitda(c))),
         "ve_ebit": _div(ve, positif(g("ebit"))),
         "ve_ca": _div(ve, positif(g("chiffre_affaires"))),
         "p_b": _div(capitalisation, positif(g("capitaux_propres"))),

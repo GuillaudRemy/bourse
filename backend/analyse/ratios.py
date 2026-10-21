@@ -24,11 +24,21 @@ def _moyenne(a, b):
     return (a + b) / 2 if b is not None else a
 
 
+def ebitda(c: dict) -> float | None:
+    """EBITDA publie, sinon resultat operationnel + amortissements (la SEC ne le publie pas)."""
+    if c.get("ebitda") is not None:
+        return c["ebitda"]
+    if c.get("ebit") is not None and c.get("amortissements") is not None:
+        return c["ebit"] + abs(c["amortissements"])
+    return None
+
+
 def annuels(comptes: list[dict]) -> list[dict]:
     """Une ligne de ratios par annee (meme ordre que les comptes)."""
     resultat = []
     precedent: dict = {}
     for c in comptes:
+        c = {**c, "ebitda": ebitda(c)}
         g = c.get
         dette_nette = g("dette_financiere") - (g("tresorerie") or 0) if g("dette_financiere") is not None else None
         fcf = g("flux_operationnel") - g("capex") if g("flux_operationnel") is not None and g("capex") is not None \
