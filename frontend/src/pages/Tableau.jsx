@@ -5,6 +5,7 @@ import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
 import { STATUTS, TYPES } from '../lib/zones'
 import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
+import ImporterIndice from '../components/ImporterIndice'
 
 const COLONNES = [
   { cle: 'nom',            libelle: 'Valeur',      valeur: l => l.valeur.nom.toLowerCase() },
@@ -29,6 +30,12 @@ export default function Tableau() {
   const [progression, setProgression] = useState(null)
   const [tri, setTri] = useState({ cle: 'position', sens: 1 })
   const [filtre, setFiltre] = useState('tous')
+  const [listes, setListes] = useState([])
+  const [listeId, setListeId] = useState('')
+  const [selection, setSelection] = useState(new Set())
+  const [importIndice, setImportIndice] = useState(false)
+  const chargerListes = useCallback(() => api.listes.list().then(setListes).catch(() => {}), [])
+  useEffect(() => { chargerListes() }, [chargerListes])
 
   const charger = useCallback(async () => {
     try { setLignes(await api.valeurs.synthese()); setErreur(null) }
@@ -70,6 +77,7 @@ export default function Tableau() {
     const colonne = COLONNES.find(c => c.cle === tri.cle)
     return lignes
       .filter(l => filtre === 'tous' || l.valeur.type === filtre)
+      .filter(l => !listeId || listes.find(x => String(x.id) === listeId)?.valeur_ids.includes(l.valeur.id))
       .sort((a, b) => {
         const va = colonne.valeur(a), vb = colonne.valeur(b)
         // Les valeurs sans donnee vont toujours en bas.
@@ -77,7 +85,7 @@ export default function Tableau() {
         if (vb === null || vb === undefined) return -1
         return (va < vb ? -1 : va > vb ? 1 : 0) * tri.sens
       })
-  }, [lignes, tri, filtre])
+  }, [lignes, tri, filtre, listeId, listes])
 
   const trier = cle => setTri(t => ({ cle, sens: t.cle === cle ? -t.sens : 1 }))
   const derniereMaj = lignes?.map(l => l.valeur.maj_le).filter(Boolean).sort().pop()
@@ -96,6 +104,7 @@ export default function Tableau() {
           <button className="btn" onClick={actualiserTout} disabled={enCours || !lignes?.length}>
             {enCours ? 'Actualisation…' : 'Tout actualiser'}
           </button>
+          <button className="btn" onClick={() => setImportIndice(true)}>Importer un indice</button>
           <button className="btn btn-primaire" onClick={() => setAjout(true)}>+ Ajouter une valeur</button>
         </div>
       </div>
@@ -121,8 +130,29 @@ export default function Tableau() {
               </button>
             ))}
           </div>
+          <select className="champ" style={{ width: 'auto' }} value={listeId} onChange={e => setListeId(e.target.value)}>
+            <option value="">Toutes les listes</option>
+            {listes.map(l => <option key={l.id} value={l.id}>{l.nom} ({l.valeur_ids.length})</option>)}
+          </select>
           <span className="espaceur" />
-          <span className="discret">Cliquez un en-tête pour trier · une ligne pour ouvrir la fiche</span>
+          {selection.size > 0 ? (
+            <>
+              <span className="discret">{selection.size} sélectionnée(s)</span>
+              <button className="btn btn-mini" disabled={selection.size < 2} onClick={() => naviguer(`/comparer?ids=${[...selection].slice(0, 8).join(',')}`)}>Comparer</button>
+              <button className="btn btn-mini" onClick={async () => {
+                const nom = prompt('Ajouter à quelle liste ? (nom existant ou nouveau)')
+                if (!nom) return
+                let liste = listes.find(l => l.nom === nom.trim())
+                if (!liste) liste = await api.listes.creer(nom.trim())
+                await api.listes.ajouter(liste.id, [...selection]); setSelection(new Set()); chargerListes()
+                setInfo(`Ajoutée(s) à la liste « ${liste.nom} ».`)
+              }}>Ajouter à une liste</button>
+              {listeId && <button className="btn btn-mini" onClick={async () => {
+                for (const id of selection) await api.listes.retirer(listeId, id)
+                setSelection(new Set()); chargerListes()
+              }}>Retirer de la liste</button>}
+            </>
+          ) : <span className="discret">Cliquez un en-tête pour trier · une ligne pour ouvrir la fiche · cochez pour comparer</span>}
         </div>
 
         {lignes === null ? (
@@ -139,6 +169,7 @@ export default function Tableau() {
             <table className="tableau">
               <thead>
                 <tr>
+                  <th style={{ width: 28 }} />
                   {COLONNES.map(c => (
                     <th key={c.cle} className="triable" title={c.aide} onClick={() => trier(c.cle)}>
                       {c.libelle}{tri.cle === c.cle ? (tri.sens > 0 ? ' ↑' : ' ↓') : ''}
@@ -149,6 +180,11 @@ export default function Tableau() {
               <tbody>
                 {triees.map(l => (
                   <tr key={l.valeur.id} className="cliquable" onClick={() => naviguer(`/valeurs/${l.valeur.id}`)}>
+                    <td onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selection.has(l.valeur.id)} onChange={() => {
+                        const n = new Set(selection); n.has(l.valeur.id) ? n.delete(l.valeur.id) : n.add(l.valeur.id); setSelection(n)
+                      }} />
+                    </td>
                     <td className="texte">
                       <div className="valeur-nom">
                         {l.valeur.nom}
@@ -185,6 +221,7 @@ export default function Tableau() {
         )}
       </div>
 
+      {importIndice && <ImporterIndice onFermer={message => { setImportIndice(false); if (message) { setInfo(message); chargerListes(); setProgression({ en_cours: true }) } charger() }} />}
       {ajout && (
         <AjouterValeur
           onFermer={() => setAjout(false)}

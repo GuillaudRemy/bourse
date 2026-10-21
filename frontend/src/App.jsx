@@ -8,6 +8,9 @@ import Accueil from './pages/Accueil'
 import Portefeuille from './pages/Portefeuille'
 import Calendrier from './pages/Calendrier'
 import Alertes from './pages/Alertes'
+import Screener from './pages/Screener'
+import Comparer from './pages/Comparer'
+import Backtest from './pages/Backtest'
 
 export default function App() {
   return (
@@ -19,6 +22,9 @@ export default function App() {
         <Route path="/portefeuille" element={<Portefeuille />} />
         <Route path="/calendrier"  element={<Calendrier />} />
         <Route path="/alertes"     element={<Alertes />} />
+        <Route path="/screener"    element={<Screener />} />
+        <Route path="/comparer"    element={<Comparer />} />
+        <Route path="/backtest"    element={<Backtest />} />
         <Route path="/valeurs"     element={<Tableau />} />
         <Route path="/valeurs/:id" element={<Fiche />} />
         <Route path="/methode"     element={<Methode />} />

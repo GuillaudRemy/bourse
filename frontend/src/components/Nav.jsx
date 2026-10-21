@@ -5,6 +5,9 @@ import { api } from '../lib/api'
 const LIENS = [
   { to: '/accueil',      label: 'Aujourd’hui' },
   { to: '/valeurs',      label: 'Valeurs' },
+  { to: '/screener',     label: 'Screener' },
+  { to: '/comparer',     label: 'Comparer' },
+  { to: '/backtest',     label: 'Backtest' },
   { to: '/portefeuille', label: 'Portefeuille' },
   { to: '/calendrier',   label: 'Calendrier' },
   { to: '/methode',      label: 'Méthode' },

@@ -118,6 +118,27 @@ export const api = {
     essai:          ()         => request('/alertes/essai', { method: 'POST' }),
   },
 
+  univers: {
+    list:       ()                 => request('/univers'),
+    composition:(cle)              => request(`/univers/${cle}`),
+    importer:   (cle, symboles, liste) => request(`/univers/${cle}/importer`, { method: 'POST', ...corps({ symboles, liste }) }),
+  },
+  listes: {
+    list:      ()           => request('/listes'),
+    creer:     (nom)        => request('/listes', { method: 'POST', ...corps({ nom }) }),
+    supprimer: (id)         => request(`/listes/${id}`, { method: 'DELETE' }),
+    ajouter:   (id, ids)    => request(`/listes/${id}/valeurs`, { method: 'POST', ...corps({ valeur_ids: ids }) }),
+    retirer:   (id, vid)    => request(`/listes/${id}/valeurs/${vid}`, { method: 'DELETE' }),
+  },
+  screener:  (listeId) => request(`/screener${parametres({ liste_id: listeId })}`),
+  filtres: {
+    list:      ()              => request('/filtres'),
+    enregistrer:(nom, criteres) => request('/filtres', { method: 'PUT', ...corps({ nom, criteres }) }),
+    supprimer: (id)            => request(`/filtres/${id}`, { method: 'DELETE' }),
+  },
+  comparer:  (opts) => request(`/comparer${parametres(opts)}`),
+  backtest:  (valeurId, opts) => request(`/backtest${valeurId ? `/${valeurId}` : ''}${parametres(opts)}`),
+
   calendrier:  (opts) => request(`/calendrier${parametres(opts || {})}`),
   actualites:  (id)   => request(`/valeurs/${id}/actualites`),
   resume:      ()     => request('/resume'),

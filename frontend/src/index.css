@@ -468,3 +468,8 @@ input[type=range] { accent-color: var(--accent); width: 100%; }
 .article { display: block; padding: 10px 18px; border-bottom: 1px solid #F2F3F5; }
 .article:hover { background: var(--surface-2); }
 .article-titre { font-weight: 500; font-size: 13px; line-height: 1.4; }
+.critere { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.critere input { width: 76px; padding: 4px 6px; text-align: right; }
+.puce-valeur { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 2px solid; border-radius: 20px; font-size: 12.5px; font-weight: 500; }
+.puce-valeur button { color: var(--muted); }
+.grille-membres { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; max-height: 50vh; overflow: auto; }

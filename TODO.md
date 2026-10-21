@@ -50,10 +50,10 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 - [x] 4.8 Résumé du jour — §7
 
 ## Phase 5 — Chercher
-- [ ] 5.1 Univers : import des indices (CAC 40, SBF 120, S&P 500…), recherche ISIN, listes — §4.1
-- [ ] 5.2 Screener : filtres, filtres enregistrés, score composite — §4.2
-- [ ] 5.3 Comparaison : base 100, force relative, côte à côte — §4.3
-- [ ] 5.4 Backtesting sans biais d'anticipation — §6
+- [x] 5.1 Univers : import des indices (CAC 40, SBF 120, S&P 500…), recherche ISIN, listes — §4.1
+- [x] 5.2 Screener : filtres, filtres enregistrés, score composite — §4.2
+- [x] 5.3 Comparaison : base 100, force relative, côte à côte — §4.3
+- [x] 5.4 Backtesting sans biais d'anticipation — §6
 
 ## Phase 6 — Finitions
 - [ ] 6.1 Indicateurs techniques supplémentaires + paramètres — §9
