@@ -8,11 +8,12 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlmodel import Session
 
-from backend.core import journal, reglages
+from backend.core import journal, reglages, sauvegarde
 from backend.core.config import config
 from backend.core.sauvegarde import DOSSIER as SAUVEGARDES
 from backend.db.db import engine, get_session
@@ -72,3 +73,37 @@ def diagnostic(db: Session = Depends(get_session)):
     nom = f"bourse-diagnostic-{datetime.now():%Y%m%d-%H%M}.zip"
     return Response(tampon.getvalue(), media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+@router.get("/sauvegardes")
+def sauvegardes():
+    return {"copies": sauvegarde.lister(), "externe": str(d) if (d := sauvegarde.dossier_externe()) else None}
+
+
+@router.post("/sauvegardes")
+def sauvegarder_maintenant():
+    copie = sauvegarde.sauvegarder(manuelle=True)
+    if copie is None:
+        raise HTTPException(400, "Aucune base à sauvegarder.")
+    externe = sauvegarde.copier_externe(copie)
+    return {"message": f"Copie enregistrée : {copie.name}" + (" (et dans le dossier externe)." if externe else ".")}
+
+
+class Restauration(BaseModel):
+    chemin: str
+
+
+@router.post("/sauvegardes/restaurer")
+def restaurer(demande: Restauration):
+    """Seules les copies listees peuvent etre restaurees (pas un chemin quelconque)."""
+    if demande.chemin not in {c["chemin"] for c in sauvegarde.lister()}:
+        raise HTTPException(404, "Copie introuvable.")
+    try:
+        securite = sauvegarde.restaurer(Path(demande.chemin))
+    except (ValueError, OSError) as e:
+        raise HTTPException(400, f"Restauration impossible : {e}") from e
+    from backend import migrate  # copie plus ancienne que le schema actuel
+    migrate.main()
+    from backend.services import cache
+    cache.invalider()
+    return {"message": f"Base restaurée. L'état précédent est gardé dans {securite.name}."}

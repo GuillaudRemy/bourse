@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { date } from '../lib/format'
+import Sauvegardes from '../components/Sauvegardes'
 
 const taille = o => o > 1e6 ? `${(o / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo` : `${Math.round(o / 1e3)} ko`
 
@@ -53,6 +54,7 @@ export default function APropos() {
           </dl>
         </div>
       </div>
+      <Sauvegardes />
       <div className="carte prose" style={{ marginTop: 20, padding: '14px 18px' }}>
         <div className="section-titre" style={{ padding: 0, border: 'none' }}>Mentions</div>
         <p><b>Pas un conseil en investissement.</b> Bourse est un outil d'aide à l'analyse. Ses calculs (droite de régression,

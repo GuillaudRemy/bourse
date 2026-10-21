@@ -135,3 +135,23 @@ def test_a_propos_et_diagnostic_sans_donnees_personnelles():
         contenu = json.loads(archive.read("diagnostic.json"))
         assert contenu["reglages"]["contact_sec"] == "(renseigné)"
         assert "personne@exemple.fr" not in archive.read("diagnostic.json").decode()
+
+
+def test_sauvegarde_externe_et_restauration(tmp_path):
+    externe = tmp_path / "Drive"
+    externe.mkdir()
+    with TestClient(app) as client:
+        client.put("/reglages/dossier_sauvegarde_externe", json={"valeur": str(externe)})
+        client.post("/valeurs", json={"symbole": "AVANT", "source": "import", "nom": "Avant"})
+        assert "dossier externe" in client.post("/sauvegardes").json()["message"]
+        copies = client.get("/sauvegardes").json()["copies"]
+        externe_copie = next(c for c in copies if c["emplacement"] == "externe")
+        assert list((externe / "Bourse").glob("bourse-*.db")) and not list((externe / "Bourse").glob("*.partiel"))
+
+        client.post("/valeurs", json={"symbole": "APRES", "source": "import", "nom": "Après"})
+        assert client.post("/sauvegardes/restaurer", json={"chemin": "/etc/passwd"}).status_code == 404
+        r = client.post("/sauvegardes/restaurer", json={"chemin": externe_copie["chemin"]})
+        assert r.status_code == 200, r.text
+        symboles = {v["symbole"] for v in client.get("/valeurs").json()}
+        assert "AVANT" in symboles and "APRES" not in symboles
+        assert any(c["nom"].startswith("avant-restauration-") for c in client.get("/sauvegardes").json()["copies"])

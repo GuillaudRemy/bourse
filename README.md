@@ -51,6 +51,40 @@ outils/publier.sh 0.2.0 "Ce qui change"
 
 GitHub Actions construit alors les deux versions, les installe et les teste sur un vrai Windows et
 un vrai Ubuntu 24.04 ; la publication n'est créée que si tout est vert.
+Chaque publication est aussi testée en mise à jour (version précédente → nouvelle, données
+conservées, mise à jour falsifiée refusée, version défaillante abandonnée).
+
+**Version bêta** : `outils/publier.sh 0.6.0-beta.1 "…"` crée une pré-version GitHub, installée
+uniquement là où le réglage « Recevoir les versions bêta » vaut « oui ».
+
+### Sécurité des mises à jour
+
+- Chaque publication contient `SHA256SUMS` et sa signature Ed25519 `SHA256SUMS.sig`, faite par la
+  CI avec le secret GitHub `CLE_SIGNATURE`. L'application ne connaît que la clé publique
+  (`backend/mise_a_jour.py`) : un fichier non signé par cette clé n'est jamais installé.
+  Vérification manuelle : `python outils/signer.py --verifier <dossier contenant les fichiers>`.
+- **La clé privée** est aussi gardée dans `~/.config/bourse-publication/cle_signature.txt` sur le
+  PC de développement. **Sauvegardez-la** (gestionnaire de mots de passe) : sans elle, plus aucune
+  mise à jour ne pourra être publiée vers les installations existantes.
+- **Retour arrière** : avant sa première migration, la nouvelle version copie la base. Si elle ne
+  démarre pas, la base est restaurée et l'ancienne version réinstallée ; la version fautive n'est
+  plus proposée. Sous Linux, la nouvelle version est d'abord essayée sur une copie des données,
+  avant de remplacer l'ancienne.
+
+### Signature de code Windows (facultative)
+
+Sans signature, Windows affiche « Windows a protégé votre ordinateur » au premier lancement de
+l'installateur téléchargé (les mises à jour automatiques ne sont pas concernées). L'étape est
+prête dans `.github/workflows/publier.yml` et s'active ainsi, avec Azure Artifact Signing
+(anciennement Trusted Signing, environ 10 $/mois, vérification d'identité) :
+
+1. Créer le compte de signature et le profil de certificat dans Azure, et une application
+   (App Registration) ayant le rôle « Artifact Signing Certificate Profile Signer ».
+2. Secrets du dépôt : `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+3. Variables du dépôt : `SIGNATURE_ENDPOINT` (ex. `https://weu.codesigning.azure.net/`),
+   `SIGNATURE_COMPTE`, `SIGNATURE_PROFIL`, puis `SIGNATURE_WINDOWS` = `oui`.
+
+Alternative gratuite pour les projets libres : [SignPath Foundation](https://signpath.org/), sur candidature.
 
 
 ## Ce que calcule l'application

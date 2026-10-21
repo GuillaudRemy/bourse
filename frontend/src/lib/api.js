@@ -152,6 +152,9 @@ export const api = {
 
   systeme: {
     aPropos: () => request('/a-propos'),
+    sauvegardes: () => request('/sauvegardes'),
+    sauvegarder: () => request('/sauvegardes', { method: 'POST' }),
+    restaurer: chemin => request('/sauvegardes/restaurer', { method: 'POST', ...corps({ chemin }) }),
   },
   reglages: {
     list:   ()            => request('/reglages'),

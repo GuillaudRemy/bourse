@@ -18,6 +18,7 @@ export default function Palette() {
   const [valeurs, setValeurs] = useState(null)       // null : pas encore chargees
   const [choix, setChoix] = useState(0)
   const champ = useRef(null)
+  const entreeEnAttente = useRef(false)    // Entree tapee avant la fin du chargement des valeurs
 
   useEffect(() => {
     const charger = () => api.valeurs.list().then(setValeurs).catch(() => setValeurs([]))
@@ -46,8 +47,10 @@ export default function Palette() {
     return liste
   }, [texte, valeurs])
 
+  const aller = r => { entreeEnAttente.current = false; setOuverte(false); naviguer(r.lien) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (valeurs && entreeEnAttente.current && resultats[0]) aller(resultats[0]) }, [valeurs])
   if (!ouverte) return null
-  const aller = r => { setOuverte(false); naviguer(r.lien) }
   return (
     <div className="modale-fond" style={{ alignItems: 'flex-start', paddingTop: '12vh' }} onMouseDown={e => e.target === e.currentTarget && setOuverte(false)}>
       <div className="modale palette">
@@ -57,7 +60,8 @@ export default function Palette() {
                  if (e.key === 'Escape') setOuverte(false)
                  if (e.key === 'ArrowDown') { e.preventDefault(); setChoix(c => Math.min(c + 1, resultats.length - 1)) }
                  if (e.key === 'ArrowUp') { e.preventDefault(); setChoix(c => Math.max(c - 1, 0)) }
-                 if (e.key === 'Enter' && resultats[choix]) aller(resultats[choix])
+                 if (e.key === 'Enter' && valeurs === null) entreeEnAttente.current = true
+                 else if (e.key === 'Enter' && resultats[choix]) aller(resultats[choix])
                }} />
         <div className="palette-resultats">
           {resultats.map((r, i) => (

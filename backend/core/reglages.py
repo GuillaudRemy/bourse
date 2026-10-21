@@ -69,6 +69,18 @@ DEFINITIONS = [
         "L'administration américaine (SEC) exige une adresse e-mail dans chaque requête. "
         "Sans elle, les comptes des sociétés américaines ne sont pas téléchargés.",
     ),
+    Definition(
+        "dossier_sauvegarde_externe", "Dossier de sauvegarde externe",
+        "Facultatif. Un dossier synchronisé (Google Drive, OneDrive, Nextcloud…) ou une clé USB : la copie "
+        "quotidienne de la base y est aussi déposée, dans un sous-dossier Bourse (10 dernières gardées). "
+        "Exemple : /home/papa/GoogleDrive ou C:\\Users\\Papa\\OneDrive.",
+    ),
+    Definition(
+        "canal_beta", "Recevoir les versions bêta",
+        "« oui » : les versions de test (0.6.0-beta.1…) sont installées dès leur publication, pour les essayer "
+        "avant tout le monde. « non » (conseillé) : uniquement les versions stables.",
+        defaut="non",
+    ),
 ]
 PAR_CLE = {d.cle: d for d in DEFINITIONS}
 
