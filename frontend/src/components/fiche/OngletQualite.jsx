@@ -40,15 +40,15 @@ export default function OngletQualite({ analyse }) {
   return (
     <div className="pile" style={{ gap: 16 }}>
       <div className="stat-grille">
-        <Stat libelle="Note de qualité" valeur={note.note === null ? '—' : `${note.note} / 100`}
+        <Stat aide="note" libelle="Note de qualité" valeur={note.note === null ? '—' : `${note.note} / 100`}
               classe={note.note >= 70 ? 'positif' : note.note !== null && note.note < 40 ? 'negatif' : ''}
               detail={note.note === null ? 'comptes insuffisants' : note.provisoire ? `provisoire : ${note.annees} ans de comptes` : `sur ${note.annees} ans de comptes`} />
-        <Stat libelle="Piotroski F-score" valeur={p ? `${p.score} / ${p.sur}` : '—'}
+        <Stat aide="piotroski" libelle="Piotroski F-score" valeur={p ? `${p.score} / ${p.sur}` : '—'}
               detail={p ? `${p.annee} · ${p.lecture ?? 'données partielles'}` : 'comptes insuffisants'} />
-        <Stat libelle="Altman Z-score" valeur={z?.z != null ? nombre(z.z, 2) : '—'}
+        <Stat aide="altman" libelle="Altman Z-score" valeur={z?.z != null ? nombre(z.z, 2) : '—'}
               classe={z?.zone === 'détresse' ? 'negatif' : z?.zone === 'sûre' ? 'positif' : ''}
               detail={z?.z != null ? `${z.annee} · zone ${z.zone}` : 'données manquantes'} />
-        <Stat libelle="Beneish M-score" valeur={m?.m != null ? nombre(m.m, 2) : '—'}
+        <Stat aide="beneish" libelle="Beneish M-score" valeur={m?.m != null ? nombre(m.m, 2) : '—'}
               classe={m?.vigilance ? 'negatif' : ''}
               detail={m?.m != null ? (m.vigilance ? 'au-dessus de −1,78 : vigilance' : 'pas de signe de manipulation') : 'données manquantes'} />
         <Stat libelle="Dividende sans baisse" valeur={s.dividende_sans_baisse ?? '—'} detail="années consécutives" />

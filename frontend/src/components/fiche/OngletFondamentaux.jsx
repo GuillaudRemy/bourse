@@ -87,9 +87,9 @@ export default function OngletFondamentaux({ analyse, recharger }) {
   return (
     <div className="pile" style={{ gap: 16 }}>
       <div className="stat-grille">
-        <Stat libelle="Croissance du BPA" valeur={pct(per.croissance_bpa, { signe: true })} detail={per.annees ? `par an, sur ${per.annees} ans` : 'BPA à compléter'} />
-        <Stat libelle="Dérive du PER" valeur={pct(per.derive_per, { signe: true })} detail="par an — idéalement proche de 0" />
-        <Stat libelle="PER actuel / médian" valeur={per.per_actuel ? `${nombre(per.per_actuel, 1)} / ${nombre(per.per_median, 1)}` : '—'}
+        <Stat aide="bpa" libelle="Croissance du BPA" valeur={pct(per.croissance_bpa, { signe: true })} detail={per.annees ? `par an, sur ${per.annees} ans` : 'BPA à compléter'} />
+        <Stat aide="renotation" libelle="Dérive du PER" valeur={pct(per.derive_per, { signe: true })} detail="par an — idéalement proche de 0" />
+        <Stat aide="per" libelle="PER actuel / médian" valeur={per.per_actuel ? `${nombre(per.per_actuel, 1)} / ${nombre(per.per_median, 1)}` : '—'}
               detail="cours ÷ dernier BPA connu" />
         <Stat libelle="Pente de la droite" valeur={pct(analyse.regression?.pente, { signe: true })} detail="à comparer à la croissance du BPA" />
       </div>

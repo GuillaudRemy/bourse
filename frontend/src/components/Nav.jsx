@@ -42,6 +42,10 @@ export default function Nav() {
         ))}
       </div>
       <span className="espaceur" />
+      <button className="nav-lien recherche-nav" title="Rechercher (Ctrl+K)" onClick={() => window.dispatchEvent(new Event('ouvrir-palette'))}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <kbd>Ctrl K</kbd>
+      </button>
       <button className="nav-lien" title={`Thème : ${THEMES[apparence.theme]} (cliquer pour changer)`}
               onClick={() => changer({ ...apparence, theme: suivant(THEMES, apparence.theme) })}>
         {apparence.theme === 'sombre' ? '☾' : apparence.theme === 'clair' ? '☀' : '◐'}

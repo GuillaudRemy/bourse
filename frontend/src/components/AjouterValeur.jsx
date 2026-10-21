@@ -4,9 +4,9 @@ import { api } from '../lib/api'
 import { TYPES } from '../lib/zones'
 
 /** Ajout d'une valeur : recherche chez Yahoo, ou creation vide pour un import de fichier. */
-export default function AjouterValeur({ onFermer, onAjoutee }) {
+export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }) {
   const [mode, setMode] = useState('yahoo')
-  const [texte, setTexte] = useState('')
+  const [texte, setTexte] = useState(texteInitial)
   const [resultats, setResultats] = useState([])
   const [recherche, setRecherche] = useState(false)
   const [ajout, setAjout] = useState(null)        // symbole en cours d'ajout
@@ -27,7 +27,8 @@ export default function AjouterValeur({ onFermer, onAjoutee }) {
 
   const ajouterYahoo = async symbole => {
     setAjout(symbole); setErreur(null)
-    try { onAjoutee(await api.valeurs.create({ symbole, source: 'yahoo' })) }
+    const isin = /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(texte.trim().toUpperCase()) ? texte.trim().toUpperCase() : undefined
+    try { onAjoutee(await api.valeurs.create({ symbole, source: 'yahoo', isin })) }
     catch (e) { setErreur(e.message) }
     finally { setAjout(null) }
   }

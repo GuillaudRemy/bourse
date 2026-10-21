@@ -25,14 +25,14 @@ export default function OngletBenefices({ analyse }) {
     <div className="pile" style={{ gap: 16 }}>
       <div className="stat-grille">
         <Stat libelle="Pente du cours" valeur={pct(reg?.pente, { signe: true })} detail={analyse.base_ajustee ? 'dividendes réinvestis' : 'hors dividendes'} />
-        <Stat libelle="Pente du BPA (droite)" valeur={pct(droite?.pente, { signe: true })}
+        <Stat aide="bpa" libelle="Pente du BPA (droite)" valeur={pct(droite?.pente, { signe: true })}
               detail={droite ? `R² ${nombre(droite.r2, 2)} · ${b.annees.length} ans` : 'historique trop court'} />
         <Stat libelle="Écart des pentes" valeur={pct(ecartPentes, { signe: true })}
               classe={ecartPentes === null ? '' : Math.abs(ecartPentes) > 0.05 ? 'negatif' : 'positif'}
               detail="proche de 0 (+ le rendement) : pente saine" />
-        <Stat libelle="PER actuel / médian" valeur={`${nombre(b.per_actuel, 1)} / ${nombre(b.per_median, 1)}`}
+        <Stat aide="per" libelle="PER actuel / médian" valeur={`${nombre(b.per_actuel, 1)} / ${nombre(b.per_median, 1)}`}
               detail={`min ${nombre(b.per_min, 1)} · max ${nombre(b.per_max, 1)}`} />
-        <Stat libelle="Cours vs BPA × PER médian" valeur={pct(b.ecart_per_median, { signe: true })}
+        <Stat aide="renotation" libelle="Cours vs BPA × PER médian" valeur={pct(b.ecart_per_median, { signe: true })}
               classe={b.ecart_per_median > 0.2 ? 'negatif' : b.ecart_per_median < -0.2 ? 'positif' : ''}
               detail={b.ecart_per_median > 0 ? 'au-dessus de sa valeur habituelle' : 'en dessous de sa valeur habituelle'} />
       </div>

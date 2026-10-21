@@ -30,7 +30,7 @@ export default function Accueil() {
       <div className="stat-grille">
         <Stat libelle="Portefeuille" valeur={p ? prix(p.valeur, '€') : '—'}
               detail={p ? <>aujourd'hui <span className={ton(p.variation_jour)}>{pct(p.variation_jour, { signe: true, decimales: 2 })}</span></> : <Link to="/portefeuille">Saisir vos positions</Link>} />
-        <Stat libelle="Plus-value latente" valeur={p ? prix(p.plus_value_latente, '€') : '—'} classe={p ? ton(p.plus_value_latente) : ''}
+        <Stat aide="pru" libelle="Plus-value latente" valeur={p ? prix(p.plus_value_latente, '€') : '—'} classe={p ? ton(p.plus_value_latente) : ''}
               detail={p ? `performance ${pct(p.twr, { signe: true })} depuis le début` : ''} />
         <Stat libelle="Alertes non lues" valeur={r.alertes.non_lus} classe={r.alertes.non_lus ? 'negatif' : ''}
               detail={<Link to="/alertes">Voir les alertes</Link>} />

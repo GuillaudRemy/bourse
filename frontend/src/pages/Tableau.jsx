@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
 import { STATUTS, TYPES } from '../lib/zones'
@@ -26,7 +26,8 @@ export default function Tableau() {
   const [lignes, setLignes] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [info, setInfo] = useState(null)
-  const [ajout, setAjout] = useState(false)
+  const [recherche, setRecherche] = useSearchParams()
+  const [ajout, setAjout] = useState(() => recherche.get('ajouter') !== null)
   const [progression, setProgression] = useState(null)
   const [tri, setTri] = useState({ cle: 'position', sens: 1 })
   const [filtre, setFiltre] = useState('tous')
@@ -224,7 +225,8 @@ export default function Tableau() {
       {importIndice && <ImporterIndice onFermer={message => { setImportIndice(false); if (message) { setInfo(message); chargerListes(); setProgression({ en_cours: true }) } charger() }} />}
       {ajout && (
         <AjouterValeur
-          onFermer={() => setAjout(false)}
+          texteInitial={recherche.get('ajouter') ?? ''}
+          onFermer={() => { setAjout(false); setRecherche({}) }}
           onAjoutee={(valeur, aImporter) => {
             setAjout(false)
             naviguer(`/valeurs/${valeur.id}${aImporter ? '?onglet=donnees' : ''}`)

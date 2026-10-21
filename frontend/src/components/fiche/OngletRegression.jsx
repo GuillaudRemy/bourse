@@ -6,6 +6,7 @@ import { ZONES, ORDRE_ZONES, STATUTS } from '../../lib/zones'
 import Jauge, { BadgeZone } from '../Jauge'
 import GraphiqueRegression from '../GraphiqueRegression'
 import Courbe from '../Courbe'
+import Aide from '../Aide'
 
 const ICONES = { ok: '✓', inconnu: '?', attention: '!', alerte: '✕' }
 const COULEURS_ZONES = {
@@ -25,15 +26,15 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
     <div className="pile" style={{ gap: 16 }}>
       {analyse.avertissement_indice && <AvertissementIndice avertissement={analyse.avertissement_indice} />}
       <div className="stat-grille">
-        <Stat libelle="Pente (rythme de croisière)" valeur={pct(reg.pente, { signe: true })} classe={reg.pente >= 0 ? 'positif' : 'negatif'}
+        <Stat aide="pente" libelle="Pente (rythme de croisière)" valeur={pct(reg.pente, { signe: true })} classe={reg.pente >= 0 ? 'positif' : 'negatif'}
               detail={base_ajustee ? 'par an, dividendes réinvestis' : 'par an, hors dividendes'} />
-        <Stat libelle="Écart-type (largeur du couloir)" valeur={pct(reg.ecart_type, { decimales: 0 })}
+        <Stat aide="ecart_type" libelle="Écart-type (largeur du couloir)" valeur={pct(reg.ecart_type, { decimales: 0 })}
               detail={reg.ecart_type < 0.15 ? 'action calme' : reg.ecart_type < 0.4 ? 'volatilité moyenne' : 'action nerveuse'} />
-        <Stat libelle="Position dans le couloir" valeur={sigma(reg.position)} detail={<BadgeZone zone={reg.zone} />} />
-        <Stat libelle="Retour à la droite" valeur={pct(reg.retour_droite, { signe: true })} classe={reg.retour_droite >= 0 ? 'positif' : 'negatif'}
+        <Stat aide="position" libelle="Position dans le couloir" valeur={sigma(reg.position)} detail={<BadgeZone zone={reg.zone} />} />
+        <Stat aide="droite" libelle="Retour à la droite" valeur={pct(reg.retour_droite, { signe: true })} classe={reg.retour_droite >= 0 ? 'positif' : 'negatif'}
               detail={`droite à ${prix(reg.valeur_droite, devise)}`} />
-        <Stat libelle="Période analysée" valeur={`${nombre(reg.annees, 1)} ans`} detail={`${date(reg.debut)} → ${date(reg.fin)}`} />
-        <Stat libelle="R² (qualité de l'ajustement)" valeur={nombre(reg.r2, 2)} detail="1 = droite parfaite" />
+        <Stat aide="fiabilite" libelle="Période analysée" valeur={`${nombre(reg.annees, 1)} ans`} detail={`${date(reg.debut)} → ${date(reg.fin)}`} />
+        <Stat aide="r2" libelle="R² (qualité de l'ajustement)" valeur={nombre(reg.r2, 2)} detail="1 = droite parfaite" />
       </div>
 
       <div className="grille-2">
@@ -263,11 +264,11 @@ function texteZone(zone) {
   }[zone] ?? ZONES[zone]?.libelle
 }
 
-export function Stat({ libelle, valeur, detail, classe = '' }) {
+export function Stat({ libelle, valeur, detail, classe = '', aide }) {
   return (
     <div className="carte stat">
       <div className={`stat-valeur ${classe}`}>{valeur}</div>
-      <div className="stat-libelle">{libelle}</div>
+      <div className="stat-libelle">{libelle}{aide && <Aide terme={aide} />}</div>
       {detail && <div className="stat-detail">{detail}</div>}
     </div>
   )

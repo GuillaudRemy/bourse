@@ -49,10 +49,10 @@ export default function OngletValorisation({ analyse }) {
       <div className="stat-grille">
         <Stat libelle="Fourchette de valeur" valeur={fourchette ? `${prix(fourchette.bas)} – ${prix(fourchette.haut)}` : '—'}
               detail={`cours ${prix(cours, devise)} · médiane ${fourchette ? prix(fourchette.mediane) : '—'}`} />
-        <Stat libelle="Croissance que le cours suppose" valeur={pct(modeles.dcf_inverse, { signe: true })}
+        <Stat aide="dcf_inverse" libelle="Croissance que le cours suppose" valeur={pct(modeles.dcf_inverse, { signe: true })}
               detail={`DCF inversé : FCF par an pendant ${modeles.hypotheses.annees} ans`} />
-        <Stat libelle="PEG" valeur={nombre(modeles.peg, 2)} detail="PER ÷ croissance du BPA (≈ 1 : raisonnable)" />
-        <Stat libelle="Capitalisation" valeur={grand(actuels.capitalisation)} detail={`valeur d'entreprise ${grand(actuels.valeur_entreprise)}`} />
+        <Stat aide="peg" libelle="PEG" valeur={nombre(modeles.peg, 2)} detail="PER ÷ croissance du BPA (≈ 1 : raisonnable)" />
+        <Stat aide="ve" libelle="Capitalisation" valeur={grand(actuels.capitalisation)} detail={`valeur d'entreprise ${grand(actuels.valeur_entreprise)}`} />
       </div>
 
       <div className="grille-2">

@@ -59,9 +59,9 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   return (
     <div className="pile" style={{ gap: 16 }}>
       <div className="stat-grille">
-        <Stat libelle="RSI 14" valeur={nombre(stats.rsi, 0)} classe={stats.rsi >= 70 ? 'negatif' : stats.rsi <= 30 ? 'positif' : ''}
+        <Stat aide="rsi" libelle="RSI 14" valeur={nombre(stats.rsi, 0)} classe={stats.rsi >= 70 ? 'negatif' : stats.rsi <= 30 ? 'positif' : ''}
               detail={stats.rsi >= 70 ? 'surachat' : stats.rsi <= 30 ? 'survente' : 'neutre'} />
-        <Stat libelle="Écart à la MM200" valeur={pct(stats.ecart_mm200, { signe: true })} classe={ton(stats.ecart_mm200)} detail={`MM200 à ${prix(stats.mm200, devise)}`} />
+        <Stat aide="mm" libelle="Écart à la MM200" valeur={pct(stats.ecart_mm200, { signe: true })} classe={ton(stats.ecart_mm200)} detail={`MM200 à ${prix(stats.mm200, devise)}`} />
         <Stat libelle="Volatilité (1 an)" valeur={pct(stats.volatilite, { decimales: 0 })} detail="annualisée" />
         <Stat libelle="Perte maximale" valeur={pct(stats.perte_max?.baisse)} classe="negatif"
               detail={stats.perte_max && `${date(stats.perte_max.sommet)} → ${date(stats.perte_max.creux)}`} />

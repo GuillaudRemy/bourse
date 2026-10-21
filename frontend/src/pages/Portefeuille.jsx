@@ -104,11 +104,11 @@ function Contenu({ s }) {
     <div className="pile" style={{ gap: 16 }}>
       <div className="stat-grille">
         <Stat libelle="Valeur totale" valeur={euros(t.valeur)} detail={<>aujourd'hui <span className={ton(t.variation_jour)}>{pct(t.variation_jour, { signe: true, decimales: 2 })}</span></>} />
-        <Stat libelle="Plus-value latente" valeur={euros(t.plus_value_latente)} classe={ton(t.plus_value_latente)} detail={`coût ${euros(t.cout)}`} />
+        <Stat aide="pru" libelle="Plus-value latente" valeur={euros(t.plus_value_latente)} classe={ton(t.plus_value_latente)} detail={`coût ${euros(t.cout)}`} />
         <Stat libelle="Réalisé + dividendes" valeur={euros(t.plus_value_realisee + t.dividendes)} classe={ton(t.plus_value_realisee + t.dividendes)}
               detail={`dont dividendes ${euros(t.dividendes)} · frais ${euros(t.frais)}`} />
-        <Stat libelle="Rendement réel (TRI)" valeur={pct(p.xirr, { signe: true })} detail="par an, apports et retraits compris" />
-        <Stat libelle="Performance (TWR)" valeur={pct(p.twr, { signe: true })}
+        <Stat aide="tri" libelle="Rendement réel (TRI)" valeur={pct(p.xirr, { signe: true })} detail="par an, apports et retraits compris" />
+        <Stat aide="twr" libelle="Performance (TWR)" valeur={pct(p.twr, { signe: true })}
               detail={p.twr_annualise != null ? `soit ${pct(p.twr_annualise, { signe: true })}/an` : 'moins d’un an'} />
         <Stat libelle={`Référence : ${ref?.nom ?? '—'}`} valeur={ref?.twr != null ? pct(ref.twr, { signe: true }) : '—'}
               detail={ref?.manquante ? `ajoutez ${ref.manquante} à vos valeurs` : ref ? `même argent, mêmes dates · TRI ${pct(ref.xirr, { signe: true })}` : ''} />

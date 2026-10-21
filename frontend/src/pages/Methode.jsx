@@ -8,6 +8,10 @@ export default function Methode() {
           <h1 className="page-titre">La méthode</h1>
           <div className="page-sous-titre">Droite de régression, couloir d'écarts-types, et les trois vérifications</div>
         </div>
+        <div className="rangee">
+          <a className="btn" href="/glossaire">Glossaire</a>
+          <button className="btn" onClick={() => window.dispatchEvent(new Event('revoir-bienvenue'))}>Revoir la visite guidée</button>
+        </div>
       </div>
 
       <div className="prose">
@@ -73,10 +77,11 @@ export default function Methode() {
 
         <h2>Sources de données</h2>
         <p>
-          Les cours, dividendes et ratios viennent de <b>Yahoo Finance</b> via la bibliothèque libre
-          <i> yfinance</i>, gratuite et sans clé : actions, indices et ETF du monde entier. Yahoo ne
-          fournit les comptes annuels que sur 4–5 ans ; pour un historique de BPA plus long, ou pour une
-          valeur absente de Yahoo, les données s'importent en CSV depuis la fiche de la valeur.
+          Les cours, dividendes et ratios viennent de <b>Yahoo Finance</b> (bibliothèque libre <i>yfinance</i>,
+          avec un accès direct de secours). Les comptes annuels viennent des sources officielles : la <b>SEC</b> pour
+          les sociétés américaines (jusqu'à 20 ans) et les rapports <b>ESEF</b> pour les européennes (depuis 2020) ;
+          les taux de change, de la <b>BCE</b>. Pour un historique plus long ou une valeur non couverte : import CSV,
+          collage depuis un tableur ou rapport annuel PDF.
         </p>
         <p className="discret">
           Outil d'aide à l'analyse, pas un conseil en investissement.
