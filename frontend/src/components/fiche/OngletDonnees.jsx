@@ -147,10 +147,7 @@ export default function OngletDonnees({ analyse, recharger }) {
             <label className="champ-label">Début de la droite de régression</label>
             <input type="date" className="champ" {...champ('debut_regression')} />
             <span className="discret">
-              Vide : {analyse.debut_defaut.slice(0, 4)} ({valeur.type === 'indice'
-                ? 'début du régime monétaire moderne'
-                : 'après la bulle internet et l’entrée de la Chine à l’OMC'}).
-              Banques et défense : partir plus tôt, leurs cycles sont plus longs.
+              Vide : {analyse.debut_defaut.slice(0, 4)} ({analyse.debut_defaut_raison}).
             </span>
           </div>
           <label className="choix">

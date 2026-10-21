@@ -114,7 +114,8 @@ def per(reg: Regression, cloture: pd.Series, fondamentaux: list[dict]) -> dict:
     )
 
 
-def rupture(reg: Regression, cours: pd.Series, signalee: bool) -> dict:
+def rupture(reg: Regression, cours: pd.Series, signalee: bool, coupure: dict | None = None) -> dict:
+    """`coupure` : rupture statistique la plus nette (robustesse.rupture), si calculee."""
     titre = "Entreprise fidèle à elle-même"
     if signalee:
         return _verification(
@@ -131,7 +132,16 @@ def rupture(reg: Regression, cours: pd.Series, signalee: bool) -> dict:
                              "Historique trop court pour comparer la pente récente.", signalee=False)
 
     ecart = reg_recente.pente - reg.pente
-    details = {"signalee": False, "pente_recente": reg_recente.pente, "ecart": ecart}
+    details = {"signalee": False, "pente_recente": reg_recente.pente, "ecart": ecart, "coupure": coupure}
+    if coupure and coupure["nette"] and coupure["annees_apres"] >= 3:
+        jour = pd.Timestamp(coupure["date"])
+        return _verification(
+            "rupture", titre, "attention",
+            f"Changement de régime net vers {jour:%m/%Y} : pente de {coupure['pente_avant']:+.1%}/an avant, "
+            f"{coupure['pente_apres']:+.1%}/an après. Changement de nature de l'entreprise, ou simple cycle ? "
+            f"Vérifiez les comptes et la stratégie autour de cette date.",
+            **details,
+        )
     if abs(ecart) > max(0.08, abs(reg.pente)):
         return _verification(
             "rupture", titre, "attention",

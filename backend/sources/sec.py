@@ -131,6 +131,18 @@ def comptes(identite: Identite, divisions: list[tuple[date, float]] = ()) -> Com
                     annees.setdefault(annee, {})[cle] = signe(cle, float(e["val"]))
                     publie[annee, cle] = e["filed"]
 
+    # Dette financiere totale rarement publiee telle quelle : reconstituee si besoin.
+    parties = {}
+    for concept in ("LongTermDebtNoncurrent", "LongTermDebtCurrent", "CommercialPaper", "ShortTermBorrowings"):
+        for e in _entrees(faits, concept):
+            if not e.get("start") and e["end"] in fins:
+                annee = fins[e["end"]]
+                if (annee, concept) not in parties or e["filed"] > parties[annee, concept]["filed"]:
+                    parties[annee, concept] = e
+    for annee, valeurs in annees.items():
+        if "dette_financiere" not in valeurs and (annee, "LongTermDebtNoncurrent") in parties:
+            valeurs["dette_financiere"] = sum(float(e["val"]) for (a, _), e in parties.items() if a == annee)
+
     # Chaque chiffre par action est ajuste des divisions posterieures a SON rapport.
     for annee, valeurs in annees.items():
         for cle in [*PAR_ACTION_CLES, "nombre_actions"]:

@@ -1,5 +1,6 @@
 """Assemble l'analyse complete d'une valeur : series pour les graphiques,
 droite de regression, indicateurs techniques, fiabilite et fondamentaux."""
+import json
 import math
 from datetime import date
 
@@ -7,7 +8,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from backend.analyse import fiabilite, indices, qualite
+from backend.analyse import benefices, fiabilite, indices, qualite, ratios, robustesse, scores
 from backend.analyse import indicateurs as ind
 from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
@@ -29,9 +30,21 @@ def _f(v):
     return None if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))) else float(v)
 
 
-def debut_par_defaut(valeur: Valeur) -> date:
-    annee = config.DEBUT_INDICES if valeur.type == "indice" else config.DEBUT_ACTIONS
-    return date(annee, 1, 1)
+# Secteurs aux cycles plus longs que les autres (banques, defense) : la droite part plus tot,
+# comme pour les indices, afin de couvrir plusieurs cycles complets.
+SECTEURS_CYCLES_LONGS = {"Financial Services"}
+INDUSTRIES_CYCLES_LONGS = {"Banks - Diversified", "Banks - Regional", "Aerospace & Defense", "Insurance - Diversified",
+                           "Insurance - Life", "Insurance - Property & Casualty"}
+
+
+def debut_par_defaut(valeur: Valeur) -> tuple[date, str]:
+    """Date de depart par defaut de la droite, et sa justification."""
+    if valeur.type == "indice":
+        return date(config.DEBUT_INDICES, 1, 1), "début du régime monétaire moderne"
+    industrie = json.loads(valeur.infos).get("industrie") if valeur.infos else None
+    if valeur.secteur in SECTEURS_CYCLES_LONGS or industrie in INDUSTRIES_CYCLES_LONGS:
+        return date(config.DEBUT_INDICES, 1, 1), "secteur aux cycles longs (banque, assurance, défense)"
+    return date(config.DEBUT_ACTIONS, 1, 1), "après la bulle internet et l'entrée de la Chine à l'OMC"
 
 
 class AnalyseService:
@@ -55,7 +68,7 @@ class AnalyseService:
         base_ajustee = bool(dividendes and cours["ajuste"].notna().mean() > 0.9)
         base = (cours["ajuste"] if base_ajustee else cours["cloture"]).dropna()
 
-        debut = debut or valeur.debut_regression or debut_par_defaut(valeur)
+        debut = debut or valeur.debut_regression or debut_par_defaut(valeur)[0]
         fenetre = base[base.index >= pd.Timestamp(debut)]
         if len(fenetre) < 250:          # trop court depuis le debut choisi : tout l'historique
             fenetre = base
@@ -90,7 +103,8 @@ class AnalyseService:
         valeur, cours, base_ajustee, fenetre, reg = self._contexte(valeur_id, dividendes, debut, en_euros)
         resultat = {
             "valeur": ValeurRead.model_validate(valeur).model_dump(mode="json"),
-            "debut_defaut": debut_par_defaut(valeur).isoformat(),
+            "debut_defaut": debut_par_defaut(valeur)[0].isoformat(),
+            "debut_defaut_raison": debut_par_defaut(valeur)[1],
             "devise_affichee": self._devise,
             "en_euros": en_euros,
             "vide": cours.empty,
@@ -128,6 +142,8 @@ class AnalyseService:
             "qualite": qualite.controler(cours),
             "avertissement_indice": indices.avertissement(valeur.symbole, valeur.nom, valeur.type),
             "fondamentaux": fondamentaux,
+            "comptes": self._comptes(valeur, fondamentaux),
+            "benefices": benefices.analyser(self._cloture_origine, fondamentaux),
         }
 
         if reg is None:
@@ -135,12 +151,54 @@ class AnalyseService:
             return resultat
 
         resultat["regression"] = self._regression(reg, fenetre)
+        base = (cours["ajuste"] if base_ajustee else cours["cloture"]).dropna()
+        coupure = robustesse.rupture(fenetre)
+        resultat["robustesse"] = {
+            "sensibilite": robustesse.sensibilite(base),
+            "glissante": robustesse.pente_glissante(base),
+            "rupture": coupure,
+        }
         verifs = [
             fiabilite.historique(reg),
             fiabilite.per(reg, self._cloture_origine, fondamentaux),
-            fiabilite.rupture(reg, fenetre, valeur.rupture),
+            fiabilite.rupture(reg, fenetre, valeur.rupture, coupure),
         ]
         resultat["fiabilite"] = {"verifications": verifs, "verdict": fiabilite.verdict(verifs)}
+        return resultat
+
+    def _comptes(self, valeur: Valeur, fondamentaux: list[dict]) -> dict | None:
+        """Ratios, synthese et scores, sur les annees qui ont au moins un poste du compte de resultat."""
+        comptes = [f for f in fondamentaux
+                   if f.get("chiffre_affaires") is not None or f.get("benefice_net") is not None]
+        if not comptes:
+            return None
+        annuels = ratios.annuels(comptes)
+        resume = ratios.synthese(comptes, annuels)
+        piotroski = [scores.piotroski(comptes[i - 2] if i >= 2 else {}, comptes[i - 1], comptes[i])
+                     for i in range(1, len(comptes))]
+        beneish = [b for i in range(1, len(comptes)) if (b := scores.beneish(comptes[i - 1], comptes[i]))]
+        return {
+            "ratios": annuels,
+            "synthese": resume,
+            "note": scores.note_maison(resume),
+            "piotroski": piotroski[-10:],
+            "altman": self._altman(valeur, comptes),
+            "beneish": beneish[-10:],
+        }
+
+    def _altman(self, valeur: Valeur, comptes: list[dict]) -> list[dict]:
+        """La capitalisation (cours de fin d'annee x nombre d'actions) doit etre dans la devise des
+        comptes : sinon le terme est inconnu plutot que faux."""
+        meme_devise = not valeur.devise_comptes or valeur.devise_comptes == valeur.devise
+        fin_annee = self._cloture_origine.groupby(self._cloture_origine.index.year).last() \
+            if not self._cloture_origine.empty else pd.Series(dtype=float)
+        resultat = []
+        for c in comptes[-10:]:
+            capitalisation = None
+            if meme_devise and c.get("nombre_actions") and c["annee"] in fin_annee.index:
+                capitalisation = float(fin_annee[c["annee"]]) * c["nombre_actions"]
+            if (z := scores.altman(c, capitalisation)) is not None:
+                resultat.append(z)
         return resultat
 
     def _regression(self, reg, fenetre: pd.Series) -> dict:

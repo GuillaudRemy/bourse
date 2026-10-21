@@ -6,11 +6,15 @@ import { TYPES } from '../lib/zones'
 import OngletRegression   from '../components/fiche/OngletRegression'
 import OngletTechnique    from '../components/fiche/OngletTechnique'
 import OngletFondamentaux from '../components/fiche/OngletFondamentaux'
+import OngletBenefices    from '../components/fiche/OngletBenefices'
+import OngletQualite      from '../components/fiche/OngletQualite'
 import OngletDonnees      from '../components/fiche/OngletDonnees'
 
 const ONGLETS = [
   { cle: 'regression',   libelle: 'Droite de régression' },
   { cle: 'technique',    libelle: 'Analyse technique' },
+  { cle: 'benefices',    libelle: 'Bénéfices' },
+  { cle: 'qualite',      libelle: 'Qualité' },
   { cle: 'fondamentaux', libelle: 'Fondamentaux' },
   { cle: 'donnees',      libelle: 'Données & réglages' },
 ]
@@ -133,6 +137,8 @@ export default function Fiche() {
             />
           )}
           {onglet === 'technique'    && <OngletTechnique analyse={analyse} enEuros={enEuros} setEnEuros={setEnEuros} />}
+          {onglet === 'benefices'    && <OngletBenefices analyse={analyse} />}
+          {onglet === 'qualite'      && <OngletQualite analyse={analyse} />}
           {onglet === 'fondamentaux' && <OngletFondamentaux analyse={analyse} recharger={charger} />}
           {onglet === 'donnees'      && <OngletDonnees analyse={analyse} recharger={charger} />}
         </>

@@ -25,13 +25,13 @@ Coché = fait, testé et commité. Les numéros renvoient aux sections de `plan.
 ## Phase 2 — Les comptes
 - [x] 2.1 États financiers complets (résultat, bilan, flux) en base et depuis les sources — §2.1
 - [x] 2.2 Tableaux pluriannuels + graphiques en barres — §2.1
-- [ ] 2.3 Ratios de qualité (marges, ROE, ROIC, ROCE, dette, FCF, payout, dilution, CAGR) — §2.2
-- [ ] 2.4 Scores Piotroski, Altman, Beneish + note maison détaillée — §2.3
-- [ ] 2.5 Graphique cours vs BPA × PER médian + bande de PER — §2.4
-- [ ] 2.6 Droite de régression du BPA — §2.4
-- [ ] 2.7 Détection de rupture statistique — §2.4
-- [ ] 2.8 Sensibilité au point de départ + pente glissante — §2.4
-- [ ] 2.9 Départ par défaut selon le secteur (banques, défense) — §2.4
+- [x] 2.3 Ratios de qualité (marges, ROE, ROIC, ROCE, dette, FCF, payout, dilution, CAGR) — §2.2
+- [x] 2.4 Scores Piotroski, Altman, Beneish + note maison détaillée — §2.3
+- [x] 2.5 Graphique cours vs BPA × PER médian + bande de PER — §2.4
+- [x] 2.6 Droite de régression du BPA — §2.4
+- [x] 2.7 Détection de rupture statistique — §2.4
+- [x] 2.8 Sensibilité au point de départ + pente glissante — §2.4
+- [x] 2.9 Départ par défaut selon le secteur (banques, défense) — §2.4
 
 ## Phase 3 — Décider
 - [ ] 3.1 Multiples (VE/EBITDA, VE/EBIT, P/B, P/FCF…) + percentile historique + médiane du secteur — §3.1

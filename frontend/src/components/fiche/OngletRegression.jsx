@@ -5,6 +5,7 @@ import { pct, prix, nombre, sigma, date } from '../../lib/format'
 import { ZONES, ORDRE_ZONES, STATUTS } from '../../lib/zones'
 import Jauge, { BadgeZone } from '../Jauge'
 import GraphiqueRegression from '../GraphiqueRegression'
+import Courbe from '../Courbe'
 
 const ICONES = { ok: '✓', inconnu: '?', attention: '!', alerte: '✕' }
 const COULEURS_ZONES = {
@@ -85,6 +86,8 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
               </div>
             </div>
           </div>
+
+          {analyse.robustesse && <Robustesse robustesse={analyse.robustesse} pente={reg.pente} />}
         </div>
 
         <div className="pile" style={{ gap: 16 }}>
@@ -123,6 +126,36 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
 
           <div className="regle-or">La droite donne le cadre, les comptes la valident.</div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function Robustesse({ robustesse, pente }) {
+  const { sensibilite: s, glissante, rupture } = robustesse
+  const statut = { ok: ['statut-ok', 'stable'], attention: ['statut-attention', 'assez sensible'], alerte: ['statut-alerte', 'très sensible'] }[s.statut]
+  return (
+    <div className="carte">
+      <div className="section-titre">Robustesse de la pente</div>
+      <div className="carte-corps pile">
+        <div className="rangee" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <b style={{ fontSize: 13 }}>Pente selon l'année de départ</b>
+          {statut && <span className={`badge ${statut[0]}`}>{statut[1]} : de {pct(s.min, { signe: true })} à {pct(s.max, { signe: true })}</span>}
+        </div>
+        <Courbe points={s.points.map(p => ({ x: p.annee, y: p.pente }))} ref={pente} />
+        <div className="discret">Si la pente change beaucoup selon le point de départ, elle dépend surtout du moment choisi (creux ou sommet). Pointillés rouges : la pente retenue.</div>
+
+        <b style={{ fontSize: 13, marginTop: 8 }}>Pente glissante sur 15 ans</b>
+        <Courbe points={glissante.map(p => ({ x: p.annee, y: p.pente }))} ref={pente} couleur="var(--c-mm200)" />
+        <div className="discret">Le « rythme de croisière » ralentit-il ou accélère-t-il ? Chaque point : pente des 15 années précédentes.</div>
+
+        {rupture && (
+          <div className={rupture.nette ? 'info' : 'discret'} style={rupture.nette ? { background: '#FFF7ED', color: '#9A3412', borderColor: '#FED7AA' } : {}}>
+            {rupture.nette
+              ? `Changement de régime net vers ${date(rupture.date)} : ${pct(rupture.pente_avant, { signe: true })}/an avant, ${pct(rupture.pente_apres, { signe: true })}/an après.`
+              : `Pas de rupture nette (coupure la plus marquée vers ${date(rupture.date)} : ${pct(rupture.pente_avant, { signe: true })} puis ${pct(rupture.pente_apres, { signe: true })}/an).`}
+          </div>
+        )}
       </div>
     </div>
   )

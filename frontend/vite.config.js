@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 // comme le fait nginx en production.
 export default defineConfig({
   plugins: [react()],
+  // Application locale : un seul fichier JS d'environ 500 ko (graphiques compris) est acceptable.
+  build: { chunkSizeWarningLimit: 800 },
   server: {
     port: 5173,
     proxy: {
