@@ -5,7 +5,20 @@ Version publiée au moment de la décision : **0.5.3**.
 
 ---
 
-## Version 0.6.0 — ≈ 5 jours
+## Version 0.6.0 — ≈ 5,5 jours
+
+### 0. Colonnes de largeur fixe dans le tableau des valeurs — ≈ 0,5 j
+
+Aujourd'hui, chaque colonne prend la largeur de son contenu le plus long **sur la page affichée**.
+En changeant de page, ou en triant (par PER, par nom…), les lignes affichées changent, les colonnes
+s'élargissent ou rétrécissent, et les en-têtes se déplacent sous la souris.
+
+- Largeur **fixe** pour chaque colonne (`table-layout: fixed`), calculée pour le contenu le plus large
+  possible : « 1 260 EUR », « Opportunité manifeste », « −42,8 % »…
+- Rien ne doit bouger quand on trie, change de page, filtre ou recherche : vérifié automatiquement par un
+  test d'interface qui compare la position des en-têtes avant et après chaque action.
+- Un nom de société trop long est coupé proprement (« … »), avec le nom complet au survol.
+- Même traitement pour le Screener et les tableaux du portefeuille.
 
 ### 1. Réorganiser le menu — ≈ 1 j
 
