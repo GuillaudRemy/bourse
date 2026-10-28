@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
-import { STATUTS, TYPES } from '../lib/zones'
+import { TYPES } from '../lib/zones'
 import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
 import ImporterIndice from '../components/ImporterIndice'
@@ -13,14 +13,21 @@ const COLONNES = [
   { cle: 'dernier',        libelle: 'Cours',       valeur: l => l.dernier },
   { cle: 'variation_jour', libelle: 'Jour',        valeur: l => l.variation_jour },
   { cle: 'perf_1an',       libelle: '1 an',        valeur: l => l.perf_1an },
+  { cle: 'capitalisation', libelle: 'Capitalisation', valeur: l => l.capitalisation_eur, aide: 'Valeur en bourse de l’entreprise (cours × nombre d’actions), convertie en euros pour comparer toutes les valeurs.' },
   { cle: 'pente',          libelle: 'Pente / an',  valeur: l => l.pente,      aide: 'Rythme de croisière : croissance annuelle de la droite de régression, dividendes réinvestis.' },
   { cle: 'ecart_type',     libelle: 'Écart-type',  valeur: l => l.ecart_type, aide: 'Largeur du couloir : plus il est large, plus l’action est nerveuse.' },
   { cle: 'position',       libelle: 'Position',    valeur: l => l.position,   aide: 'Écart du cours à sa droite, en nombre d’écarts-types.' },
   { cle: 'zone',           libelle: 'Zone',        valeur: l => l.position },
   { cle: 'rsi',            libelle: 'RSI 14',      valeur: l => l.rsi },
   { cle: 'ecart_mm200',    libelle: 'vs MM200',    valeur: l => l.ecart_mm200 },
-  { cle: 'fiabilite',      libelle: 'Droite',      valeur: l => ['ok', 'inconnu', 'attention', 'alerte'].indexOf(l.fiabilite), aide: 'Les trois vérifications : historique ≥ 20 ans, pente portée par les bénéfices, pas de rupture.' },
 ]
+
+/** 103,2 Md€ · 850 M€ */
+function capitalisation(euros) {
+  if (euros == null) return <span className="muet">—</span>
+  const [diviseur, suffixe, decimales] = euros >= 1e9 ? [1e9, 'Md€', euros >= 1e11 ? 0 : 1] : [1e6, 'M€', 0]
+  return `${(euros / diviseur).toLocaleString('fr-FR', { maximumFractionDigits: decimales })} ${suffixe}`
+}
 
 export default function Tableau() {
   const naviguer = useNavigate()
@@ -217,6 +224,7 @@ export default function Tableau() {
                     <td>{prix(l.dernier, unite(l.valeur))}</td>
                     <td className={ton(l.variation_jour)}>{pct(l.variation_jour, { signe: true, decimales: 2 })}</td>
                     <td className={ton(l.perf_1an)}>{pct(l.perf_1an, { signe: true })}</td>
+                    <td>{capitalisation(l.capitalisation_eur)}</td>
                     <td className={ton(l.pente)}>{pct(l.pente, { signe: true })}</td>
                     <td>{pct(l.ecart_type, { decimales: 0 })}</td>
                     <td>
@@ -228,11 +236,6 @@ export default function Tableau() {
                     <td><BadgeZone zone={l.zone} /></td>
                     <td className={l.rsi >= 70 ? 'negatif' : l.rsi <= 30 ? 'positif' : ''}>{nombre(l.rsi, 0)}</td>
                     <td className={ton(l.ecart_mm200)}>{pct(l.ecart_mm200, { signe: true })}</td>
-                    <td>
-                      {l.fiabilite
-                        ? <span className={`badge ${STATUTS[l.fiabilite].classe}`}>{STATUTS[l.fiabilite].libelle}</span>
-                        : <span className="muet">—</span>}
-                    </td>
                   </tr>
                 ))}
               </tbody>

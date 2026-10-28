@@ -79,3 +79,32 @@ def test_avertissement_indice_prix():
     assert avertissement("^990100-USD-NETR", "MSCI WORLD NETR USD", "indice") is None
     assert avertissement("AI.PA", "Air Liquide", "action") is None
     assert avertissement("^N225", "Nikkei 225", "indice")["symbole"] is None
+
+
+def test_capitalisation_en_euros():
+    """Cours x actions, converti en euros ; cotation en pence : capitalisation en livres (comme Yahoo)."""
+    import json
+    from datetime import date
+
+    import pytest
+    from fastapi.testclient import TestClient
+    from sqlmodel import Session
+
+    from backend.db.db import engine
+    from backend.db.schema import TauxChange, Valeur
+    from backend.main import app  # noqa: F401  (cree la base)
+    from backend.services.analyse_service import AnalyseService
+    with TestClient(app), Session(engine) as db:
+        db.add(TauxChange(devise="GBP", jour=date(2026, 10, 27), taux=0.85))
+        db.add(TauxChange(devise="USD", jour=date(2026, 10, 27), taux=1.25))
+        londres = Valeur(symbole="CAPI.L", nom="Londres", devise="GBp", infos=json.dumps({"actions_en_circulation": 2e9}))
+        newyork = Valeur(symbole="CAPI", nom="New York", devise="USD", infos=json.dumps({"capitalisation": 5e12}))
+        paris = Valeur(symbole="CAPI.PA", nom="Paris", devise="EUR", infos=json.dumps({"actions_en_circulation": 1e6}))
+        indice = Valeur(symbole="^CAPI", nom="Indice", type="indice", devise="EUR")
+        db.add_all([londres, newyork, paris, indice])
+        db.commit()
+        service = AnalyseService(db)
+        assert service._capitalisation_eur(londres, 4800) == pytest.approx(2e9 * 48 / 0.85)   # 4 800 pence = 48 livres
+        assert service._capitalisation_eur(newyork, 300) == pytest.approx(5e12 / 1.25)          # repli : capitalisation Yahoo
+        assert service._capitalisation_eur(paris, 50) == pytest.approx(5e7)
+        assert service._capitalisation_eur(indice, 8000) is None

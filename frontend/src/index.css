@@ -311,7 +311,11 @@ a { color: inherit; text-decoration: none; }
 .retour { color: var(--muted); font-size: 13px; display: inline-block; margin-bottom: 10px; }
 .retour:hover { color: var(--accent); }
 
-.onglets { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+/* Defilement horizontal seulement si l'ecran est trop etroit, sans barre visible ; le soulignement
+   de l'onglet actif deborde d'un pixel vers le bas, qui faisait apparaitre un ascenseur vertical. */
+.onglets { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.onglets::-webkit-scrollbar { display: none; }
 .onglet {
   padding: 10px 14px; font-weight: 500; color: var(--muted);
   border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;

@@ -365,5 +365,30 @@ class AnalyseService:
                     "cherte_per": historique.get("per", {}).get("cherte"),
                     "dcf_inverse": valo_["modeles"].get("dcf_inverse"),
                 }
+        ligne["capitalisation_eur"] = self._capitalisation_eur(valeur, ligne.get("dernier"))
         cache.ecrire(valeur.id, ligne)
         return ligne
+
+    def _capitalisation_eur(self, valeur: Valeur, dernier: float | None) -> float | None:
+        """Capitalisation en euros, pour trier ensemble des valeurs cotees dans des devises differentes.
+
+        Nombre d'actions x cours du jour (a jour chaque jour) ; a defaut, la capitalisation de la
+        fiche Yahoo (rafraichie chaque semaine). Attention aux cotations en pence (GBp) : Yahoo donne
+        le cours en pence mais la capitalisation en livres (verifie sur Unilever)."""
+        if valeur.type == "indice":
+            return None
+        infos = json.loads(valeur.infos or "{}")
+        devise, facteur = bce.normaliser(valeur.devise)
+        actions = infos.get("actions_en_circulation")
+        if actions and dernier:
+            capitalisation = actions * dernier / facteur
+        elif infos.get("capitalisation"):
+            capitalisation = infos["capitalisation"]
+        else:
+            return None
+        if devise and devise != "EUR":
+            taux = charger_taux(self._db, devise)
+            if taux.empty:
+                return None
+            capitalisation /= float(taux.iloc[-1])
+        return float(capitalisation)
