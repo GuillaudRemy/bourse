@@ -13,7 +13,8 @@ from backend.sources.reseau import ErreurReseau, obtenir
 NOM = "bce"
 URL = "https://data-api.ecb.europa.eu/service/data/EXR/D.{devise}.EUR.SP00.A"
 # Sous-unites cotees par Yahoo : pence britanniques, cents sud-africains…
-SOUS_UNITES = {"GBp": ("GBP", 100), "GBX": ("GBP", 100), "ZAc": ("ZAR", 100), "ILA": ("ILS", 100)}
+# Sous-unites : pence (Londres), cents (Johannesburg, Tel-Aviv) et cents de dollar (« USX », cereales a Chicago).
+SOUS_UNITES = {"GBp": ("GBP", 100), "GBX": ("GBP", 100), "ZAc": ("ZAR", 100), "ILA": ("ILS", 100), "USX": ("USD", 100)}
 
 
 def normaliser(devise: str | None) -> tuple[str | None, float]:

@@ -70,20 +70,21 @@ export default function Screener() {
         </select>
       </div>
       {erreur && <div className="erreur" style={{ marginBottom: 12 }}>{erreur}</div>}
-      <div className="grille-2" style={{ gridTemplateColumns: 'minmax(280px, 1fr) minmax(0, 3fr)' }}>
-        <div className="pile" style={{ gap: 16 }}>
+      <div className="screener-reglages">
           <div className="carte">
             <div className="section-titre">Critères</div>
             <div className="carte-corps pile" style={{ gap: 8 }}>
               <div className="rangee" style={{ flexWrap: 'wrap' }}>
                 {Object.keys(PRESETS).map(n => <button key={n} className="btn btn-mini" onClick={() => charger(PRESETS[n])}>{n}</button>)}
               </div>
-              {CRITERES.map(([cle, libelle, , u]) => (
-                <label key={cle} className="critere">
-                  <span>{libelle}</span>
-                  <input className="champ champ-mono" placeholder={u || '—'} value={criteres[cle] ?? ''} onChange={e => setCriteres({ ...criteres, [cle]: e.target.value })} />
-                </label>
-              ))}
+              <div className="screener-criteres">
+                {CRITERES.map(([cle, libelle, , u]) => (
+                  <label key={cle} className="critere">
+                    <span>{libelle}</span>
+                    <input className="champ champ-mono" placeholder={u || '—'} value={criteres[cle] ?? ''} onChange={e => setCriteres({ ...criteres, [cle]: e.target.value })} />
+                  </label>
+                ))}
+              </div>
               <label className="interrupteur"><input type="checkbox" checked={fiable} onChange={e => setFiable(e.target.checked)} /> Droite fiable ou « prudence » seulement</label>
               <button className="btn btn-mini btn-fantome" onClick={() => { setCriteres({}); setFiable(false) }}>Effacer les critères</button>
             </div>
@@ -112,7 +113,7 @@ export default function Screener() {
               <button className="btn" disabled={!nomFiltre.trim()} onClick={enregistrer}>Enregistrer</button>
             </div>
           </div>
-        </div>
+      </div>
 
         <div className="carte">
           <div className="graphique-barre">
@@ -146,7 +147,6 @@ export default function Screener() {
             Une valeur sans la donnée d'un critère est écartée par ce critère. Le score ne remplace pas la lecture de la fiche : il aide à choisir lesquelles ouvrir.
           </div>
         </div>
-      </div>
     </div>
   )
 }

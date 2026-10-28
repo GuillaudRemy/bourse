@@ -17,7 +17,7 @@ from backend.db.schema import Valeur
 from backend.models.valeur import ValeurRead
 from backend.services import cache
 from backend.services.stockage import charger_cours, charger_fondamentaux, charger_taux
-from backend.sources import bce
+from backend.sources import bce, matieres
 
 PROJECTION_ANS = 3
 
@@ -43,6 +43,8 @@ def debut_par_defaut(valeur: Valeur) -> tuple[date, str]:
     """Date de depart par defaut de la droite, et sa justification."""
     if valeur.type == "indice":
         return date(config.DEBUT_INDICES, 1, 1), "début du régime monétaire moderne"
+    if valeur.type == "matiere":
+        return date(2000, 1, 1), "début de l'historique continu des contrats à terme chez Yahoo"
     industrie = json.loads(valeur.infos).get("industrie") if valeur.infos else None
     if valeur.secteur in SECTEURS_CYCLES_LONGS or industrie in INDUSTRIES_CYCLES_LONGS:
         return date(config.DEBUT_INDICES, 1, 1), "secteur aux cycles longs (banque, assurance, défense)"
@@ -131,7 +133,9 @@ class AnalyseService:
             "stats": self._stats(cloture, mm50, mm200, rsi14),
             "signaux": ind.signaux(cloture, mm50, mm200, rsi14),
             "qualite": qualite.controler(cours),
-            "avertissement_indice": indices.avertissement(valeur.symbole, valeur.nom, valeur.type),
+            "avertissement_indice": ({"texte": matieres.AVERTISSEMENT, "symbole": None, "nom": None}
+                                     if valeur.type == "matiere"
+                                     else indices.avertissement(valeur.symbole, valeur.nom, valeur.type)),
             "fondamentaux": fondamentaux,
             "comptes": (comptes := self._comptes(valeur, fondamentaux)),
             "valorisation": self._valorisation(valeur, fondamentaux, comptes),
@@ -247,7 +251,9 @@ class AnalyseService:
         # Droite et couloir sur la fenetre, prolonges de quelques annees. L'axe du temps
         # des graphiques avance d'un cran par seance : la projection doit donc aussi
         # avoir un point par jour ouvre, sinon la droite ferait un coude.
-        jours = fenetre.index[::5].append(fenetre.index[-1:])
+        # .unique() : quand le nombre de seances tombe juste, le dernier jour est deja dans l'echantillon ;
+        # en double, il faisait planter le graphique (« Value is null », vu sur l'or).
+        jours = fenetre.index[::5].append(fenetre.index[-1:]).unique()
         futur = pd.bdate_range(reg.fin + pd.Timedelta(days=1), periods=PROJECTION_ANS * 261)
         tous = jours.append(futur)
         cle_zone, libelle = zone(reg.position)
@@ -366,6 +372,9 @@ class AnalyseService:
                     "dcf_inverse": valo_["modeles"].get("dcf_inverse"),
                 }
         ligne["capitalisation_eur"] = self._capitalisation_eur(valeur, ligne.get("dernier"))
+        if ligne.get("per") is None and valeur.type == "action":
+            # Sans comptes exploitables : le PER publie par Yahoo (benefices des 12 derniers mois).
+            ligne["per"] = json.loads(valeur.infos or "{}").get("per")
         cache.ecrire(valeur.id, ligne)
         return ligne
 
@@ -375,7 +384,7 @@ class AnalyseService:
         Nombre d'actions x cours du jour (a jour chaque jour) ; a defaut, la capitalisation de la
         fiche Yahoo (rafraichie chaque semaine). Attention aux cotations en pence (GBp) : Yahoo donne
         le cours en pence mais la capitalisation en livres (verifie sur Unilever)."""
-        if valeur.type == "indice":
+        if valeur.type in ("indice", "matiere"):
             return None
         infos = json.loads(valeur.infos or "{}")
         devise, facteur = bce.normaliser(valeur.devise)

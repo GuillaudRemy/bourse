@@ -108,3 +108,18 @@ def test_capitalisation_en_euros():
         assert service._capitalisation_eur(newyork, 300) == pytest.approx(5e12 / 1.25)          # repli : capitalisation Yahoo
         assert service._capitalisation_eur(paris, 50) == pytest.approx(5e7)
         assert service._capitalisation_eur(indice, 8000) is None
+
+
+def test_dates_de_la_droite_strictement_croissantes(csv_cours):
+    """Pour chaque longueur d'historique (dernier jour dans l'echantillon ou non), aucune date en double."""
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+    lignes = csv_cours.decode().splitlines()
+    with TestClient(app) as client:
+        for retire in range(5):
+            vid = client.post("/valeurs", json={"symbole": f"DATES{retire}", "source": "import"}).json()["id"]
+            contenu = "\n".join(lignes[:len(lignes) - retire]).encode()
+            client.post(f"/valeurs/{vid}/import/cours", files={"fichier": ("c.csv", contenu)})
+            jours = client.get(f"/valeurs/{vid}/analyse").json()["regression"]["droite"]["jours"]
+            assert all(a < b for a, b in zip(jours, jours[1:], strict=False)), retire

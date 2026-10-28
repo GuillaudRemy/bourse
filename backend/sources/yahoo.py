@@ -37,7 +37,7 @@ INFOS = {
     "actions_en_circulation": "sharesOutstanding",
 }
 
-TYPES = {"EQUITY": "action", "INDEX": "indice", "ETF": "etf", "MUTUALFUND": "etf"}
+TYPES = {"EQUITY": "action", "INDEX": "indice", "ETF": "etf", "MUTUALFUND": "etf", "FUTURE": "matiere"}
 
 # Poste (champs.py) -> lignes Yahoo candidates, par etat financier.
 LIGNES_RESULTAT = {

@@ -17,12 +17,12 @@ import OngletAssistant    from '../components/fiche/OngletAssistant'
 const ONGLETS = [
   { cle: 'regression',   libelle: 'Droite de régression' },
   { cle: 'technique',    libelle: 'Analyse technique' },
-  { cle: 'benefices',    libelle: 'Bénéfices' },
-  { cle: 'qualite',      libelle: 'Qualité' },
-  { cle: 'valorisation', libelle: 'Valorisation' },
+  { cle: 'benefices',    libelle: 'Bénéfices',    action: true },
+  { cle: 'qualite',      libelle: 'Qualité',      action: true },
+  { cle: 'valorisation', libelle: 'Valorisation', action: true },
   { cle: 'journal',      libelle: 'Journal' },
   { cle: 'assistant',    libelle: 'Assistant', ia: true },
-  { cle: 'fondamentaux', libelle: 'Fondamentaux' },
+  { cle: 'fondamentaux', libelle: 'Fondamentaux', action: true },
   { cle: 'donnees',      libelle: 'Données & réglages' },
 ]
 
@@ -123,7 +123,8 @@ export default function Fiche() {
       )}
 
       <div className="onglets">
-        {ONGLETS.filter(o => !o.ia || assistant?.disponible).map(o => (
+        {/* Indice, ETF, matiere premiere : pas de comptes d'entreprise, donc pas d'onglets qui en dependent. */}
+        {ONGLETS.filter(o => (!o.ia || assistant?.disponible) && (!o.action || analyse.valeur.type === 'action')).map(o => (
           <button
             key={o.cle} className={`onglet${onglet === o.cle ? ' actif' : ''}`}
             onClick={() => setRecherche(o.cle === 'regression' ? {} : { onglet: o.cle }, { replace: true })}

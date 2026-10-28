@@ -18,7 +18,7 @@ from backend.services.stockage import (
     enregistrer_fondamentaux,
     enregistrer_taux,
 )
-from backend.sources import bce, esef, sec, yahoo, yahoo_direct
+from backend.sources import bce, esef, matieres, sec, yahoo, yahoo_direct
 from backend.sources.base import Identite, SourceIndisponible
 
 
@@ -46,7 +46,8 @@ class ValeurService:
             except SourceIndisponible as e:
                 raise HTTPException(502, str(e)) from e
             valeur = Valeur(
-                symbole=symbole, source="yahoo", nom=data.nom or fiche.nom, type=fiche.type,
+                # Matiere premiere : nom francais du catalogue plutot que l'echeance (« Gold Dec 26 »).
+                symbole=symbole, source="yahoo", nom=data.nom or matieres.nom(symbole) or fiche.nom, type=fiche.type,
                 devise=fiche.devise, place=fiche.place, secteur=fiche.secteur, pays=fiche.pays,
                 infos=json.dumps(fiche.infos), isin=(data.isin or "").upper() or None,
             )

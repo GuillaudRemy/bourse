@@ -17,4 +17,4 @@ export const STATUTS = {
   alerte:    { libelle: 'Trompeuse', classe: 'statut-alerte' },
 }
 
-export const TYPES = { action: 'Action', indice: 'Indice', etf: 'ETF' }
+export const TYPES = { action: 'Action', indice: 'Indice', etf: 'ETF', matiere: 'Matière première' }

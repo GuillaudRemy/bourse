@@ -43,6 +43,13 @@ def list_valeurs(service: ValeurService = Depends(get_service)):
     return service.list()
 
 
+@router.get("/matieres")
+def catalogue_matieres():
+    """Matieres premieres proposees a l'ajout (prix de marche, sans ETF)."""
+    from backend.sources import matieres
+    return [{"symbole": s, "nom": nom, "unite": unite} for s, nom, unite in matieres.CATALOGUE]
+
+
 @router.get("/synthese")
 def synthese(analyse: AnalyseService = Depends(get_analyse)):
     return analyse.synthese()
@@ -100,7 +107,7 @@ def consensus(valeur_id: int, session: Session = Depends(get_session)):
     valeur = session.get(Valeur, valeur_id)
     if not valeur:
         raise HTTPException(404, "Valeur introuvable.")
-    if valeur.type == "indice" or valeur.source != "yahoo":
+    if valeur.type != "action" or valeur.source != "yahoo":
         return {"indisponible": "Pas de prévisions d'analystes pour ce type de valeur."}
     en_cache = _CONSENSUS.get(valeur.symbole)
     if en_cache and time.monotonic() - en_cache[0] < 12 * 3600:

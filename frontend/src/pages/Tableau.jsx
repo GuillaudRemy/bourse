@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
 import { TYPES } from '../lib/zones'
+
+const sansAccents = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
 import ImporterIndice from '../components/ImporterIndice'
@@ -15,7 +17,7 @@ const COLONNES = [
   { cle: 'perf_1an',       libelle: '1 an',        valeur: l => l.perf_1an },
   { cle: 'capitalisation', libelle: 'Capitalisation', valeur: l => l.capitalisation_eur, aide: 'Valeur en bourse de l’entreprise (cours × nombre d’actions), convertie en euros pour comparer toutes les valeurs.' },
   { cle: 'pente',          libelle: 'Pente / an',  valeur: l => l.pente,      aide: 'Rythme de croisière : croissance annuelle de la droite de régression, dividendes réinvestis.' },
-  { cle: 'ecart_type',     libelle: 'Écart-type',  valeur: l => l.ecart_type, aide: 'Largeur du couloir : plus il est large, plus l’action est nerveuse.' },
+  { cle: 'per',            libelle: 'PER',         valeur: l => l.per,        aide: 'Cours ÷ bénéfice par action : le nombre d’années de bénéfices que coûte l’action.' },
   { cle: 'position',       libelle: 'Position',    valeur: l => l.position,   aide: 'Écart du cours à sa droite, en nombre d’écarts-types.' },
   { cle: 'zone',           libelle: 'Zone',        valeur: l => l.position },
   { cle: 'rsi',            libelle: 'RSI 14',      valeur: l => l.rsi },
@@ -43,6 +45,16 @@ export default function Tableau() {
   const [listeId, setListeId] = useState('')
   const [selection, setSelection] = useState(new Set())
   const [importIndice, setImportIndice] = useState(false)
+  const [texte, setTexte] = useState('')            // recherche dans les valeurs suivies
+  const [page, setPage] = useState(1)
+  const [parPage, setParPage] = useState(50)
+  useEffect(() => {
+    api.reglages.list().then(r => {
+      const n = Number(r.find(x => x.cle === 'valeurs_par_page')?.valeur)
+      if ([20, 50, 100].includes(n)) setParPage(n)
+    }).catch(() => {})
+  }, [])
+  const changerParPage = n => { setParPage(n); setPage(1); api.reglages.ecrire('valeurs_par_page', String(n)).catch(() => {}) }
   const chargerListes = useCallback(() => api.listes.list().then(setListes).catch(() => {}), [])
   useEffect(() => { chargerListes() }, [chargerListes])
 
@@ -87,6 +99,8 @@ export default function Tableau() {
     return lignes
       .filter(l => filtre === 'tous' || l.valeur.type === filtre)
       .filter(l => !listeId || listes.find(x => String(x.id) === listeId)?.valeur_ids.includes(l.valeur.id))
+      .filter(l => !texte.trim() || sansAccents(`${l.valeur.nom} ${l.valeur.symbole} ${l.valeur.isin ?? ''} ${l.valeur.secteur ?? ''}`)
+        .includes(sansAccents(texte.trim())))
       .sort((a, b) => {
         const va = colonne.valeur(a), vb = colonne.valeur(b)
         // Les valeurs sans donnee vont toujours en bas.
@@ -94,7 +108,10 @@ export default function Tableau() {
         if (vb === null || vb === undefined) return -1
         return (va < vb ? -1 : va > vb ? 1 : 0) * tri.sens
       })
-  }, [lignes, tri, filtre, listeId, listes])
+  }, [lignes, tri, filtre, listeId, listes, texte])
+  const pages = Math.max(1, Math.ceil(triees.length / parPage))
+  const pageAffichee = Math.min(page, pages)
+  const affichees = triees.slice((pageAffichee - 1) * parPage, pageAffichee * parPage)
 
   const trier = cle => setTri(t => ({ cle, sens: t.cle === cle ? -t.sens : 1 }))
   const supprimer = async () => {
@@ -146,19 +163,26 @@ export default function Tableau() {
         <div className="graphique-barre">
           <div className="segments">
             {[['tous', 'Toutes'], ...Object.entries(TYPES)].map(([cle, libelle]) => (
-              <button key={cle} className={`segment${filtre === cle ? ' actif' : ''}`} onClick={() => setFiltre(cle)}>
+              <button key={cle} className={`segment${filtre === cle ? ' actif' : ''}`} onClick={() => { setFiltre(cle); setPage(1) }}>
                 {libelle}
               </button>
             ))}
           </div>
-          <select className="champ" style={{ width: 'auto' }} value={listeId} onChange={e => setListeId(e.target.value)}>
+          <select className="champ" style={{ width: 'auto' }} value={listeId} onChange={e => { setListeId(e.target.value); setPage(1) }}>
             <option value="">Toutes les listes</option>
             {listes.map(l => <option key={l.id} value={l.id}>{l.nom} ({l.valeur_ids.length})</option>)}
           </select>
+          <input className="champ" type="search" style={{ width: 230 }} placeholder="Rechercher (nom, symbole, ISIN, secteur)…"
+                 value={texte} onChange={e => { setTexte(e.target.value); setPage(1) }} aria-label="Rechercher dans les valeurs" />
           <span className="espaceur" />
           {selection.size > 0 ? (
             <>
               <span className="discret">{selection.size} sélectionnée(s)</span>
+              {triees.length > affichees.length && triees.some(l => !selection.has(l.valeur.id)) && (
+                <button className="btn btn-mini btn-fantome" onClick={() => setSelection(new Set([...selection, ...triees.map(l => l.valeur.id)]))}>
+                  Sélectionner les {triees.length} résultats
+                </button>
+              )}
               <button className="btn btn-mini" disabled={selection.size < 2} onClick={() => naviguer(`/comparer?ids=${[...selection].slice(0, 8).join(',')}`)}>Comparer</button>
               <button className="btn btn-mini" onClick={async () => {
                 const nom = prompt('Ajouter à quelle liste ? (nom existant ou nouveau)')
@@ -194,8 +218,12 @@ export default function Tableau() {
                 <tr>
                   <th style={{ width: 28 }} onClick={e => e.stopPropagation()}>
                     <input type="checkbox" title="Tout cocher (lignes affichées)" aria-label="Tout cocher"
-                           checked={triees.length > 0 && triees.every(l => selection.has(l.valeur.id))}
-                           onChange={e => setSelection(e.target.checked ? new Set(triees.map(l => l.valeur.id)) : new Set())} />
+                           checked={affichees.length > 0 && affichees.every(l => selection.has(l.valeur.id))}
+                           onChange={e => {
+                             const n = new Set(selection)
+                             affichees.forEach(l => e.target.checked ? n.add(l.valeur.id) : n.delete(l.valeur.id))
+                             setSelection(n)
+                           }} />
                   </th>
                   {COLONNES.map(c => (
                     <th key={c.cle} className={`triable${c.cle === 'nom' ? ' texte' : ''}`} title={c.aide} onClick={() => trier(c.cle)}>
@@ -205,7 +233,7 @@ export default function Tableau() {
                 </tr>
               </thead>
               <tbody>
-                {triees.map(l => (
+                {affichees.map(l => (
                   <tr key={l.valeur.id} className="cliquable" onClick={() => naviguer(`/valeurs/${l.valeur.id}`)}>
                     <td onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selection.has(l.valeur.id)} onChange={() => {
@@ -226,7 +254,7 @@ export default function Tableau() {
                     <td className={ton(l.perf_1an)}>{pct(l.perf_1an, { signe: true })}</td>
                     <td>{capitalisation(l.capitalisation_eur)}</td>
                     <td className={ton(l.pente)}>{pct(l.pente, { signe: true })}</td>
-                    <td>{pct(l.ecart_type, { decimales: 0 })}</td>
+                    <td>{l.per != null && l.per > 0 ? nombre(l.per, 1) : <span className="muet">—</span>}</td>
                     <td>
                       <div className="rangee" style={{ justifyContent: 'flex-end' }}>
                         <span style={{ minWidth: 62 }}>{sigma(l.position)}</span>
@@ -240,6 +268,25 @@ export default function Tableau() {
                 ))}
               </tbody>
             </table>
+            {!triees.length && <div className="vide">Aucune valeur ne correspond à « {texte} ».</div>}
+          </div>
+        )}
+        {lignes?.length > 0 && (
+          <div className="graphique-barre pagination" style={{ borderTop: '1px solid var(--border)', borderBottom: 'none' }}>
+            <span className="discret">
+              {triees.length ? `${(pageAffichee - 1) * parPage + 1}–${(pageAffichee - 1) * parPage + affichees.length} sur ${triees.length}` : '0 valeur'}
+              {triees.length < lignes.length ? ` (${lignes.length} suivies)` : ''}
+            </span>
+            <span className="espaceur" />
+            <button className="btn btn-mini" disabled={pageAffichee <= 1} onClick={() => setPage(1)}>«</button>
+            <button className="btn btn-mini" disabled={pageAffichee <= 1} onClick={() => setPage(pageAffichee - 1)}>Précédente</button>
+            <span className="mono">page {pageAffichee} / {pages}</span>
+            <button className="btn btn-mini" disabled={pageAffichee >= pages} onClick={() => setPage(pageAffichee + 1)}>Suivante</button>
+            <button className="btn btn-mini" disabled={pageAffichee >= pages} onClick={() => setPage(pages)}>»</button>
+            <select className="champ" style={{ width: 'auto' }} value={parPage} onChange={e => changerParPage(Number(e.target.value))}
+                    title="Aussi réglable dans Réglages">
+              {[20, 50, 100].map(n => <option key={n} value={n}>{n} par page</option>)}
+            </select>
           </div>
         )}
       </div>

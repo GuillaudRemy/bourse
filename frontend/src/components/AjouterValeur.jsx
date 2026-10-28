@@ -12,6 +12,10 @@ export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }
   const [recherche, setRecherche] = useState(false)
   const [ajout, setAjout] = useState(null)        // symbole en cours d'ajout
   const [erreur, setErreur] = useState(null)
+  const [matieres, setMatieres] = useState(null)
+  useEffect(() => {
+    if (mode === 'matieres' && matieres === null) api.valeurs.matieres().then(setMatieres).catch(e => setErreur(e.message))
+  }, [mode, matieres])
   const [manuel, setManuel] = useState({ symbole: '', nom: '', type: 'action', devise: 'EUR' })
 
   // Recherche a la frappe, apres une courte pause.
@@ -48,12 +52,31 @@ export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }
         <button className={`segment${mode === 'yahoo' ? ' actif' : ''}`} onClick={() => setMode('yahoo')}>
           Yahoo Finance
         </button>
+        <button className={`segment${mode === 'matieres' ? ' actif' : ''}`} onClick={() => setMode('matieres')}>
+          Matières premières
+        </button>
         <button className={`segment${mode === 'import' ? ' actif' : ''}`} onClick={() => setMode('import')}>
           Données importées
         </button>
       </div>
 
-      {mode === 'yahoo' ? (
+      {mode === 'matieres' ? (
+        <div className="pile" style={{ gap: 6 }}>
+          <span className="discret">
+            Prix de marché réels (contrat à terme le plus proche, en dollars), sans passer par un ETF.
+            Historique quotidien depuis 2000 environ.
+          </span>
+          {matieres === null ? <div className="discret">Chargement…</div> : matieres.map(m => (
+            <button key={m.symbole} className="resultat" disabled={!!ajout} onClick={() => ajouterYahoo(m.symbole)}>
+              <span>
+                <div className="valeur-nom">{m.nom}</div>
+                <div className="valeur-symbole">{m.symbole} · dollars par {m.unite}</div>
+              </span>
+              <span className="etiquette">{ajout === m.symbole ? 'Téléchargement…' : 'Matière première'}</span>
+            </button>
+          ))}
+        </div>
+      ) : mode === 'yahoo' ? (
         <>
           <div className="champ-groupe">
             <label className="champ-label">Nom, symbole ou ISIN</label>

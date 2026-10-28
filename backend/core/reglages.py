@@ -22,6 +22,11 @@ class Definition:
 
 DEFINITIONS = [
     Definition(
+        "valeurs_par_page", "Valeurs affichées par page",
+        "Nombre de lignes du tableau des valeurs : 20, 50 ou 100 (les autres pages se parcourent en bas du tableau).",
+        defaut="50",
+    ),
+    Definition(
         "actualisation_auto", "Actualisation automatique quotidienne",
         "« oui » : au premier lancement de la journée, toutes les valeurs sont actualisées en tâche de fond. "
         "« non » : uniquement à la demande.",

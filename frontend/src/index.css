@@ -83,8 +83,10 @@ a { color: inherit; text-decoration: none; }
 .nav-lien.actif { background: var(--accent-bg); color: var(--accent); }
 
 /* ─── LAYOUT ─────────────────────────────────────────────────────── */
-/* Toute la largeur de l'ecran (plafond pour les tres grands ecrans) : les tableaux tiennent sans defilement. */
-.page { padding: 24px; max-width: 2400px; margin: 0 auto; }
+/* Largeur unique de toutes les pages : la plus petite qui affiche le tableau des valeurs en entier
+   (mesure : 1340 px de fenetre), avec une marge. Au-dela, la page reste centree : pas besoin de
+   tourner la tete sur un grand ecran, et pas de defilement horizontal. */
+.page { padding: 24px; max-width: 1360px; margin: 0 auto; }
 .page-entete {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
@@ -546,7 +548,7 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
 @media print { @page { margin: 12mm; } }
 
 /* ─── MENTION LEGALE ─────────────────────────────────────────────── */
-.pied-legal { max-width: 2400px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+.pied-legal { max-width: 1360px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
 .pied-legal a { color: var(--muted); }
 
 /* ─── ASSISTANT ──────────────────────────────────────────────────── */
@@ -555,3 +557,8 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
   border: 1px solid var(--border); white-space: pre-wrap; line-height: 1.5; }
 .barre-progression { height: 8px; border-radius: 4px; background: var(--ligne); overflow: hidden; }
 .barre-progression > div { height: 100%; background: var(--accent); transition: width .4s; }
+
+/* Screener : reglages au-dessus du tableau, pour que ses 14 colonnes tiennent dans la largeur de page */
+.screener-reglages { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+.screener-criteres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+@media (max-width: 1000px) { .screener-reglages, .screener-criteres { grid-template-columns: 1fr; } }

@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-TYPES = ("action", "indice", "etf")
+TYPES = ("action", "indice", "etf", "matiere")
 SOURCES = ("yahoo", "import")
 
 

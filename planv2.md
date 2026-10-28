@@ -277,3 +277,51 @@ Pour voir d'un coup d'œil ce qui manque avant de se fier à une analyse, et tri
 4. **B.1.1** (historique long européen) : le chantier le plus long, mais celui qui rend la vérification n°2
    possible pour les valeurs françaises.
 5. Le reste de la recette (A.3 à A.7) en parallèle, au fil de l'usage.
+
+---
+
+## C. Idées à discuter (demandées le 28/10/2026, pas encore codées)
+
+### C.1 Simulateur de croissance d'un patrimoine
+
+Simulation très théorique pour estimer grossièrement la croissance d'un capital :
+
+- versement mensuel de X € ;
+- répartition, par exemple 25 % actions, 25 % obligations, 25 % or, 25 % fonds en euros ;
+- rééquilibrage périodique ;
+- courbes sur 10, 15 et 20 ans.
+
+Questions à trancher :
+
+- **Hypothèses ou historique ?** Rendements moyens fixes (simple, lisible), rejouer les vraies séries passées
+  (plus réaliste, mais une seule trajectoire), ou un faisceau de scénarios (Monte-Carlo : fourchette
+  pessimiste / médiane / optimiste).
+- **Sources des séries** :
+  - actions : ETF monde ou CAC 40 dividendes réinvestis (déjà disponibles) ;
+  - or : déjà disponible (GC=F) ;
+  - obligations : ETF obligataire ou taux BCE ;
+  - fonds en euros : taux annuel saisi.
+- **Frais et fiscalité** (enveloppe PEA, assurance-vie, CTO) : en option.
+
+### C.2 Au-delà des actions : obligations, devises, cryptomonnaies
+
+Yahoo couvre les devises (EURUSD=X…), les cryptomonnaies (BTC-EUR…) et les taux (^TNX…). La
+mécanique « matière première » de la 0.5.2 (type dédié, onglets d'entreprise masqués, avertissement
+de lecture) s'étendrait à ces types.
+
+À discuter : la droite de régression n'a pas de sens pour une devise (pas de tendance de fond) et peu
+de sens pour une cryptomonnaie (moins de 15 ans d'historique).
+
+### C.3 Réorganiser le menu
+
+Le menu compte 9 entrées. Proposition à discuter, en 5 entrées :
+
+| Entrée | Regroupe |
+|---|---|
+| **Aujourd'hui** | Accueil, alertes, calendrier |
+| **Marchés** | Valeurs suivies, Screener, Comparer, puis matières premières, devises, cryptos par onglets |
+| **Portefeuille** | Positions, performance, fiscalité, puis le simulateur (C.1) |
+| **Outils** | Backtest, simulateur |
+| **Aide** | Méthode, glossaire, à propos |
+
+Les réglages passeraient derrière une icône, comme le thème.
