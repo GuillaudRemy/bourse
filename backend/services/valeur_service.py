@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
-from backend.db.schema import Valeur
+from backend.db.schema import Transaction, Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services import alertes_service, cache
 from backend.services.stockage import (
@@ -85,33 +85,52 @@ class ValeurService:
         self._db.delete(self._get(valeur_id))
         self._db.commit()
 
-    def actualiser(self, valeur_id: int) -> Resultat:
+    def supprimer_plusieurs(self, ids: list[int], confirmer: bool) -> dict:
+        """Suppression groupee depuis le tableau des valeurs. Les operations du portefeuille portant
+        sur ces valeurs sont conservees (historique, fiscalite) mais perdent leur lien : on le dit avant."""
+        valeurs = [v for v in self._db.exec(select(Valeur).where(col(Valeur.id).in_(ids)))]
+        operations = len(list(self._db.exec(select(Transaction).where(col(Transaction.valeur_id).in_(ids)))))
+        if not confirmer:
+            return {"noms": sorted(v.nom for v in valeurs), "operations": operations}
+        for v in valeurs:
+            self._db.delete(v)
+        self._db.commit()
+        cache.invalider()
+        return {"supprimees": len(valeurs), "operations": operations}
+
+    def actualiser(self, valeur_id: int, complet: bool = True, change: bool = True) -> Resultat:
         """Met a jour cours, divisions, fiche et comptes depuis toutes les sources utiles.
 
         Les cours sont retelecharges en entier : le cours ajuste change retroactivement a
         chaque dividende. Chaque etape a un secours ; une source en panne n'empeche pas les
-        autres de passer, elle est simplement signalee dans le message."""
+        autres de passer, elle est simplement signalee dans le message.
+
+        `complet=False` (actualisation quotidienne de toutes les valeurs) : cours et divisions
+        seulement, en un appel ; comptes, fiche et calendrier ne bougent qu'une fois par trimestre
+        et sont repris une fois par semaine (voir `complet_du`). `change=False` : les taux de
+        change ont deja ete charges pour tout le lot."""
         valeur = self._get(valeur_id)
         avertissements: list[str] = []
         nb_cours = 0
 
         if valeur.source == "yahoo":
-            cours = self._premier_disponible(
-                [lambda: yahoo.cours(valeur.symbole), lambda: yahoo_direct.cours(valeur.symbole)], avertissements)
-            if cours is None or cours.empty:
+            resultat = self._premier_disponible(
+                [lambda: _non_vide(yahoo.cours_et_divisions(valeur.symbole)),
+                 lambda: _non_vide(yahoo_direct.cours_et_divisions(valeur.symbole))], avertissements)
+            if resultat is None:
                 raise HTTPException(502, "Cours indisponibles : " + " · ".join(avertissements))
+            cours, divisions = resultat
             nb_cours = enregistrer_cours(self._db, valeur.id, cours)
+            enregistrer_divisions(self._db, valeur.id, divisions)
+            # Valider tout de suite : SQLite n'a qu'un ecrivain a la fois, et les appels reseau
+            # qui suivent (comptes : jusqu'a 20 s) bloqueraient les autres valeurs actualisees en parallele.
+            self._db.commit()
 
-            divisions = self._premier_disponible(
-                [lambda: yahoo.divisions(valeur.symbole), lambda: yahoo_direct.divisions(valeur.symbole)],
-                avertissements)
-            if divisions is not None:
-                enregistrer_divisions(self._db, valeur.id, divisions)
-
+        if valeur.source == "yahoo" and complet:
             try:
                 enregistrer_evenements(self._db, valeur.id, yahoo.evenements(valeur.symbole))
-            except SourceIndisponible as e:
-                avertissements.append(str(e))
+            except Exception as e:        # calendrier secondaire : jamais un echec de toute la valeur
+                avertissements.append(f"Calendrier indisponible : {e}")
             try:
                 fiche = yahoo.fiche(valeur.symbole)
                 valeur.infos = json.dumps(fiche.infos)
@@ -123,13 +142,16 @@ class ValeurService:
                 avertissements.append(str(e))
         self._db.flush()
 
-        self._actualiser_change(valeur, avertissements)
-        nb_fond, sources = self._actualiser_comptes(valeur, avertissements)
+        if change:
+            self._actualiser_change(valeur, avertissements)
+        nb_fond, sources = self._actualiser_comptes(valeur, avertissements) if complet else (0, [])
         valeur.maj_le = datetime.now(UTC)
+        if complet:
+            valeur.complet_le = valeur.maj_le
         self._db.commit()
         alertes_service.evaluer(self._db, valeur.id)
 
-        message = f"{valeur.nom} : {nb_cours} séances, {nb_fond} années de comptes"
+        message = f"{valeur.nom} : {nb_cours} séances" + (f", {nb_fond} années de comptes" if complet else "")
         message += f" ({', '.join(sources)})." if sources else "."
         if avertissements:
             message += " " + " · ".join(avertissements)
@@ -155,6 +177,7 @@ class ValeurService:
                 continue
             if comptes:
                 enregistrer_fondamentaux(self._db, valeur.id, comptes, nom)
+                self._db.commit()             # meme raison : ne pas garder le verrou pendant la source suivante
                 annees |= set(comptes)
                 utilisees.append(nom.upper() if nom != "yahoo" else "Yahoo")
 
@@ -175,6 +198,19 @@ class ValeurService:
             except SourceIndisponible as e:
                 avertissements.append(str(e))
 
+    def actualiser_change(self, devises: set[str | None]) -> list[str]:
+        """Taux BCE de plusieurs devises, une fois pour tout un lot de valeurs."""
+        avertissements: list[str] = []
+        for brute in devises:
+            devise, _ = bce.normaliser(brute)
+            if devise and devise != "EUR":
+                try:
+                    enregistrer_taux(self._db, devise, bce.taux(devise, dernier_taux(self._db, devise)))
+                except SourceIndisponible as e:
+                    avertissements.append(str(e))
+        self._db.commit()
+        return avertissements
+
     @staticmethod
     def _premier_disponible(appels, avertissements: list[str]):
         """Essaie chaque source dans l'ordre ; la premiere qui repond l'emporte."""
@@ -193,3 +229,19 @@ class ValeurService:
         if not valeur:
             raise HTTPException(404, "Valeur introuvable.")
         return valeur
+
+
+COMPLET_TOUS_LES = timedelta(days=7)
+
+
+def complet_du(valeur: Valeur) -> bool:
+    """Comptes, fiche et calendrier a reprendre (jamais faits, ou il y a plus d'une semaine)."""
+    if valeur.complet_le is None:
+        return True
+    dernier = valeur.complet_le if valeur.complet_le.tzinfo else valeur.complet_le.replace(tzinfo=UTC)
+    return datetime.now(UTC) - dernier > COMPLET_TOUS_LES
+
+
+def _non_vide(resultat: tuple):
+    """(cours, divisions) -> None si aucune seance, pour passer a la source suivante."""
+    return resultat if resultat[0] is not None and not resultat[0].empty else None

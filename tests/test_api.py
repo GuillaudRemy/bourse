@@ -155,3 +155,20 @@ def test_sauvegarde_externe_et_restauration(tmp_path):
         symboles = {v["symbole"] for v in client.get("/valeurs").json()}
         assert "AVANT" in symboles and "APRES" not in symboles
         assert any(c["nom"].startswith("avant-restauration-") for c in client.get("/sauvegardes").json()["copies"])
+
+
+def test_suppression_groupee():
+    with TestClient(app) as client:
+        ids = [client.post("/valeurs", json={"symbole": f"SUPPR{i}", "source": "import", "nom": f"Suppr {i}"}).json()["id"]
+               for i in range(3)]
+        compte = client.post("/portefeuille/comptes", json={"nom": "Compte suppr", "type": "CTO"}).json()
+        client.post("/portefeuille/transactions", json={"compte_id": compte["id"], "valeur_id": ids[0], "jour": "2024-03-01",
+                                                        "type": "achat", "quantite": 1, "prix": 10, "frais": 0})
+        apercu = client.post("/valeurs/supprimer", json={"ids": ids[:2]}).json()
+        assert apercu == {"noms": ["Suppr 0", "Suppr 1"], "operations": 1}
+        assert {v["symbole"] for v in client.get("/valeurs").json()} >= {"SUPPR0", "SUPPR1"}   # rien supprime
+        assert client.post("/valeurs/supprimer", json={"ids": ids[:2], "confirmer": True}).json()["supprimees"] == 2
+        restants = {v["symbole"] for v in client.get("/valeurs").json()}
+        assert "SUPPR0" not in restants and "SUPPR1" not in restants and "SUPPR2" in restants
+        operations = client.get("/portefeuille/transactions").json()
+        assert any(t["compte_id"] == compte["id"] and t["valeur_id"] is None for t in operations)   # operation gardee

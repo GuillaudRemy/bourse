@@ -77,6 +77,7 @@ export const api = {
     get:        (id)        => request(`/valeurs/${id}`),
     analyse:    (id, opts)  => request(`/valeurs/${id}/analyse${parametres(opts)}`),
     create:     (data)      => request('/valeurs', { method: 'POST', ...corps(data) }),
+    supprimer:  (ids, confirmer = false) => request('/valeurs/supprimer', { method: 'POST', ...corps({ ids, confirmer }) }),
     update:     (id, data)  => request(`/valeurs/${id}`, { method: 'PATCH', ...corps(data) }),
     remove:     (id)        => request(`/valeurs/${id}`, { method: 'DELETE' }),
     actualiser: (id)        => request(`/valeurs/${id}/actualiser`, { method: 'POST' }),

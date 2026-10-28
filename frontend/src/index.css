@@ -83,7 +83,8 @@ a { color: inherit; text-decoration: none; }
 .nav-lien.actif { background: var(--accent-bg); color: var(--accent); }
 
 /* ─── LAYOUT ─────────────────────────────────────────────────────── */
-.page { padding: 24px; max-width: 1400px; margin: 0 auto; }
+/* Toute la largeur de l'ecran (plafond pour les tres grands ecrans) : les tableaux tiennent sans defilement. */
+.page { padding: 24px; max-width: 2400px; margin: 0 auto; }
 .page-entete {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
@@ -247,17 +248,18 @@ a { color: inherit; text-decoration: none; }
 .tableau { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tableau th {
   text-align: right; font-size: 11.5px; font-weight: 600; color: var(--muted);
-  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  padding: 10px 10px; border-bottom: 1px solid var(--border);
   background: var(--surface-2); white-space: nowrap; user-select: none;
 }
 .tableau th.triable { cursor: pointer; }
 .tableau th.triable:hover { color: var(--ink); }
 .tableau td {
-  text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--ligne);
+  text-align: right; padding: 10px 10px; border-bottom: 1px solid var(--ligne);
   font-family: var(--f-mono); white-space: nowrap;
 }
 .tableau th:first-child, .tableau td:first-child { text-align: left; }
 .tableau td.texte { font-family: var(--f-body); text-align: left; }
+.tableau th.texte { text-align: left; }
 .tableau tbody tr:last-child td { border-bottom: none; }
 .tableau tbody tr.cliquable { cursor: pointer; }
 .tableau tbody tr.cliquable:hover { background: var(--surface-2); }
@@ -540,7 +542,7 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
 @media print { @page { margin: 12mm; } }
 
 /* ─── MENTION LEGALE ─────────────────────────────────────────────── */
-.pied-legal { max-width: 1400px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+.pied-legal { max-width: 2400px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
 .pied-legal a { color: var(--muted); }
 
 /* ─── ASSISTANT ──────────────────────────────────────────────────── */

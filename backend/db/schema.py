@@ -41,6 +41,8 @@ class Valeur(SQLModel, table=True):
     # Dernier instantane des ratios fournis par la source, en JSON.
     infos:  Optional[str] = None
     maj_le: Optional[datetime] = None
+    # Derniere actualisation COMPLETE (comptes, fiche, calendrier) : hebdomadaire, les cours etant quotidiens.
+    complet_le: Optional[datetime] = None
 
     cours: List["Cours"] = Relationship(
         back_populates="valeur",

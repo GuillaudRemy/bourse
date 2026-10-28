@@ -93,3 +93,15 @@ test('à propos et exports', async ({ page, request }) => {
   expect((await request.get('/api/diagnostic.zip')).ok()).toBeTruthy()
   expect((await request.get(`/api/valeurs/${id}/export.xlsx`)).ok()).toBeTruthy()
 })
+
+test('suppression groupée depuis le tableau des valeurs', async ({ page, request }) => {
+  for (const s of ['JETABLE1', 'JETABLE2']) await request.post('/api/valeurs', { data: { symbole: s, nom: `Jetable ${s}`, source: 'import' } })
+  await page.goto('/valeurs')
+  for (const s of ['JETABLE1', 'JETABLE2']) await page.locator('tr', { hasText: s }).locator('input[type=checkbox]').check()
+  await expect(page.getByText('2 sélectionnée(s)')).toBeVisible()
+  page.once('dialog', d => { expect(d.message()).toContain('Supprimer 2 valeur(s)'); d.accept() })
+  await page.getByRole('button', { name: 'Supprimer' }).click()
+  await expect(page.getByText('2 valeur(s) supprimée(s).')).toBeVisible()
+  await expect(page.locator('tr', { hasText: 'JETABLE1' })).toHaveCount(0)
+  await expect(page.locator('tr', { hasText: 'Essai SA' })).toHaveCount(1)
+})

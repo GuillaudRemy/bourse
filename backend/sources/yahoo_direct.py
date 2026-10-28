@@ -43,7 +43,10 @@ def _graphique(symbole: str, debut: date | None) -> dict:
 
 
 def cours(symbole: str, debut: date | None = None) -> pd.DataFrame:
-    g = _graphique(symbole, debut)
+    return _cours(_graphique(symbole, debut))
+
+
+def _cours(g: dict) -> pd.DataFrame:
     if not g.get("timestamp"):
         return pd.DataFrame()
     decalage = g.get("meta", {}).get("gmtoffset", 0)     # date locale de la place de cotation
@@ -57,8 +60,18 @@ def cours(symbole: str, debut: date | None = None) -> pd.DataFrame:
     return df.dropna(subset=["cloture"]).drop_duplicates("jour", keep="last").reset_index(drop=True)
 
 
+def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, float]]]:
+    """Un seul appel a l'API chart pour les deux."""
+    g = _graphique(symbole, None)
+    return _cours(g), _divisions(g)
+
+
 def divisions(symbole: str) -> list[tuple[date, float]]:
-    evenements = (_graphique(symbole, None).get("events") or {}).get("splits") or {}
+    return _divisions(_graphique(symbole, None))
+
+
+def _divisions(g: dict) -> list[tuple[date, float]]:
+    evenements = (g.get("events") or {}).get("splits") or {}
     resultat = []
     for e in evenements.values():
         if e.get("denominator"):

@@ -90,6 +90,18 @@ export default function Tableau() {
   }, [lignes, tri, filtre, listeId, listes])
 
   const trier = cle => setTri(t => ({ cle, sens: t.cle === cle ? -t.sens : 1 }))
+  const supprimer = async () => {
+    try {
+      const ids = [...selection]
+      const { noms, operations } = await api.valeurs.supprimer(ids)
+      const liste = noms.length > 12 ? `${noms.slice(0, 12).join(', ')}… (+${noms.length - 12})` : noms.join(', ')
+      const message = `Supprimer ${noms.length} valeur(s) ?\n\n${liste}\n\nLeurs cours, comptes, journal et alertes seront effacés.`
+        + (operations ? `\n\nAttention : ${operations} opération(s) du portefeuille portent sur ces valeurs. Elles seront conservées mais ne seront plus rattachées à une valeur (positions incomplètes).` : '')
+      if (!window.confirm(message)) return
+      const r = await api.valeurs.supprimer(ids, true)
+      setSelection(new Set()); setInfo(`${r.supprimees} valeur(s) supprimée(s).`); chargerListes(); charger()
+    } catch (e) { setErreur(e.message) }
+  }
   const derniereMaj = lignes?.map(l => l.valeur.maj_le).filter(Boolean).sort().pop()
 
   return (
@@ -153,8 +165,10 @@ export default function Tableau() {
                 for (const id of selection) await api.listes.retirer(listeId, id)
                 setSelection(new Set()); chargerListes()
               }}>Retirer de la liste</button>}
+              <button className="btn btn-mini btn-danger" onClick={supprimer}>Supprimer</button>
+              <button className="btn btn-mini btn-fantome" onClick={() => setSelection(new Set())}>Annuler</button>
             </>
-          ) : <span className="discret">Cliquez un en-tête pour trier · une ligne pour ouvrir la fiche · cochez pour comparer</span>}
+          ) : <span className="discret">Cliquez un en-tête pour trier · une ligne pour ouvrir la fiche · cochez pour comparer, ranger dans une liste ou supprimer</span>}
         </div>
 
         {lignes === null ? (
@@ -171,9 +185,13 @@ export default function Tableau() {
             <table className="tableau">
               <thead>
                 <tr>
-                  <th style={{ width: 28 }} />
+                  <th style={{ width: 28 }} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" title="Tout cocher (lignes affichées)" aria-label="Tout cocher"
+                           checked={triees.length > 0 && triees.every(l => selection.has(l.valeur.id))}
+                           onChange={e => setSelection(e.target.checked ? new Set(triees.map(l => l.valeur.id)) : new Set())} />
+                  </th>
                   {COLONNES.map(c => (
-                    <th key={c.cle} className="triable" title={c.aide} onClick={() => trier(c.cle)}>
+                    <th key={c.cle} className={`triable${c.cle === 'nom' ? ' texte' : ''}`} title={c.aide} onClick={() => trier(c.cle)}>
                       {c.libelle}{tri.cle === c.cle ? (tri.sens > 0 ? ' ↑' : ' ↓') : ''}
                     </th>
                   ))}

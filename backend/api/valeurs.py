@@ -3,6 +3,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from backend.analyse.valorisation import Hypotheses
@@ -150,6 +151,17 @@ def update_valeur(valeur_id: int, data: ValeurUpdate, service: ValeurService = D
 @router.post("/{valeur_id}/actualiser", response_model=Resultat)
 def actualiser(valeur_id: int, service: ValeurService = Depends(get_service)):
     return service.actualiser(valeur_id)
+
+
+class Suppression(BaseModel):
+    ids: list[int]
+    confirmer: bool = False
+
+
+@router.post("/supprimer")
+def supprimer_plusieurs(data: Suppression, service: ValeurService = Depends(get_service)):
+    """Sans `confirmer` : apercu (noms, operations du portefeuille concernees). Avec : suppression."""
+    return service.supprimer_plusieurs(data.ids, data.confirmer)
 
 
 @router.delete("/{valeur_id}", status_code=204)

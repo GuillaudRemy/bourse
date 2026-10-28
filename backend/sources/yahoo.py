@@ -156,6 +156,27 @@ def cours(symbole: str, debut: date | None = None) -> pd.DataFrame:
     return df.dropna(subset=["cloture"]).reset_index(drop=True)
 
 
+def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, float]]]:
+    """Cours et divisions en UN seul appel (l'historique contient deja les divisions) :
+    deux fois moins de requetes lors de l'actualisation quotidienne."""
+    try:
+        historique = avec_tentatives(lambda: yf.Ticker(symbole).history(period="max", auto_adjust=False, actions=True))
+    except Exception as e:
+        raise SourceIndisponible(f"Cours Yahoo de {symbole} indisponibles : {e}") from e
+    if historique.empty:
+        return pd.DataFrame(), []
+    divisions_ = []
+    if "Stock Splits" in historique.columns:
+        divisions_ = [(jour.date(), float(r)) for jour, r in historique["Stock Splits"].items() if r and r > 0 and r != 1]
+    df = historique.rename(columns={
+        "Open": "ouverture", "High": "haut", "Low": "bas",
+        "Close": "cloture", "Adj Close": "ajuste", "Volume": "volume",
+    })
+    df["jour"] = [d.date() for d in df.index]
+    df = df[["jour", "ouverture", "haut", "bas", "cloture", "ajuste", "volume"]]
+    return df.dropna(subset=["cloture"]).reset_index(drop=True), divisions_
+
+
 def divisions(symbole: str) -> list[tuple[date, float]]:
     """Divisions d'actions et attributions gratuites : (jour, nouvelles actions pour une)."""
     try:
@@ -187,8 +208,19 @@ def evenements(symbole: str) -> list[tuple[date, str, str | None]]:
     except Exception:
         dividendes = pd.Series(dtype=float)
     if dividendes is not None and not dividendes.empty:
-        for jour, montant in dividendes[dividendes.index >= dividendes.index.max() - pd.DateOffset(years=3)].items():
-            resultat.append((jour.date(), "detachement", f"Dividende de {montant:.2f}".replace(".", ",")))
+        # yfinance renvoie parfois des lignes parasites (« Dividends » en guise de date, vu sur
+        # ArcelorMittal) : on ne garde que les lignes lisibles, sans faire echouer la valeur.
+        lisibles = []
+        for jour, montant in dividendes.items():
+            try:
+                lisibles.append((pd.Timestamp(jour).date(), float(montant)))
+            except (ValueError, TypeError):
+                continue
+        if lisibles:
+            limite = max(j for j, _ in lisibles) - pd.DateOffset(years=3)
+            for jour, montant in lisibles:
+                if pd.Timestamp(jour) >= limite:
+                    resultat.append((jour, "detachement", f"Dividende de {montant:.2f}".replace(".", ",")))
     return resultat
 
 
