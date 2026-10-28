@@ -82,7 +82,7 @@ export const api = {
     update:     (id, data)  => request(`/valeurs/${id}`, { method: 'PATCH', ...corps(data) }),
     remove:     (id)        => request(`/valeurs/${id}`, { method: 'DELETE' }),
     actualiser: (id)        => request(`/valeurs/${id}/actualiser`, { method: 'POST' }),
-    actualiserTout: ()      => request('/valeurs/actualiser', { method: 'POST' }),
+    actualiserTout: (mode = 'cours') => request(`/valeurs/actualiser?mode=${mode}`, { method: 'POST' }),
     actualisation:  ()      => request('/valeurs/actualisation'),
     technique:      (id, opts) => request(`/valeurs/${id}/technique${parametres(opts)}`),
     annotations:    (id)     => request(`/valeurs/${id}/annotations`),

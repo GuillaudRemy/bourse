@@ -33,15 +33,20 @@ def etat() -> dict:
         return {**_etat, "echecs": list(_etat["echecs"]), "avertissements": list(_etat["avertissements"])}
 
 
-def lancer() -> dict:
+MODES = ("auto", "cours", "complet")
+
+
+def lancer(mode: str = "auto") -> dict:
+    """`cours` : seances recentes seulement (rapide) ; `complet` : tout, pour toutes les valeurs ;
+    `auto` (demarrage, imports) : seances recentes, et le complet hebdomadaire quand il est du."""
     with _verrou:
         if _etat["en_cours"]:
             return etat_sans_verrou()
         with Session(engine) as db:
             ids = [(v.id, v.nom) for v in db.exec(select(Valeur).order_by(Valeur.nom))]
         _etat.update(en_cours=True, total=len(ids), faits=0, courant=None, echecs=[], avertissements=[],
-                     debut=datetime.now(UTC).isoformat(), fin=None)
-    threading.Thread(target=_travailler, args=(ids,), daemon=True, name="actualisation").start()
+                     debut=datetime.now(UTC).isoformat(), fin=None, mode=mode)
+    threading.Thread(target=_travailler, args=(ids, mode), daemon=True, name="actualisation").start()
     return etat()
 
 
@@ -49,7 +54,7 @@ def etat_sans_verrou() -> dict:
     return {**_etat, "echecs": list(_etat["echecs"]), "avertissements": list(_etat["avertissements"])}
 
 
-def _actualiser_une(valeur_id: int, nom: str) -> None:
+def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto") -> None:
     from backend.services.valeur_service import ValeurService, complet_du  # import tardif : evite un cycle
     with _verrou:
         _etat["courant"] = nom
@@ -58,7 +63,9 @@ def _actualiser_une(valeur_id: int, nom: str) -> None:
             valeur = db.get(Valeur, valeur_id)
             if valeur is None:                  # supprimee entre-temps
                 return
-            resultat = ValeurService(db).actualiser(valeur_id, complet=complet_du(valeur), change=False)
+            complet = mode == "complet" or (mode == "auto" and complet_du(valeur))
+            # Un historique complet est retelecharge quand tout est mis a jour ; sinon, seances recentes.
+            resultat = ValeurService(db).actualiser(valeur_id, complet=complet, change=False, recents=mode != "complet")
             if resultat.avertissements:
                 with _verrou:
                     _etat["avertissements"].append(f"{nom} : {' · '.join(resultat.avertissements)}")
@@ -77,7 +84,7 @@ def _actualiser_une(valeur_id: int, nom: str) -> None:
                 _etat["faits"] += 1
 
 
-def _travailler(ids: list[tuple[int, str]]) -> None:
+def _travailler(ids: list[tuple[int, str]], mode: str = "auto") -> None:
     from backend.services.valeur_service import ValeurService
     debut = datetime.now(UTC)
     try:
@@ -87,7 +94,7 @@ def _travailler(ids: list[tuple[int, str]]) -> None:
         with _verrou:
             _etat["avertissements"] += avertissements
         with ThreadPoolExecutor(max_workers=PARALLELE, thread_name_prefix="actualisation") as groupe:
-            list(groupe.map(lambda v: _actualiser_une(*v), ids))
+            list(groupe.map(lambda v: _actualiser_une(v[0], v[1], mode), ids))
         reglages.ecrire("derniere_actualisation", date.today().isoformat())
         _log.info("actualisation terminee : %d valeur(s), %d echec(s) en %.0f s", len(ids), len(_etat["echecs"]),
                   (datetime.now(UTC) - debut).total_seconds())

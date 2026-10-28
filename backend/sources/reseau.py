@@ -15,7 +15,8 @@ DELAI = (5, 30)                       # connexion, lecture (secondes)
 INTERVALLE_MIN = {                    # secondes entre deux requetes vers un meme site
     "data.sec.gov": 0.15,
     "www.sec.gov": 0.15,
-    "filings.xbrl.org": 0.2,
+    # Quota non publie : erreurs 429 des 4 a 5 requetes rapprochees ; 1 toutes les 3 s tient (mesure le 28/10/2026).
+    "filings.xbrl.org": 3.0,
     "api.gleif.org": 0.2,
 }
 AGENT = "Bourse (+https://github.com/GuillaudRemy/bourse)"   # on dit qui on est

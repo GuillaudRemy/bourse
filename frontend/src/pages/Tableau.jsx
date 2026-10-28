@@ -86,9 +86,9 @@ export default function Tableau() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progression?.en_cours])
 
-  const actualiserTout = async () => {
+  const actualiserTout = async (mode = 'cours') => {
     setInfo(null)
-    try { setProgression(await api.valeurs.actualiserTout()) }
+    try { setProgression(await api.valeurs.actualiserTout(mode)) }
     catch (e) { setErreur(e.message) }
   }
   const enCours = progression?.en_cours
@@ -139,8 +139,13 @@ export default function Tableau() {
           </div>
         </div>
         <div className="rangee">
-          <button className="btn" onClick={actualiserTout} disabled={enCours || !lignes?.length}>
-            {enCours ? 'Actualisation…' : 'Tout actualiser'}
+          <button className="btn" onClick={() => actualiserTout('cours')} disabled={enCours || !lignes?.length}
+                  title="Rapide : seulement les séances depuis la dernière mise à jour (l'historique est rechargé pour une valeur si un dividende ou une division l'exige)">
+            {enCours && progression?.mode !== 'complet' ? 'Actualisation…' : 'Actualiser les cours'}
+          </button>
+          <button className="btn" onClick={() => actualiserTout('complet')} disabled={enCours || !lignes?.length}
+                  title="Long : historique complet des cours, comptes annuels, fiche et calendrier de toutes les valeurs">
+            {enCours && progression?.mode === 'complet' ? 'Mise à jour complète…' : 'Tout mettre à jour'}
           </button>
           <button className="btn" onClick={() => setImportIndice(true)}>Importer un indice</button>
           <button className="btn btn-primaire" onClick={() => setAjout(true)}>+ Ajouter une valeur</button>
@@ -151,7 +156,7 @@ export default function Tableau() {
       {enCours && (
         <div className="carte carte-corps" style={{ marginBottom: 12 }}>
           <div className="rangee" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <span>Actualisation : <b>{progression.courant ?? '…'}</b></span>
+            <span>{progression.mode === 'complet' ? 'Mise à jour complète' : 'Actualisation des cours'} : <b>{progression.courant ?? '…'}</b></span>
             <span className="mono discret">{progression.faits} / {progression.total}</span>
           </div>
           <div className="barre"><div className="barre-remplie" style={{ width: `${(progression.faits / Math.max(1, progression.total)) * 100}%`, background: 'var(--accent)' }} /></div>

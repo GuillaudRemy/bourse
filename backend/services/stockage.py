@@ -48,6 +48,15 @@ def enregistrer_cours(db: Session, valeur_id: int, df: pd.DataFrame) -> int:
     return len(lignes)
 
 
+def dernier_cours(db: Session, valeur_id: int) -> date | None:
+    return db.exec(select(func.max(Cours.jour)).where(Cours.valeur_id == valeur_id)).first()
+
+
+def clotures_depuis(db: Session, valeur_id: int, debut: date) -> dict[date, float]:
+    lignes = db.exec(select(Cours.jour, Cours.cloture).where(Cours.valeur_id == valeur_id, Cours.jour >= debut)).all()
+    return {j: c for j, c in lignes}
+
+
 def charger_cours(db: Session, valeur_id: int) -> pd.DataFrame:
     """Cours d'une valeur, indexes par date (DatetimeIndex), du plus ancien au plus recent."""
     lignes = db.exec(

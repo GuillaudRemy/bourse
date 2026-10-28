@@ -11,6 +11,8 @@ from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpda
 from backend.services import alertes_service, cache
 from backend.services.stockage import (
     charger_divisions,
+    clotures_depuis,
+    dernier_cours,
     dernier_taux,
     enregistrer_cours,
     enregistrer_divisions,
@@ -99,12 +101,39 @@ class ValeurService:
         cache.invalider()
         return {"supprimees": len(valeurs), "operations": operations}
 
-    def actualiser(self, valeur_id: int, complet: bool = True, change: bool = True) -> Resultat:
+    def _cours_recents(self, valeur: Valeur, avertissements: list[str]) -> int | None:
+        """Seances manquantes seulement (+ 10 jours de recouvrement). None s'il faut tout recharger :
+        pas encore de cours, dividende ou division dans la periode (le cours ajuste de tout le passe
+        change), ou cours de recouvrement differents de ceux deja enregistres (source corrigee)."""
+        dernier = dernier_cours(self._db, valeur.id)
+        if dernier is None:
+            return None
+        debut = dernier - timedelta(days=RECOUVREMENT_JOURS)
+        resultat = self._premier_disponible(
+            [lambda: _non_vide(yahoo.cours_recents(valeur.symbole, debut)),
+             lambda: _non_vide(yahoo_direct.cours_recents(valeur.symbole, debut))], avertissements)
+        if resultat is None:
+            return None
+        cours, evenement = resultat
+        if evenement:
+            return None
+        connues = clotures_depuis(self._db, valeur.id, debut)
+        for jour, cloture in zip(cours["jour"], cours["cloture"], strict=True):
+            if jour in connues and connues[jour] and abs(cloture / connues[jour] - 1) > ECART_RECOUVREMENT:
+                return None
+        nouvelles = sum(1 for j in cours["jour"] if j > dernier)
+        enregistrer_cours(self._db, valeur.id, cours)
+        return nouvelles
+
+    def actualiser(self, valeur_id: int, complet: bool = True, change: bool = True, recents: bool = False) -> Resultat:
         """Met a jour cours, divisions, fiche et comptes depuis toutes les sources utiles.
 
         Les cours sont retelecharges en entier : le cours ajuste change retroactivement a
         chaque dividende. Chaque etape a un secours ; une source en panne n'empeche pas les
         autres de passer, elle est simplement signalee dans le message.
+
+        `recents=True` (bouton « Actualiser les cours ») : seulement les seances depuis la derniere
+        mise a jour, si rien n'oblige a recharger tout l'historique (voir _cours_recents).
 
         `complet=False` (actualisation quotidienne de toutes les valeurs) : cours et divisions
         seulement, en un appel ; comptes, fiche et calendrier ne bougent qu'une fois par trimestre
@@ -114,7 +143,10 @@ class ValeurService:
         avertissements: list[str] = []
         nb_cours = 0
 
-        if valeur.source == "yahoo":
+        nouvelles = self._cours_recents(valeur, avertissements) if valeur.source == "yahoo" and recents else None
+        if nouvelles is not None:
+            self._db.commit()
+        elif valeur.source == "yahoo":
             resultat = self._premier_disponible(
                 [lambda: _non_vide(yahoo.cours_et_divisions(valeur.symbole)),
                  lambda: _non_vide(yahoo_direct.cours_et_divisions(valeur.symbole))], avertissements)
@@ -152,7 +184,8 @@ class ValeurService:
         self._db.commit()
         alertes_service.evaluer(self._db, valeur.id)
 
-        message = f"{valeur.nom} : {nb_cours} séances" + (f", {nb_fond} années de comptes" if complet else "")
+        message = (f"{valeur.nom} : {nouvelles} nouvelle(s) séance(s)" if nouvelles is not None
+                   else f"{valeur.nom} : {nb_cours} séances") + (f", {nb_fond} années de comptes" if complet else "")
         message += f" ({', '.join(sources)})." if sources else "."
         if avertissements:
             message += " " + " · ".join(avertissements)
@@ -233,6 +266,8 @@ class ValeurService:
 
 
 COMPLET_TOUS_LES = timedelta(days=7)
+RECOUVREMENT_JOURS = 10          # seances deja connues retelechargees pour verifier qu'elles n'ont pas change
+ECART_RECOUVREMENT = 0.005      # au-dela, la source a corrige son historique : on recharge tout
 
 
 def complet_du(valeur: Valeur) -> bool:

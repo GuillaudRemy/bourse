@@ -61,9 +61,10 @@ def create_valeur(data: ValeurCreate, service: ValeurService = Depends(get_servi
 
 
 @router.post("/actualiser")
-def actualiser_tout():
-    """Lance l'actualisation de toutes les valeurs en tache de fond ; renvoie la progression."""
-    return taches.lancer()
+def actualiser_tout(mode: str = Query("cours", pattern="^(cours|complet|auto)$")):
+    """Lance l'actualisation de toutes les valeurs en tache de fond ; renvoie la progression.
+    `cours` : seances recentes ; `complet` : historique, comptes, fiche et calendrier."""
+    return taches.lancer(mode)
 
 
 @router.get("/actualisation")

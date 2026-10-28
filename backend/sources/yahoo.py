@@ -177,6 +177,27 @@ def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, flo
     return df.dropna(subset=["cloture"]).reset_index(drop=True), divisions_
 
 
+def cours_recents(symbole: str, debut: date) -> tuple[pd.DataFrame, bool]:
+    """Seances depuis `debut` seulement (actualisation rapide), et vrai si un dividende ou une
+    division tombe dans la periode : le cours ajuste de TOUT le passe change alors, il faut
+    retelecharger l'historique complet."""
+    try:
+        historique = avec_tentatives(lambda: yf.Ticker(symbole).history(start=debut.isoformat(), auto_adjust=False,
+                                                                          actions=True))
+    except Exception as e:
+        raise SourceIndisponible(f"Cours Yahoo de {symbole} indisponibles : {e}") from e
+    if historique.empty:
+        return pd.DataFrame(), False
+    evenement = any((historique[c].fillna(0) != 0).any() for c in ("Dividends", "Stock Splits") if c in historique.columns)
+    df = historique.rename(columns={
+        "Open": "ouverture", "High": "haut", "Low": "bas",
+        "Close": "cloture", "Adj Close": "ajuste", "Volume": "volume",
+    })
+    df["jour"] = [d.date() for d in df.index]
+    df = df[["jour", "ouverture", "haut", "bas", "cloture", "ajuste", "volume"]]
+    return df.dropna(subset=["cloture"]).reset_index(drop=True), evenement
+
+
 def divisions(symbole: str) -> list[tuple[date, float]]:
     """Divisions d'actions et attributions gratuites : (jour, nouvelles actions pour une)."""
     try:

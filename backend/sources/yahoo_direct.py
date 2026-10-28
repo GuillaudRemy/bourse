@@ -60,6 +60,13 @@ def _cours(g: dict) -> pd.DataFrame:
     return df.dropna(subset=["cloture"]).drop_duplicates("jour", keep="last").reset_index(drop=True)
 
 
+def cours_recents(symbole: str, debut: date) -> tuple[pd.DataFrame, bool]:
+    """Seances depuis `debut`, et vrai si un dividende ou une division tombe dans la periode."""
+    g = _graphique(symbole, debut)
+    evenements = g.get("events") or {}
+    return _cours(g), bool(evenements.get("dividends") or evenements.get("splits"))
+
+
 def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, float]]]:
     """Un seul appel a l'API chart pour les deux."""
     g = _graphique(symbole, None)

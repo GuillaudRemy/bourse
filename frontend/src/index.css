@@ -86,7 +86,7 @@ a { color: inherit; text-decoration: none; }
 /* Largeur unique de toutes les pages : la plus petite qui affiche le tableau des valeurs en entier
    (mesure : 1340 px de fenetre), avec une marge. Au-dela, la page reste centree : pas besoin de
    tourner la tete sur un grand ecran, et pas de defilement horizontal. */
-.page { padding: 24px; max-width: 1360px; margin: 0 auto; }
+.page { padding: 24px; max-width: 1500px; margin: 0 auto; }
 .page-entete {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
@@ -548,7 +548,7 @@ kbd { white-space: nowrap; font-family: var(--f-mono); font-size: 10.5px; paddin
 @media print { @page { margin: 12mm; } }
 
 /* ─── MENTION LEGALE ─────────────────────────────────────────────── */
-.pied-legal { max-width: 1360px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+.pied-legal { max-width: 1500px; margin: 32px auto 0; padding: 14px 24px 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 11.5px; line-height: 1.5; }
 .pied-legal a { color: var(--muted); }
 
 /* ─── ASSISTANT ──────────────────────────────────────────────────── */
