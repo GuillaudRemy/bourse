@@ -158,7 +158,9 @@ def etapes(installe: Path, nouvelle: Path, version: str) -> None:
 
     if os.name != "nt":
         print("2. Version qui ne demarre pas")
-        defaillante = "0.0.2" if ancienne == "0.0.1" else version + "-beta.0"
+        # Version defaillante juste sous la nouvelle (0.6.1 ou 0.6.1-beta.2 -> 0.6.1-beta.0) : un numero lisible,
+        # sinon l'application l'ignore et l'essai n'a pas lieu.
+        defaillante = "0.0.2" if ancienne == "0.0.1" else version.split("-")[0] + "-beta.0"
         archive = archive_defaillante(nouvelle, racine / "defaillante" / "src" / nouvelle.name, defaillante)
         p = lancer(installe, donnees, publication(racine / "defaillante" / "pub", archive, defaillante))
         verifier(attendre_version(ancienne, 5) is not None, "essai echoue : l'ancienne version demarre")
