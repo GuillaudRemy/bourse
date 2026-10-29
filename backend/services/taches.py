@@ -16,7 +16,7 @@ from datetime import UTC, date, datetime
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from backend.core import reglages
+from backend.core import brut, reglages
 from backend.core.journal import journal
 from backend.db.db import engine
 from backend.db.schema import Valeur
@@ -85,17 +85,22 @@ def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto") -> None:
 
 
 def _travailler(ids: list[tuple[int, str]], mode: str = "auto") -> None:
+    from backend.services import taux_service
     from backend.services.valeur_service import ValeurService
     debut = datetime.now(UTC)
     try:
         with Session(engine) as db:
-            devises = {d for v in db.exec(select(Valeur)) for d in (v.devise, v.devise_comptes)}
+            valeurs = list(db.exec(select(Valeur)))
+            devises = {d for v in valeurs for d in (v.devise, v.devise_comptes)}
             avertissements = ValeurService(db).actualiser_change(devises)
+            if any(v.type == "action" for v in valeurs):         # taux sans risque : pour le DCF des actions
+                avertissements = [*avertissements, *taux_service.actualiser(db)]
         with _verrou:
             _etat["avertissements"] += avertissements
         with ThreadPoolExecutor(max_workers=PARALLELE, thread_name_prefix="actualisation") as groupe:
             list(groupe.map(lambda v: _actualiser_une(v[0], v[1], mode), ids))
         reglages.ecrire("derniere_actualisation", date.today().isoformat())
+        brut.purger()
         _log.info("actualisation terminee : %d valeur(s), %d echec(s) en %.0f s", len(ids), len(_etat["echecs"]),
                   (datetime.now(UTC) - debut).total_seconds())
     finally:

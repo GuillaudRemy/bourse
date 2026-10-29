@@ -4,8 +4,8 @@ from typing import List, Optional
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-TYPES = ("action", "indice", "etf", "matiere")
-SOURCES = ("yahoo", "import")
+TYPES = ("action", "indice", "etf", "matiere", "devise", "taux", "obligation", "crypto")
+SOURCES = ("yahoo", "bce", "import")
 
 
 class Valeur(SQLModel, table=True):
@@ -326,5 +326,34 @@ class AnalyseIA(SQLModel, table=True):
     modele:     str
     duree:      Optional[float] = None   # secondes
     resultat:   str                      # JSON
+
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
+
+
+class TauxSansRisque(SQLModel, table=True):
+    """Rendement des emprunts d'Etat a 10 ans, par zone monetaire (EUR : Etats AAA de la zone euro, BCE ;
+    USD : Tresor americain). Taux de reference du DCF, en % par an."""
+    __table_args__ = (UniqueConstraint("zone", "jour"),)
+
+    id:   Optional[int] = Field(default=None, primary_key=True)
+    zone: str = Field(index=True)
+    jour: date
+    taux: float
+
+
+class ConsensusPrevision(SQLModel, table=True):
+    """Instantane des previsions des analystes (Yahoo n'en garde que 90 jours) : un par jour et par exercice,
+    pour suivre leurs revisions sur des mois."""
+    __table_args__ = (UniqueConstraint("valeur_id", "jour", "decalage"),)
+
+    id:        Optional[int] = Field(default=None, primary_key=True)
+    jour:      date
+    decalage:  int                       # 0 : exercice en cours · 1 : exercice suivant
+    annee:     Optional[int] = None      # exercice vise, deduit des derniers comptes connus
+    bpa:       float
+    bas:       Optional[float] = None
+    haut:      Optional[float] = None
+    analystes: Optional[int] = None
+    objectif:  Optional[float] = None    # objectif de cours moyen a 12 mois, le meme jour
 
     valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))

@@ -32,6 +32,8 @@ class Config(BaseSettings):
     ACTUALISATION_AU_DEMARRAGE: bool = True
     # Notifications de bureau et e-mails d'alerte (desactives par les tests).
     NOTIFICATIONS: bool = True
+    # Reponses brutes des sources gardees 30 jours (voir core/brut.py).
+    CONSERVER_BRUT: bool = True
 
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8081"
 

@@ -74,17 +74,18 @@ def performance_annuelle(cloture: pd.Series) -> float | None:
     return float((cloture.iloc[-1] / cloture.iloc[0]) ** (1 / annees) - 1)
 
 
-def signaux(cloture: pd.Series, mm50: pd.Series, mm200: pd.Series, rsi14: pd.Series) -> list[dict]:
-    """Lecture rapide de la situation technique. Chaque signal a un ton : hausse, baisse ou neutre."""
+def signaux(cloture: pd.Series, mm50: pd.Series, mm200: pd.Series, rsi14: pd.Series, points: bool = False) -> list[dict]:
+    """Lecture rapide de la situation technique. Chaque signal a un ton : hausse, baisse ou neutre.
+    `points=True` (taux d'interet) : l'ecart a la MM200 en points, pas en % du taux."""
     resultat = []
     dernier = cloture.iloc[-1]
 
     if pd.notna(mm200.iloc[-1]):
         au_dessus = dernier > mm200.iloc[-1]
-        ecart = dernier / mm200.iloc[-1] - 1
+        ecart = f"{dernier - mm200.iloc[-1]:+.2f} pt".replace(".", ",") if points else f"{dernier / mm200.iloc[-1] - 1:+.1%}"
         resultat.append({
             "ton": "hausse" if au_dessus else "baisse",
-            "texte": f"Cours {'au-dessus' if au_dessus else 'en dessous'} de la MM200 ({ecart:+.1%})",
+            "texte": f"{'Taux' if points else 'Cours'} {'au-dessus' if au_dessus else 'en dessous'} de la MM200 ({ecart})",
         })
 
     if pd.notna(mm50.iloc[-1]) and pd.notna(mm200.iloc[-1]):

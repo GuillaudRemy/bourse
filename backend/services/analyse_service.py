@@ -15,9 +15,9 @@ from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
 from backend.db.schema import Valeur
 from backend.models.valeur import ValeurRead
-from backend.services import cache
+from backend.services import cache, taux_service
 from backend.services.stockage import charger_cours, charger_fondamentaux, charger_taux
-from backend.sources import bce, matieres
+from backend.sources import bce, catalogue
 
 PROJECTION_ANS = 3
 
@@ -39,12 +39,20 @@ INDUSTRIES_CYCLES_LONGS = {"Banks - Diversified", "Banks - Regional", "Aerospace
                            "Insurance - Life", "Insurance - Property & Casualty"}
 
 
+def ecart_points(cloture: pd.Series, jours: int) -> float | None:
+    """Ecart en points sur les `jours` calendaires precedant la derniere observation (taux)."""
+    debut = cloture.loc[:cloture.index[-1] - pd.Timedelta(days=jours)]
+    return None if debut.empty else _f(cloture.iloc[-1] - debut.iloc[-1])
+
+
 def debut_par_defaut(valeur: Valeur) -> tuple[date, str]:
     """Date de depart par defaut de la droite, et sa justification."""
     if valeur.type == "indice":
         return date(config.DEBUT_INDICES, 1, 1), "début du régime monétaire moderne"
     if valeur.type == "matiere":
         return date(2000, 1, 1), "début de l'historique continu des contrats à terme chez Yahoo"
+    if valeur.type in ("crypto", *catalogue.SANS_DROITE):
+        return date(2000, 1, 1), "tout l'historique disponible"
     industrie = json.loads(valeur.infos).get("industrie") if valeur.infos else None
     if valeur.secteur in SECTEURS_CYCLES_LONGS or industrie in INDUSTRIES_CYCLES_LONGS:
         return date(config.DEBUT_INDICES, 1, 1), "secteur aux cycles longs (banque, assurance, défense)"
@@ -76,6 +84,8 @@ class AnalyseService:
         fenetre = base[base.index >= pd.Timestamp(debut)]
         if len(fenetre) < 250:          # trop court depuis le debut choisi : tout l'historique
             fenetre = base
+        if valeur.type in catalogue.SANS_DROITE:
+            return valeur, cours, base_ajustee, fenetre, None
         return valeur, cours, base_ajustee, fenetre, ajuster(fenetre)
 
     def _en_euros(self, cours: pd.DataFrame, devise_brute: str | None) -> pd.DataFrame:
@@ -110,7 +120,8 @@ class AnalyseService:
             "debut_defaut": debut_par_defaut(valeur)[0].isoformat(),
             "debut_defaut_raison": debut_par_defaut(valeur)[1],
             # Un indice se lit en points, pas dans une devise (un ETF, lui, a bien un prix en euros).
-            "devise_affichee": "pts" if valeur.type == "indice" else self._devise,
+            "devise_affichee": {"indice": "pts", "taux": "%"}.get(valeur.type, self._devise),
+            "sans_droite": valeur.type in catalogue.SANS_DROITE,
             "en_euros": en_euros,
             "vide": cours.empty,
         }
@@ -130,11 +141,11 @@ class AnalyseService:
                 "cloture": _liste(cloture),
                 "ajuste":  _liste(cours["ajuste"]),
             },
-            "stats": self._stats(cloture, mm50, mm200, rsi14),
-            "signaux": ind.signaux(cloture, mm50, mm200, rsi14),
-            "qualite": qualite.controler(cours),
-            "avertissement_indice": ({"texte": matieres.AVERTISSEMENT, "symbole": None, "nom": None}
-                                     if valeur.type == "matiere"
+            "stats": self._stats(cloture, mm50, mm200, rsi14, points=valeur.type == "taux"),
+            "signaux": ind.signaux(cloture, mm50, mm200, rsi14, points=valeur.type == "taux"),
+            "qualite": qualite.controler(cours, taux=valeur.type == "taux"),
+            "avertissement_indice": ({"texte": catalogue.AVERTISSEMENTS[valeur.type], "symbole": None, "nom": None}
+                                     if valeur.type in catalogue.AVERTISSEMENTS
                                      else indices.avertissement(valeur.symbole, valeur.nom, valeur.type)),
             "fondamentaux": fondamentaux,
             "comptes": (comptes := self._comptes(valeur, fondamentaux)),
@@ -195,11 +206,19 @@ class AnalyseService:
         lignes = [f for f in fondamentaux if f.get("chiffre_affaires") is not None or f.get("benefice_net") is not None]
         cours = float(self._cloture_origine.iloc[-1])
         historique = valo.multiples_annuels(self._cloture_origine, lignes)
-        hypotheses = hypotheses or valo.hypotheses_par_defaut(lignes, comptes["synthese"])
+        # Taux d'actualisation par defaut : taux sans risque de la devise des comptes + prime de risque.
+        sans_risque = taux_service.dernier(self._db, valeur.devise_comptes or valeur.devise)
+        if hypotheses is None:
+            hypotheses = valo.hypotheses_par_defaut(lignes, comptes["synthese"])
+            if (actualisation := taux_service.actualisation_par_defaut(sans_risque)) is not None:
+                hypotheses.actualisation = actualisation
+        modeles = valo.modeles(cours, lignes, comptes["synthese"], hypotheses)
+        modeles["sans_risque"] = sans_risque and sans_risque | {
+            "prime": taux_service.prime(), "actualisation_defaut": taux_service.actualisation_par_defaut(sans_risque)}
         return {
             "multiples": valo.situer(cours, lignes, historique),
             "historique": historique,
-            "modeles": valo.modeles(cours, lignes, comptes["synthese"], hypotheses),
+            "modeles": modeles,
         }
 
     def valorisation(self, valeur_id: int, hypotheses: valo.Hypotheses) -> dict:
@@ -285,7 +304,9 @@ class AnalyseService:
             },
         }
 
-    def _stats(self, cloture: pd.Series, mm50, mm200, rsi14) -> dict:
+    def _stats(self, cloture: pd.Series, mm50, mm200, rsi14, points: bool = False) -> dict:
+        if points:
+            return self._stats_taux(cloture, mm50, mm200, rsi14)
         perte = ind.perte_maximale(cloture)
         precedent = cloture.iloc[-2] if len(cloture) > 1 else None
         debut_annee = cloture[cloture.index < pd.Timestamp(cloture.index[-1].year, 1, 1)]
@@ -306,6 +327,28 @@ class AnalyseService:
             "mm50": _f(mm50.iloc[-1]),
             "mm200": _f(mm200.iloc[-1]),
             "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
+            "plus_haut_52s": _f(cloture.tail(252).max()),
+            "plus_bas_52s": _f(cloture.tail(252).min()),
+        }
+
+    def _stats_taux(self, cloture: pd.Series, mm50, mm200, rsi14) -> dict:
+        """Un taux varie en points (3,1 % -> 3,4 % : +0,3 point), pas en pourcentage de lui-meme : un taux
+        proche de zero ou negatif donnerait des « +400 % » absurdes. Pas de croissance annuelle ni de perte maximale."""
+        debut_annee = cloture[cloture.index < pd.Timestamp(cloture.index[-1].year, 1, 1)]
+        return {
+            "en_points": True,
+            "dernier": float(cloture.iloc[-1]),
+            "jour": cloture.index[-1].strftime("%Y-%m-%d"),
+            "premier_jour": cloture.index[0].strftime("%Y-%m-%d"),
+            "variation_jour": _f(cloture.iloc[-1] - cloture.iloc[-2]) if len(cloture) > 1 else None,
+            "perf_ytd": _f(cloture.iloc[-1] - debut_annee.iloc[-1]) if not debut_annee.empty else None,
+            "perf_1an": ecart_points(cloture, 365),
+            "perf_5ans": ecart_points(cloture, 5 * 365),
+            "perf_annuelle": None, "volatilite": None, "perte_max": None,
+            "rsi": _f(rsi14.iloc[-1]),
+            "mm50": _f(mm50.iloc[-1]),
+            "mm200": _f(mm200.iloc[-1]),
+            "ecart_mm200": _f(cloture.iloc[-1] - mm200.iloc[-1]) if pd.notna(mm200.iloc[-1]) else None,
             "plus_haut_52s": _f(cloture.tail(252).max()),
             "plus_bas_52s": _f(cloture.tail(252).min()),
         }
@@ -333,8 +376,16 @@ class AnalyseService:
                 "volatilite": ind.volatilite_annuelle(cloture),
                 "rsi": _f(rsi14.iloc[-1]),
                 "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
-                "qualite": qualite.controler(cours)["statut"],
+                "qualite": qualite.controler(cours, taux=valeur.type == "taux")["statut"],
             }
+            if valeur.type == "taux":          # variations en points (voir _stats_taux)
+                ligne |= {
+                    "en_points": True,
+                    "variation_jour": _f(cloture.iloc[-1] - cloture.iloc[-2]) if len(cloture) > 1 else None,
+                    "perf_1an": ecart_points(cloture, 365), "perf_5ans": ecart_points(cloture, 5 * 365),
+                    "volatilite": None,
+                    "ecart_mm200": _f(cloture.iloc[-1] - mm200.iloc[-1]) if pd.notna(mm200.iloc[-1]) else None,
+                }
         fondamentaux = self._fondamentaux(valeur.id, self._cloture_origine) if not cours.empty else []
         if reg is not None:
             cle_zone, libelle = zone(reg.position)
@@ -384,7 +435,7 @@ class AnalyseService:
         Nombre d'actions x cours du jour (a jour chaque jour) ; a defaut, la capitalisation de la
         fiche Yahoo (rafraichie chaque semaine). Attention aux cotations en pence (GBp) : Yahoo donne
         le cours en pence mais la capitalisation en livres (verifie sur Unilever)."""
-        if valeur.type in ("indice", "matiere"):
+        if valeur.type in ("indice", "matiere", "devise", "taux"):
             return None
         infos = json.loads(valeur.infos or "{}")
         devise, facteur = bce.normaliser(valeur.devise)

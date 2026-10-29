@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { pct, prix, date, dateHeure, ton } from '../lib/format'
+import { prix, date, dateHeure, ton, variation } from '../lib/format'
 import { TYPES } from '../lib/zones'
 import OngletRegression   from '../components/fiche/OngletRegression'
 import OngletTechnique    from '../components/fiche/OngletTechnique'
@@ -15,7 +15,7 @@ import OngletDonnees      from '../components/fiche/OngletDonnees'
 import OngletAssistant    from '../components/fiche/OngletAssistant'
 
 const ONGLETS = [
-  { cle: 'regression',   libelle: 'Droite de régression' },
+  { cle: 'regression',   libelle: 'Droite de régression', droite: true },
   { cle: 'technique',    libelle: 'Analyse technique' },
   { cle: 'benefices',    libelle: 'Bénéfices',    action: true },
   { cle: 'qualite',      libelle: 'Qualité',      action: true },
@@ -29,7 +29,7 @@ const ONGLETS = [
 export default function Fiche() {
   const { id } = useParams()
   const [recherche, setRecherche] = useSearchParams()
-  const onglet = recherche.get('onglet') || 'regression'
+  const ongletDemande = recherche.get('onglet')
 
   const [analyse, setAnalyse] = useState(null)
   const [erreur, setErreur] = useState(null)
@@ -72,6 +72,9 @@ export default function Fiche() {
   }
 
   const { valeur, stats } = analyse
+  // Devise, taux : pas de droite, la fiche s'ouvre sur l'analyse technique.
+  const onglet = ongletDemande || (analyse.sans_droite ? 'technique' : 'regression')
+  const SOURCES = { yahoo: 'Yahoo Finance', bce: 'Banque centrale européenne' }
 
   return (
     <div className="page">
@@ -87,10 +90,10 @@ export default function Fiche() {
             {valeur.place && <span>{valeur.place}</span>}
             {valeur.pays && <span>· {valeur.pays}</span>}
             <span className="discret">
-              · {valeur.source === 'yahoo' ? `Yahoo Finance, actualisé ${dateHeure(valeur.maj_le)}` : 'données importées'}
+              · {SOURCES[valeur.source] ? `${SOURCES[valeur.source]}, actualisé ${dateHeure(valeur.maj_le)}` : 'données importées'}
             </span>
             <button className="btn btn-mini" onClick={actualiser} disabled={actualisation}
-                    title={valeur.source === 'yahoo' ? 'Cours, divisions et comptes' : 'Comptes officiels (ESEF, SEC)'}>
+                    title={valeur.source === 'import' ? 'Comptes officiels (ESEF, SEC)' : 'Cours, divisions et comptes'}>
               {actualisation ? 'Actualisation…' : 'Actualiser'}
             </button>
             <a className="btn btn-mini" href={`/valeurs/${valeur.id}/rapport`} target="_blank" rel="noreferrer">Rapport PDF</a>
@@ -101,7 +104,7 @@ export default function Fiche() {
           <div className="fiche-cours">
             <div className="fiche-dernier">{prix(stats.dernier, analyse.devise_affichee)}</div>
             <div className={`mono ${ton(stats.variation_jour)}`}>
-              {pct(stats.variation_jour, { signe: true, decimales: 2 })}
+              {variation(stats.variation_jour, stats.en_points, { decimales: 2 })}
               <span className="discret"> · {date(stats.jour)}</span>
             </div>
           </div>
@@ -124,10 +127,11 @@ export default function Fiche() {
 
       <div className="onglets">
         {/* Indice, ETF, matiere premiere : pas de comptes d'entreprise, donc pas d'onglets qui en dependent. */}
-        {ONGLETS.filter(o => (!o.ia || assistant?.disponible) && (!o.action || analyse.valeur.type === 'action')).map(o => (
+        {ONGLETS.filter(o => (!o.ia || assistant?.disponible) && (!o.action || analyse.valeur.type === 'action')
+                             && (!o.droite || !analyse.sans_droite)).map(o => (
           <button
             key={o.cle} className={`onglet${onglet === o.cle ? ' actif' : ''}`}
-            onClick={() => setRecherche(o.cle === 'regression' ? {} : { onglet: o.cle }, { replace: true })}
+            onClick={() => setRecherche(o.cle === 'regression' || (o.cle === 'technique' && analyse.sans_droite) ? {} : { onglet: o.cle }, { replace: true })}
           >
             {o.libelle}
           </button>
@@ -148,6 +152,9 @@ export default function Fiche() {
               enEuros={enEuros} setEnEuros={setEnEuros}
               debut={debut} setDebut={setDebut}
             />
+          )}
+          {onglet === 'technique' && analyse.sans_droite && analyse.avertissement_indice && (
+            <div className="info" style={{ marginBottom: 12 }}>{analyse.avertissement_indice.texte}</div>
           )}
           {onglet === 'technique'    && <OngletTechnique analyse={analyse} enEuros={enEuros} setEnEuros={setEnEuros} />}
           {onglet === 'benefices'    && <OngletBenefices analyse={analyse} />}

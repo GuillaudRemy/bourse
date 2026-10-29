@@ -52,6 +52,12 @@ DEFINITIONS = [
         "Sert au backtest pour traduire une part fixe de courtage en pourcentage.", defaut="2000",
     ),
     Definition(
+        "prime_risque", "Prime de risque des actions (%)",
+        "Rendement exigé d'une action au-delà du taux sans risque (emprunts d'État à 10 ans). Le DCF de l'onglet "
+        "Valorisation part de la somme des deux, arrondie au demi-point. 5 % est l'ordre de grandeur historique.",
+        defaut="5",
+    ),
+    Definition(
         "tranche_marginale", "Tranche marginale d'imposition (TMI)",
         "En % : 0, 11, 30, 41 ou 45. Facultatif : sert à comparer la flat tax à l'option pour le barème progressif "
         "dans la fiscalité du compte-titres.",

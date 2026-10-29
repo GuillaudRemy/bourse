@@ -14,12 +14,20 @@ RETOUR = 0.25             # …si elle est en grande partie annulee a la seance 
 FIGE_SEANCES = 20         # cours identique sur autant de seances d'affilee
 
 
-def controler(cours: pd.DataFrame) -> dict:
-    """Renvoie {"statut": ok|attention|alerte, "anomalies": [{type, gravite, texte, jour}]}."""
+def controler(cours: pd.DataFrame, taux: bool = False) -> dict:
+    """Renvoie {"statut": ok|attention|alerte, "anomalies": [{type, gravite, texte, jour}]}.
+
+    `taux=True` (taux d'interet) : un taux peut etre negatif, rester fige des mois (taux directeur),
+    doubler en passant de 0,1 a 0,2 %, et certaines series sont mensuelles : seuls les vrais trous comptent."""
     anomalies: list[dict] = []
     cloture = cours["cloture"].dropna()
     if cloture.empty:
         return {"statut": "ok", "anomalies": []}
+    if taux:
+        ecarts = cloture.index.to_series().diff().dt.days
+        for jour, jours in ecarts[ecarts > 62].items():
+            anomalies.append(_anomalie("trou", "attention", f"Aucune valeur pendant {int(jours)} jours", jour))
+        return {"statut": "attention" if anomalies else "ok", "anomalies": anomalies[-50:]}
 
     nuls = cloture[cloture <= 0]
     if len(nuls):

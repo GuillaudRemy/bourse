@@ -11,6 +11,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from backend.core import brut
+
 DELAI = (5, 30)                       # connexion, lecture (secondes)
 INTERVALLE_MIN = {                    # secondes entre deux requetes vers un meme site
     "data.sec.gov": 0.15,
@@ -57,6 +59,7 @@ def obtenir(url: str, *, entetes: dict | None = None, params: dict | None = None
         raise ErreurReseau(f"{hote} injoignable : {e}") from e
     if reponse.status_code >= 400:
         raise ErreurReseau(f"{hote} : erreur {reponse.status_code}")
+    brut.conserver(hote, urlparse(reponse.url).path, reponse.content)
     return reponse
 
 

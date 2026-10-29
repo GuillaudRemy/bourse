@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { pct, prix, nombre, sigma, ton, dateHeure, unite } from '../lib/format'
+import { pct, prix, nombre, sigma, ton, dateHeure, unite, variation } from '../lib/format'
 import { TYPES } from '../lib/zones'
 
 const sansAccents = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -10,18 +10,21 @@ import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
 import ImporterIndice from '../components/ImporterIndice'
 
+// Largeurs FIXES (px), prevues pour le contenu le plus large possible (« 12 345 GBp », « Surévaluation
+// manifeste », « +123,4 % ») : trier, changer de page ou chercher ne deplace plus les colonnes. La colonne
+// Valeur prend le reste ; un nom trop long est coupe (« … ») et s'affiche en entier au survol.
 const COLONNES = [
   { cle: 'nom',            libelle: 'Valeur',      valeur: l => l.valeur.nom.toLowerCase() },
-  { cle: 'dernier',        libelle: 'Cours',       valeur: l => l.dernier },
-  { cle: 'variation_jour', libelle: 'Jour',        valeur: l => l.variation_jour },
-  { cle: 'perf_1an',       libelle: '1 an',        valeur: l => l.perf_1an },
-  { cle: 'capitalisation', libelle: 'Capitalisation', valeur: l => l.capitalisation_eur, aide: 'Valeur en bourse de l’entreprise (cours × nombre d’actions), convertie en euros pour comparer toutes les valeurs.' },
-  { cle: 'pente',          libelle: 'Pente / an',  valeur: l => l.pente,      aide: 'Rythme de croisière : croissance annuelle de la droite de régression, dividendes réinvestis.' },
-  { cle: 'per',            libelle: 'PER',         valeur: l => l.per,        aide: 'Cours ÷ bénéfice par action : le nombre d’années de bénéfices que coûte l’action.' },
-  { cle: 'position',       libelle: 'Position',    valeur: l => l.position,   aide: 'Écart du cours à sa droite, en nombre d’écarts-types.' },
-  { cle: 'zone',           libelle: 'Zone',        valeur: l => l.position },
-  { cle: 'rsi',            libelle: 'RSI 14',      valeur: l => l.rsi },
-  { cle: 'ecart_mm200',    libelle: 'vs MM200',    valeur: l => l.ecart_mm200 },
+  { cle: 'dernier',        libelle: 'Cours',       valeur: l => l.dernier, largeur: 118 },
+  { cle: 'variation_jour', libelle: 'Jour',        valeur: l => l.variation_jour, largeur: 84 },
+  { cle: 'perf_1an',       libelle: '1 an',        valeur: l => l.perf_1an, largeur: 84 },
+  { cle: 'capitalisation', libelle: 'Capitalisation', valeur: l => l.capitalisation_eur, largeur: 112, aide: 'Valeur en bourse de l’entreprise (cours × nombre d’actions), convertie en euros pour comparer toutes les valeurs.' },
+  { cle: 'pente',          libelle: 'Pente / an',  valeur: l => l.pente, largeur: 88, aide: 'Rythme de croisière : croissance annuelle de la droite de régression, dividendes réinvestis.' },
+  { cle: 'per',            libelle: 'PER',         valeur: l => l.per, largeur: 64, aide: 'Cours ÷ bénéfice par action : le nombre d’années de bénéfices que coûte l’action.' },
+  { cle: 'position',       libelle: 'Position',    valeur: l => l.position, largeur: 216, aide: 'Écart du cours à sa droite, en nombre d’écarts-types.' },
+  { cle: 'zone',           libelle: 'Zone',        valeur: l => l.position, largeur: 192 },
+  { cle: 'rsi',            libelle: 'RSI 14',      valeur: l => l.rsi, largeur: 64 },
+  { cle: 'ecart_mm200',    libelle: 'vs MM200',    valeur: l => l.ecart_mm200, largeur: 84 },
 ]
 
 /** 103,2 Md€ · 850 M€ */
@@ -218,10 +221,14 @@ export default function Tableau() {
           </div>
         ) : (
           <div className="tableau-conteneur">
-            <table className="tableau">
+            <table className="tableau tableau-fixe" style={{ minWidth: 1340 }}>
+              <colgroup>
+                <col style={{ width: 36 }} />
+                {COLONNES.map(c => <col key={c.cle} style={c.largeur ? { width: c.largeur } : undefined} />)}
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={{ width: 28 }} onClick={e => e.stopPropagation()}>
+                  <th onClick={e => e.stopPropagation()}>
                     <input type="checkbox" title="Tout cocher (lignes affichées)" aria-label="Tout cocher"
                            checked={affichees.length > 0 && affichees.every(l => selection.has(l.valeur.id))}
                            onChange={e => {
@@ -245,7 +252,7 @@ export default function Tableau() {
                         const n = new Set(selection); n.has(l.valeur.id) ? n.delete(l.valeur.id) : n.add(l.valeur.id); setSelection(n)
                       }} />
                     </td>
-                    <td className="texte">
+                    <td className="texte" title={l.valeur.nom}>
                       <div className="valeur-nom">
                         {l.valeur.nom}
                         {l.qualite === 'alerte' && <span className="badge statut-alerte" style={{ marginLeft: 6 }} title="Données de cours suspectes : voir l'onglet Données de la fiche">données suspectes</span>}
@@ -255,8 +262,8 @@ export default function Tableau() {
                       </div>
                     </td>
                     <td>{prix(l.dernier, unite(l.valeur))}</td>
-                    <td className={ton(l.variation_jour)}>{pct(l.variation_jour, { signe: true, decimales: 2 })}</td>
-                    <td className={ton(l.perf_1an)}>{pct(l.perf_1an, { signe: true })}</td>
+                    <td className={ton(l.variation_jour)}>{variation(l.variation_jour, l.en_points, { decimales: 2 })}</td>
+                    <td className={ton(l.perf_1an)}>{variation(l.perf_1an, l.en_points)}</td>
                     <td>{capitalisation(l.capitalisation_eur)}</td>
                     <td className={ton(l.pente)}>{pct(l.pente, { signe: true })}</td>
                     <td>{l.per != null && l.per > 0 ? nombre(l.per, 1) : <span className="muet">—</span>}</td>
@@ -268,7 +275,7 @@ export default function Tableau() {
                     </td>
                     <td><BadgeZone zone={l.zone} /></td>
                     <td className={l.rsi >= 70 ? 'negatif' : l.rsi <= 30 ? 'positif' : ''}>{nombre(l.rsi, 0)}</td>
-                    <td className={ton(l.ecart_mm200)}>{pct(l.ecart_mm200, { signe: true })}</td>
+                    <td className={ton(l.ecart_mm200)}>{variation(l.ecart_mm200, l.en_points)}</td>
                   </tr>
                 ))}
               </tbody>

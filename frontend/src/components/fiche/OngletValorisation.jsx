@@ -1,7 +1,7 @@
 // @ts-check
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { pct, prix, nombre, grand, unite } from '../../lib/format'
+import { pct, prix, nombre, grand, unite, date } from '../../lib/format'
 import { Stat } from './OngletRegression'
 
 const MULTIPLES = [
@@ -99,6 +99,19 @@ export default function OngletValorisation({ analyse }) {
                        onChange={e => setHyp({ ...hyp, [cle]: Number(e.target.value) })} />
               </label>
             ))}
+            {modeles.sans_risque ? (
+              <div className="discret" style={{ fontSize: 12.5 }}>
+                Repère : taux sans risque {pct(modeles.sans_risque.taux, { decimales: 2 })} ({modeles.sans_risque.libelle},
+                au {date(modeles.sans_risque.jour)}) + prime de risque des actions {pct(modeles.sans_risque.prime, { decimales: 1 })}
+                {' '}= <b>{pct(modeles.sans_risque.actualisation_defaut, { decimales: 1 })}</b> par défaut.
+                {Math.abs(hyp.actualisation - modeles.sans_risque.actualisation_defaut) > 0.0001 &&
+                  <> Vous exigez {pct(hyp.actualisation, { decimales: 1 })}, soit {pct(hyp.actualisation - modeles.sans_risque.taux, { decimales: 1 })} de plus qu'un prêt à l'État.</>}
+              </div>
+            ) : (
+              <div className="discret" style={{ fontSize: 12.5 }}>
+                Taux sans risque pas encore téléchargé (il arrive avec l'actualisation des valeurs) : rendement exigé fixé à 8 % par défaut.
+              </div>
+            )}
             {erreur && <div className="erreur">{erreur}</div>}
           </div>
           {modeles.modeles.map(m => (

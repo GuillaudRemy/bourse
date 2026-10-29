@@ -17,6 +17,7 @@ export default function APropos() {
     ['Dernière actualisation', infos.derniere_actualisation ? date(infos.derniere_actualisation) : 'jamais'],
     ['Base de données', `${infos.base} (${taille(infos.taille_base)})`],
     ['Sauvegardes', `${infos.sauvegardes} (${infos.nombre_sauvegardes})`], ['Journal', infos.journal],
+    ['Réponses brutes des sources', infos.reponses_brutes && `${infos.reponses_brutes.dossier} (${infos.reponses_brutes.fichiers} fichiers, ${taille(infos.reponses_brutes.taille)}, gardées ${infos.reponses_brutes.jours} jours)`],
   ]
   return (
     <div className="page">

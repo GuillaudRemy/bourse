@@ -6,6 +6,7 @@ remontent en revanche que sur 4 a 5 ans : SEC, ESEF et les imports prennent le r
 
 Les chiffres par action de Yahoo sont deja ajustes des divisions d'actions.
 """
+import json
 import math
 from dataclasses import dataclass
 from datetime import date
@@ -13,6 +14,7 @@ from datetime import date
 import pandas as pd
 import yfinance as yf
 
+from backend.core import brut
 from backend.sources.base import Comptes, Identite, SourceIndisponible
 from backend.sources.reseau import avec_tentatives
 
@@ -37,7 +39,8 @@ INFOS = {
     "actions_en_circulation": "sharesOutstanding",
 }
 
-TYPES = {"EQUITY": "action", "INDEX": "indice", "ETF": "etf", "MUTUALFUND": "etf", "FUTURE": "matiere"}
+TYPES = {"EQUITY": "action", "INDEX": "indice", "ETF": "etf", "MUTUALFUND": "etf", "FUTURE": "matiere",
+         "CURRENCY": "devise", "CRYPTOCURRENCY": "crypto"}
 
 # Poste (champs.py) -> lignes Yahoo candidates, par etat financier.
 LIGNES_RESULTAT = {
@@ -114,6 +117,7 @@ def fiche(symbole: str) -> Fiche:
         info = avec_tentatives(lambda: yf.Ticker(symbole).info or {}, tentatives=2)
     except Exception as e:
         raise SourceIndisponible(f"Fiche Yahoo de {symbole} indisponible : {e}") from e
+    brut.conserver("yahoo", f"fiche-{symbole}.json", json.dumps(info, default=str).encode())
     if not info.get("quoteType"):
         raise SourceIndisponible(f"Symbole inconnu de Yahoo : {symbole}")
 
@@ -163,6 +167,7 @@ def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, flo
         historique = avec_tentatives(lambda: yf.Ticker(symbole).history(period="max", auto_adjust=False, actions=True))
     except Exception as e:
         raise SourceIndisponible(f"Cours Yahoo de {symbole} indisponibles : {e}") from e
+    brut.conserver("yahoo", f"cours-{symbole}.csv", historique.to_csv().encode())
     if historique.empty:
         return pd.DataFrame(), []
     divisions_ = []
@@ -186,6 +191,7 @@ def cours_recents(symbole: str, debut: date) -> tuple[pd.DataFrame, bool]:
                                                                           actions=True))
     except Exception as e:
         raise SourceIndisponible(f"Cours Yahoo de {symbole} indisponibles : {e}") from e
+    brut.conserver("yahoo", f"cours-recents-{symbole}.csv", historique.to_csv().encode())
     if historique.empty:
         return pd.DataFrame(), False
     evenement = any((historique[c].fillna(0) != 0).any() for c in ("Dividends", "Stock Splits") if c in historique.columns)

@@ -1,7 +1,7 @@
 // @ts-check
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { pct, prix, nombre, date, ton } from '../../lib/format'
+import { pct, prix, nombre, date, ton, variation } from '../../lib/format'
 import GraphiqueTechnique, { COULEURS_MM } from '../GraphiqueTechnique'
 import { Stat, InterrupteurEuros } from './OngletRegression'
 
@@ -62,12 +62,12 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
       <div className="stat-grille">
         <Stat aide="rsi" libelle="RSI 14" valeur={nombre(stats.rsi, 0)} classe={stats.rsi >= 70 ? 'negatif' : stats.rsi <= 30 ? 'positif' : ''}
               detail={stats.rsi >= 70 ? 'surachat' : stats.rsi <= 30 ? 'survente' : 'neutre'} />
-        <Stat aide="mm" libelle="Écart à la MM200" valeur={pct(stats.ecart_mm200, { signe: true })} classe={ton(stats.ecart_mm200)} detail={`MM200 à ${prix(stats.mm200, devise)}`} />
+        <Stat aide="mm" libelle="Écart à la MM200" valeur={variation(stats.ecart_mm200, stats.en_points)} classe={ton(stats.ecart_mm200)} detail={`MM200 à ${prix(stats.mm200, devise)}`} />
         <Stat libelle="Volatilité (1 an)" valeur={pct(stats.volatilite, { decimales: 0 })} detail="annualisée" />
         <Stat libelle="Perte maximale" valeur={pct(stats.perte_max?.baisse)} classe="negatif"
               detail={stats.perte_max && `${date(stats.perte_max.sommet)} → ${date(stats.perte_max.creux)}`} />
-        <Stat libelle="Depuis le 1er janvier" valeur={pct(stats.perf_ytd, { signe: true })} classe={ton(stats.perf_ytd)} />
-        <Stat libelle="1 an / 5 ans" valeur={pct(stats.perf_1an, { signe: true })} classe={ton(stats.perf_1an)} detail={`5 ans : ${pct(stats.perf_5ans, { signe: true })}`} />
+        <Stat libelle="Depuis le 1er janvier" valeur={variation(stats.perf_ytd, stats.en_points)} classe={ton(stats.perf_ytd)} />
+        <Stat libelle="1 an / 5 ans" valeur={variation(stats.perf_1an, stats.en_points)} classe={ton(stats.perf_1an)} detail={`5 ans : ${variation(stats.perf_5ans, stats.en_points)}`} />
       </div>
 
       <div className="grille-2">
@@ -76,7 +76,8 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
             <div className="segments">
               {['jour', 'semaine', 'mois'].map(u => <button key={u} className={`segment${options.unite === u ? ' actif' : ''}`} onClick={() => changer('unite', u)}>{u[0].toUpperCase() + u.slice(1)}</button>)}
             </div>
-            <label className="interrupteur"><input type="checkbox" checked={options.bougies} onChange={e => changer('bougies', e.target.checked)} /> Bougies</label>
+            {/* Series BCE : une seule valeur par jour ou par mois, pas de bougies. */}
+            {valeur.source !== 'bce' && <label className="interrupteur"><input type="checkbox" checked={options.bougies} onChange={e => changer('bougies', e.target.checked)} /> Bougies</label>}
             <label className="interrupteur"><input type="checkbox" checked={options.log} onChange={e => changer('log', e.target.checked)} /> Log</label>
             <label className="interrupteur" title="Périodes des moyennes mobiles, séparées par des virgules">Moyennes
               <input className="champ champ-mono" style={{ width: 110, padding: '3px 6px' }} value={options.mm} onChange={e => changer('mm', e.target.value)} /></label>
@@ -95,7 +96,7 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
               <button className="btn btn-mini" onClick={() => { setMode(null); setPremier(null) }}>Annuler</button>
             </div>
           )}
-          {t ? <GraphiqueTechnique t={t} options={options} annotations={annotations} onClic={mode ? clic : null} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
+          {t ? <GraphiqueTechnique t={t} options={valeur.source === 'bce' ? { ...options, bougies: false } : options} annotations={annotations} onClic={mode ? clic : null} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
           {t && (
             <div className="legende">
               {Object.keys(t.moyennes).map((n, i) => <span key={n} className="legende-item"><span className="legende-trait" style={{ borderColor: COULEURS_MM[i % COULEURS_MM.length] }} />MM{n}</span>)}

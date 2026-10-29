@@ -1,10 +1,42 @@
 // @ts-check
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { pct, nombre, ton } from '../../lib/format'
+import { pct, nombre, ton, date } from '../../lib/format'
 
 const AVIS = [['strongBuy', 'Achat fort', 'var(--z-om)'], ['buy', 'Achat', 'var(--z-se)'], ['hold', 'Conserver', 'var(--z-n)'],
   ['sell', 'Vente', 'var(--z-sv)'], ['strongSell', 'Vente forte', 'var(--z-sm)']]
+
+/** Revisions des previsions sur des mois : un instantane par semaine (le dernier releve de chaque semaine). */
+function Historique({ lignes, devise }) {
+  if (!lignes?.length) return null
+  const semaine = j => { const d = new Date(j + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10) }
+  const parSemaine = new Map()
+  for (const l of lignes) parSemaine.set(semaine(l.jour), { ...(parSemaine.get(semaine(l.jour)) ?? {}), jour: l.jour, objectif: l.objectif, [l.annee]: l.bpa })
+  const releves = [...parSemaine.values()]
+  const annees = [...new Set(lignes.map(l => l.annee))].sort().slice(-3)
+  if (releves.length < 2) {
+    return <p className="discret" style={{ padding: '0 18px 10px', fontSize: 12 }}>
+      Historique des prévisions : premier relevé le {date(lignes[0].jour)}. Un relevé est ajouté à chaque mise à jour complète, pour suivre les révisions sur des mois.
+    </p>
+  }
+  const premier = releves[0], dernier = releves.at(-1)
+  return (
+    <details style={{ padding: '0 18px 10px' }}>
+      <summary className="discret" style={{ cursor: 'pointer' }}>
+        Historique des prévisions depuis le {date(premier.jour)} ({releves.length} relevés)
+        {annees.filter(a => premier[a] && dernier[a]).map(a => <span key={a}> · {a} : <span className={ton(dernier[a] / premier[a] - 1)}>{pct(dernier[a] / premier[a] - 1, { signe: true })}</span></span>)}
+      </summary>
+      <table className="tableau" style={{ marginTop: 8 }}>
+        <thead><tr><th>Semaine du</th>{annees.map(a => <th key={a}>BPA {a}</th>)}<th>Objectif de cours</th></tr></thead>
+        <tbody>
+          {releves.slice(-26).reverse().map(r => (
+            <tr key={r.jour}><td>{date(r.jour)}</td>{annees.map(a => <td key={a}>{nombre(r[a], 2)}</td>)}<td>{r.objectif != null ? `${nombre(r.objectif, 2)} ${devise ?? ''}` : '—'}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  )
+}
 
 /** Ce qu'attendent les analystes, confronte a la tendance des benefices passes. */
 export default function Consensus({ valeurId, benefices }) {
@@ -83,6 +115,7 @@ export default function Consensus({ valeurId, benefices }) {
           </div>
         )}
       </div>
+      <Historique lignes={c.historique} devise={c.devise} />
       <p className="discret" style={{ padding: '0 18px 14px', fontSize: 12 }}>
         Les prévisions portent sur 1 à 2 ans, la droite sur 20 : un BPA attendu nettement sous la droite signale un trou d'air
         (ou une rupture) que le marché anticipe. Les analystes se trompent souvent aux retournements, et leurs révisions

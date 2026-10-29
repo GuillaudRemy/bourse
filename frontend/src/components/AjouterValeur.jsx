@@ -4,7 +4,15 @@ import Modale from './Modale'
 import { api } from '../lib/api'
 import { TYPES } from '../lib/zones'
 
-/** Ajout d'une valeur : recherche chez Yahoo, ou creation vide pour un import de fichier. */
+const FAMILLES = {
+  matiere: 'Prix de marché réels (contrat à terme le plus proche, en dollars), sans passer par un ETF. Historique quotidien depuis 2000 environ.',
+  devise: 'Taux de change quotidiens depuis 2003 environ. Pas de droite de régression : une devise n’a pas de tendance de fond.',
+  taux: 'Taux d’intérêt en % : zone euro et pays européens (BCE), États-Unis (Yahoo). Pas de droite de régression ; variations en points.',
+  obligation: 'Les obligations ne se suivent pas une à une gratuitement : ces ETF obligataires en sont des paniers, et se lisent comme un ETF.',
+  crypto: 'Cotations en euros, 7 jours sur 7. Historique court et volatilité extrême : la droite se lit avec la plus grande prudence.',
+}
+
+/** Ajout d'une valeur : recherche chez Yahoo, catalogue (matieres, devises, taux…), ou creation vide pour un import. */
 export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }) {
   const [mode, setMode] = useState('yahoo')
   const [texte, setTexte] = useState(texteInitial)
@@ -12,10 +20,11 @@ export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }
   const [recherche, setRecherche] = useState(false)
   const [ajout, setAjout] = useState(null)        // symbole en cours d'ajout
   const [erreur, setErreur] = useState(null)
-  const [matieres, setMatieres] = useState(null)
+  const [catalogue, setCatalogue] = useState(null)
+  const [famille, setFamille] = useState('matiere')
   useEffect(() => {
-    if (mode === 'matieres' && matieres === null) api.valeurs.matieres().then(setMatieres).catch(e => setErreur(e.message))
-  }, [mode, matieres])
+    if (mode === 'catalogue' && catalogue === null) api.valeurs.catalogue().then(setCatalogue).catch(e => setErreur(e.message))
+  }, [mode, catalogue])
   const [manuel, setManuel] = useState({ symbole: '', nom: '', type: 'action', devise: 'EUR' })
 
   // Recherche a la frappe, apres une courte pause.
@@ -52,27 +61,31 @@ export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }
         <button className={`segment${mode === 'yahoo' ? ' actif' : ''}`} onClick={() => setMode('yahoo')}>
           Yahoo Finance
         </button>
-        <button className={`segment${mode === 'matieres' ? ' actif' : ''}`} onClick={() => setMode('matieres')}>
-          Matières premières
+        <button className={`segment${mode === 'catalogue' ? ' actif' : ''}`} onClick={() => setMode('catalogue')}>
+          Matières, devises, taux…
         </button>
         <button className={`segment${mode === 'import' ? ' actif' : ''}`} onClick={() => setMode('import')}>
           Données importées
         </button>
       </div>
 
-      {mode === 'matieres' ? (
+      {mode === 'catalogue' ? (
         <div className="pile" style={{ gap: 6 }}>
-          <span className="discret">
-            Prix de marché réels (contrat à terme le plus proche, en dollars), sans passer par un ETF.
-            Historique quotidien depuis 2000 environ.
-          </span>
-          {matieres === null ? <div className="discret">Chargement…</div> : matieres.map(m => (
+          <div className="segments">
+            {Object.keys(FAMILLES).map(f => (
+              <button key={f} className={`segment${famille === f ? ' actif' : ''}`} onClick={() => setFamille(f)}>{TYPES[f]}</button>
+            ))}
+          </div>
+          <span className="discret">{FAMILLES[famille]}</span>
+          {catalogue === null ? <div className="discret">Chargement…</div> : catalogue[famille].map(m => (
             <button key={m.symbole} className="resultat" disabled={!!ajout} onClick={() => ajouterYahoo(m.symbole)}>
               <span>
                 <div className="valeur-nom">{m.nom}</div>
-                <div className="valeur-symbole">{m.symbole} · dollars par {m.unite}</div>
+                <div className="valeur-symbole">
+                  {m.symbole} · {famille === 'matiere' ? `dollars par ${m.detail}` : m.detail}{m.source === 'bce' ? ' · BCE' : ''}
+                </div>
               </span>
-              <span className="etiquette">{ajout === m.symbole ? 'Téléchargement…' : 'Matière première'}</span>
+              <span className="etiquette">{ajout === m.symbole ? 'Téléchargement…' : TYPES[famille]}</span>
             </button>
           ))}
         </div>

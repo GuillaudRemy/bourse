@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { prix, pct, date, ton, unite } from '../lib/format'
+import { prix, date, ton, unite, variation } from '../lib/format'
 import OngletRegression from '../components/fiche/OngletRegression'
 import OngletBenefices from '../components/fiche/OngletBenefices'
 import OngletQualite from '../components/fiche/OngletQualite'
@@ -31,7 +31,7 @@ export default function Rapport() {
         </div>
         <div className="fiche-cours">
           <div className="fiche-dernier">{prix(stats?.dernier, unite(valeur))}</div>
-          <div className={`mono ${ton(stats?.variation_jour)}`}>{pct(stats?.variation_jour, { signe: true, decimales: 2 })} · {date(stats?.jour)}</div>
+          <div className={`mono ${ton(stats?.variation_jour)}`}>{variation(stats?.variation_jour, stats?.en_points, { decimales: 2 })} · {date(stats?.jour)}</div>
         </div>
       </div>
       {[['Droite de régression', <OngletRegression key="r" analyse={analyse} dividendes setDividendes={rien} debut="" setDebut={rien} enEuros={false} setEnEuros={rien} />],

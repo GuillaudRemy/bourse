@@ -10,7 +10,7 @@ from backend.analyse.valorisation import Hypotheses
 from backend.db.db import get_session
 from backend.db.schema import Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services import export_service, taches, technique_service
+from backend.services import consensus_service, export_service, taches, technique_service
 from backend.services.analyse_service import AnalyseService
 from backend.services.valeur_service import ValeurService
 from backend.sources import yahoo
@@ -43,11 +43,12 @@ def list_valeurs(service: ValeurService = Depends(get_service)):
     return service.list()
 
 
-@router.get("/matieres")
-def catalogue_matieres():
-    """Matieres premieres proposees a l'ajout (prix de marche, sans ETF)."""
-    from backend.sources import matieres
-    return [{"symbole": s, "nom": nom, "unite": unite} for s, nom, unite in matieres.CATALOGUE]
+@router.get("/catalogue")
+def catalogue_marches():
+    """Marches proposes a l'ajout en un clic : matieres premieres, devises, taux, obligations, cryptomonnaies."""
+    from backend.sources import catalogue
+    return {type_: [{"symbole": e.symbole, "nom": e.nom, "detail": e.detail, "source": e.source} for e in entrees]
+            for type_, entrees in catalogue.FAMILLES.items()}
 
 
 @router.get("/synthese")
@@ -112,14 +113,16 @@ def consensus(valeur_id: int, session: Session = Depends(get_session)):
         return {"indisponible": "Pas de prévisions d'analystes pour ce type de valeur."}
     en_cache = _CONSENSUS.get(valeur.symbole)
     if en_cache and time.monotonic() - en_cache[0] < 12 * 3600:
-        return en_cache[1]
-    try:
-        donnees = yahoo.consensus(valeur.symbole)
-    except SourceIndisponible as e:
-        return {"indisponible": str(e)}
-    resultat = donnees or {"indisponible": "Aucun analyste ne suit cette valeur chez Yahoo."}
-    _CONSENSUS[valeur.symbole] = (time.monotonic(), resultat)
-    return resultat
+        resultat = en_cache[1]
+    else:
+        try:
+            donnees = yahoo.consensus(valeur.symbole)
+        except SourceIndisponible as e:
+            return {"indisponible": str(e), "historique": consensus_service.historique(session, valeur_id)}
+        consensus_service.enregistrer(session, valeur_id, donnees)
+        resultat = donnees or {"indisponible": "Aucun analyste ne suit cette valeur chez Yahoo."}
+        _CONSENSUS[valeur.symbole] = (time.monotonic(), resultat)
+    return resultat | {"historique": consensus_service.historique(session, valeur_id)}
 
 
 @router.get("/{valeur_id}/export.xlsx")

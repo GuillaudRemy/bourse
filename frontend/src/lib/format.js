@@ -10,6 +10,15 @@ export function pct(v, { signe = false, decimales = 1 } = {}) {
   return signe && v > 0 ? '+' + texte : texte
 }
 
+/** Variation d'un taux d'interet, en points : 3,1 % -> 3,4 % = « +0,30 pt ». */
+export function points(v) {
+  if (absent(v)) return '—'
+  return (v > 0 ? '+' : '') + N2.format(v) + ' pt'
+}
+
+/** Variation en % (cours) ou en points (taux, `enPoints`). */
+export const variation = (v, enPoints, options = {}) => enPoints ? points(v) : pct(v, { signe: true, ...options })
+
 export function nombre(v, decimales = 2) {
   if (absent(v)) return '—'
   return (decimales === 0 ? N0 : decimales === 1 ? N1 : N2).format(v)
@@ -53,4 +62,4 @@ export function dateHeure(iso) {
 export const ton = v => absent(v) || v === 0 ? '' : v > 0 ? 'positif' : 'negatif'
 
 /** Unite d'affichage d'un cours : points pour un indice, devise sinon (un ETF a un prix en euros). */
-export const unite = valeur => valeur?.type === 'indice' ? 'pts' : valeur?.devise
+export const unite = valeur => valeur?.type === 'indice' ? 'pts' : valeur?.type === 'taux' ? '%' : valeur?.devise

@@ -25,6 +25,7 @@ from backend.core import reglages
 from backend.core.config import config
 from backend.db.schema import Alerte, Declenchement, Valeur
 from backend.services.stockage import charger_cours
+from backend.sources import catalogue
 
 TYPES = {
     "sigma_sous":      ("Position dans le couloir ≤", "σ"),
@@ -60,7 +61,7 @@ def _mesures(db: Session, valeur: Valeur) -> dict:
     base = (cours["ajuste"] if cours["ajuste"].notna().mean() > 0.9 else cloture).dropna()
     from backend.services.analyse_service import debut_par_defaut  # import tardif : evite un cycle
     debut = valeur.debut_regression or debut_par_defaut(valeur)[0]
-    reg = ajuster(base[base.index >= pd.Timestamp(debut)])
+    reg = None if valeur.type in catalogue.SANS_DROITE else ajuster(base[base.index >= pd.Timestamp(debut)])
     mm50, mm200 = ind.moyenne_mobile(cloture, 50), ind.moyenne_mobile(cloture, 200)
     ecart = (mm50 - mm200).dropna().tail(6)
     return {

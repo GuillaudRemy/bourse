@@ -1,20 +1,18 @@
 // @ts-check
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { lire, enregistrer, THEMES, TAILLES } from '../lib/apparence'
 
-const LIENS = [
-  { to: '/accueil',      label: 'Aujourd’hui' },
-  { to: '/valeurs',      label: 'Valeurs' },
-  { to: '/screener',     label: 'Screener' },
-  { to: '/comparer',     label: 'Comparer' },
-  { to: '/backtest',     label: 'Backtest' },
-  { to: '/portefeuille', label: 'Portefeuille' },
-  { to: '/calendrier',   label: 'Calendrier' },
-  { to: '/methode',      label: 'Méthode' },
-  { to: '/reglages',     label: 'Réglages' },
+// Cinq entrees ; chacune regroupe ses pages en sous-onglets. Les adresses ne changent pas (favoris intacts).
+const MENU = [
+  { label: 'Aujourd’hui',  pages: [['/accueil', 'Résumé du jour'], ['/calendrier', 'Calendrier'], ['/alertes', 'Alertes']] },
+  { label: 'Marchés',      pages: [['/valeurs', 'Valeurs suivies'], ['/screener', 'Screener'], ['/comparer', 'Comparer']] },
+  { label: 'Portefeuille', pages: [['/portefeuille', 'Portefeuille']] },
+  { label: 'Outils',       pages: [['/backtest', 'Backtest']] },
+  { label: 'Aide',         pages: [['/methode', 'Méthode'], ['/glossaire', 'Glossaire'], ['/a-propos', 'À propos']] },
 ]
+const dans = (chemin, page) => chemin === page || chemin.startsWith(page + '/')
 
 export default function Nav() {
   const [nonLues, setNonLues] = useState(0)
@@ -32,13 +30,18 @@ export default function Nav() {
     return () => { actif = false; clearInterval(minuterie); window.removeEventListener('alertes-lues', verifier) }
   }, [])
 
+  const { pathname } = useLocation()
+  const groupeActif = MENU.find(g => g.pages.some(([page]) => dans(pathname, page)))
+
   return (
+    <>
     <nav className="nav">
       <div className="nav-marque">Bourse<span>.</span></div>
       <div className="nav-liens">
-        {LIENS.map(lien => (
-          <NavLink key={lien.to} to={lien.to} className={({ isActive }) => `nav-lien${isActive ? ' actif' : ''}`}>
-            {lien.label}
+        {MENU.map(groupe => (
+          <NavLink key={groupe.label} to={groupe.pages[0][0]}
+                   className={`nav-lien${groupe === groupeActif ? ' actif' : ''}`}>
+            {groupe.label}
           </NavLink>
         ))}
       </div>
@@ -65,6 +68,22 @@ export default function Nav() {
         </svg>
         {nonLues > 0 && <span className="cloche-nombre">{nonLues}</span>}
       </NavLink>
+      <NavLink to="/reglages" className={({ isActive }) => `nav-lien${isActive ? ' actif' : ''}`} title="Réglages" aria-label="Réglages">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </NavLink>
     </nav>
+    {groupeActif && groupeActif.pages.length > 1 && (
+      <div className="sous-nav no-print">
+        <div className="sous-nav-liens">
+          {groupeActif.pages.map(([page, label]) => (
+            <NavLink key={page} to={page} className={({ isActive }) => `sous-nav-lien${isActive ? ' actif' : ''}`}>{label}</NavLink>
+          ))}
+        </div>
+      </div>
+    )}
+    </>
   )
 }

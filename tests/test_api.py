@@ -85,7 +85,7 @@ def test_actualisation_en_tache_de_fond():
         client.post("/valeurs", json={"symbole": "FOND1", "source": "import"})
         etat = client.post("/valeurs/actualiser").json()
         assert etat["total"] >= 1
-        for _ in range(100):
+        for _ in range(600):              # d'autres tests ont pu creer des valeurs Yahoo : appels reseau
             etat = client.get("/valeurs/actualisation").json()
             if not etat["en_cours"]:
                 break
@@ -172,3 +172,23 @@ def test_suppression_groupee():
         assert "SUPPR0" not in restants and "SUPPR1" not in restants and "SUPPR2" in restants
         operations = client.get("/portefeuille/transactions").json()
         assert any(t["compte_id"] == compte["id"] and t["valeur_id"] is None for t in operations)   # operation gardee
+
+
+def test_reponses_brutes_purgees(tmp_path, monkeypatch):
+    """Reponses gardees par jour ; au-dela de 30 jours, ou du plafond de taille, les plus anciennes partent."""
+    from datetime import date, timedelta
+
+    from backend.core import brut
+    from backend.core import config as module_config
+    monkeypatch.setattr(module_config.config, "DB_NAME", str(tmp_path / "b.db"))
+    monkeypatch.setattr(module_config.config, "CONSERVER_BRUT", True)
+    brut.conserver("data.sec.gov", "/api/xbrl/companyfacts/CIK0000320193.json", b'{"a": 1}' * 100)
+    vieux = brut.dossier() / (date.today() - timedelta(days=31)).isoformat()
+    vieux.mkdir()
+    (vieux / "x.gz").write_bytes(b"x")
+    assert brut.resume()["fichiers"] == 2
+    brut.purger()
+    assert not vieux.exists() and brut.resume()["fichiers"] == 1
+    monkeypatch.setattr(brut, "PLAFOND", 0)
+    brut.purger()                                  # le jour en cours est toujours garde
+    assert brut.resume()["fichiers"] == 1

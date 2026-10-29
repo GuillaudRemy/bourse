@@ -19,6 +19,7 @@ export default function OngletRegression({ analyse, dividendes, setDividendes, d
   const [log, setLog] = useState(true)
   const [cone, setCone] = useState(false)
   const { regression: reg, valeur, fiabilite, base_ajustee } = analyse
+  if (analyse.sans_droite) return <div className="carte vide">{analyse.avertissement_indice?.texte}</div>
   if (!reg) return <div className="carte vide">Pas assez de cours pour tracer une droite (30 séances minimum).</div>
 
   const devise = analyse.devise_affichee
@@ -220,8 +221,8 @@ function Robustesse({ robustesse, pente }) {
 }
 
 export function InterrupteurEuros({ valeur, enEuros, setEnEuros }) {
-  // Pas de conversion pour un indice : il se lit en points.
-  if (!valeur.devise || valeur.devise === 'EUR' || valeur.type === 'indice') return null
+  // Pas de conversion pour un indice (en points), une devise (c'est deja un change) ni un taux (en %).
+  if (!valeur.devise || valeur.devise === 'EUR' || ['indice', 'devise', 'taux'].includes(valeur.type)) return null
   return (
     <label className="interrupteur" title="Cours convertis au taux de référence BCE du jour : la pente inclut l'effet de change, comme pour un investisseur en euros.">
       <input type="checkbox" checked={enEuros} onChange={e => setEnEuros(e.target.checked)} />

@@ -66,7 +66,7 @@ def exporter(db: Session, portefeuille: bool) -> dict:
             if champs:
                 saisis.append({"annee": f.annee, "champs": champs, "sources": {c: origine[c] for c in champs}})
         fiche["comptes_saisis"] = saisis
-        if v.source != "yahoo":           # cours importes : introuvables ailleurs
+        if v.source not in ("yahoo", "bce"):   # cours importes : introuvables ailleurs
             fiche["cours"] = [[c.jour.isoformat(), c.cloture, c.ajuste, c.ouverture, c.haut, c.bas, c.volume]
                               for c in db.exec(select(Cours).where(Cours.valeur_id == v.id).order_by(col(Cours.jour)))]
         contenu.append(fiche)
@@ -147,7 +147,7 @@ def importer(db: Session, contenu: bytes, portefeuille: bool) -> dict:
             db.flush()
             par_symbole[v.symbole] = v
             compte["valeurs"] += 1
-            if v.source == "yahoo":
+            if v.source in ("yahoo", "bce"):
                 a_telecharger.append(_id(v))
             for ligne in fiche.get("cours", []):
                 jour, cloture, ajuste, ouverture, haut, bas, volume = ligne

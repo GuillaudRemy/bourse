@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlmodel import Session
 
-from backend.core import journal, reglages, sauvegarde
+from backend.core import brut, journal, reglages, sauvegarde
 from backend.core.config import config
 from backend.core.sauvegarde import DOSSIER as SAUVEGARDES
 from backend.db.db import engine, get_session
@@ -49,6 +49,7 @@ def a_propos(db: Session = Depends(get_session)):
         "sauvegardes": str(SAUVEGARDES),
         "nombre_sauvegardes": len(list(SAUVEGARDES.glob("bourse-*.db"))) if SAUVEGARDES.exists() else 0,
         "journal": str(journal.dossier()),
+        "reponses_brutes": brut.resume(),
         "derniere_actualisation": reglages.lire("derniere_actualisation") or None,
         "bibliotheques": _versions(),
         "enregistrements": _comptages(),

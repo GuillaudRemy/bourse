@@ -124,12 +124,14 @@ export default function Screener() {
           </div>
           {lignes === null ? <div className="chargement">Chargement…</div> : (
             <div className="tableau-conteneur">
-              <table className="tableau">
+              <table className="tableau tableau-fixe" style={{ minWidth: 1340 }}>
+                {/* Largeurs fixes : les colonnes ne bougent pas quand les criteres changent la liste. */}
+                <colgroup><col />{[64, 110, 78, 82, 80, 186, 104, 56, 72, 60, 96, 72, 104].map((l, i) => <col key={i} style={{ width: l }} />)}</colgroup>
                 <thead><tr><th>Valeur</th><th>Score</th><th>Cours</th><th>Pente</th><th>Écart-type</th><th>Position</th><th>Zone</th><th>Droite</th><th>Note</th><th>ROIC</th><th>PER</th><th>PER/histoire</th><th>Rdt div.</th><th>Dette/EBITDA</th></tr></thead>
                 <tbody>
                   {resultats.map(l => (
                     <tr key={l.valeur.id} className="cliquable" onClick={() => naviguer(`/valeurs/${l.valeur.id}`)}>
-                      <td className="texte"><Link className="lien-poste" to={`/valeurs/${l.valeur.id}`} onClick={e => e.stopPropagation()}>{l.valeur.nom}</Link><div className="valeur-symbole">{l.valeur.symbole}</div></td>
+                      <td className="texte" title={l.valeur.nom}><Link className="lien-poste" to={`/valeurs/${l.valeur.id}`} onClick={e => e.stopPropagation()}>{l.valeur.nom}</Link><div className="valeur-symbole">{l.valeur.symbole}</div></td>
                       <td><span className="badge statut-ok" style={{ opacity: l.score == null ? 0.4 : 1 }}>{l.score ?? '—'}</span></td>
                       <td>{prix(l.dernier, unite(l.valeur))}</td>
                       <td>{pct(l.pente, { signe: true })}</td><td>{pct(l.ecart_type, { decimales: 0 })}</td>

@@ -15,6 +15,7 @@ from backend.db.db import get_session
 from backend.db.schema import Filtre, ListeValeur, Valeur
 from backend.services.analyse_service import AnalyseService
 from backend.services.stockage import charger_cours
+from backend.sources import catalogue
 
 router = APIRouter(tags=["Screener et comparaison"])
 
@@ -132,6 +133,8 @@ def backtest_valeur(valeur_id: int, achat: float = -1.0, vente: float = 1.0, fra
     valeur = db.get(Valeur, valeur_id)
     if not valeur:
         raise HTTPException(404, "Valeur introuvable.")
+    if valeur.type in catalogue.SANS_DROITE:
+        raise HTTPException(409, "Pas de droite de régression pour une devise ou un taux : rien à simuler.")
     regle = _regle(achat, vente, frais, annees_min, fenetre, liquidites, depart_investi, valeur)
     resultat = simuler(_cours_base(db, valeur_id), regle)
     if resultat is None:

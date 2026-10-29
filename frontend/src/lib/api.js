@@ -73,7 +73,7 @@ export const api = {
   valeurs: {
     list:       ()          => request('/valeurs'),
     synthese:   ()          => request('/valeurs/synthese'),
-    matieres:   ()          => request('/valeurs/matieres'),
+    catalogue:  ()          => request('/valeurs/catalogue'),
     recherche:  (q)         => request(`/valeurs/recherche${parametres({ q })}`),
     get:        (id)        => request(`/valeurs/${id}`),
     analyse:    (id, opts)  => request(`/valeurs/${id}/analyse${parametres(opts)}`),

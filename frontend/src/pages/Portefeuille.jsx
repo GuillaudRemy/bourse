@@ -71,14 +71,15 @@ export default function Portefeuille() {
         <div className="carte" style={{ marginTop: 16 }}>
           <div className="section-titre">Opérations</div>
           <div className="tableau-conteneur">
-            <table className="tableau">
+            <table className="tableau tableau-fixe" style={{ minWidth: 900 }}>
+              <colgroup>{[104, 150, null, 104, 104, 96, 120, 44].map((l, i) => <col key={i} style={l ? { width: l } : undefined} />)}</colgroup>
               <thead><tr><th>Date</th><th style={{ textAlign: 'left' }}>Type</th><th style={{ textAlign: 'left' }}>Valeur</th><th>Quantité</th><th>Prix</th><th>Frais</th><th>Montant (€)</th><th /></tr></thead>
               <tbody>
                 {operations.map(o => (
                   <tr key={o.id}>
                     <td style={{ textAlign: 'left' }}>{date(o.jour)}</td>
                     <td className="texte">{TYPES_OP[o.type]}</td>
-                    <td className="texte">{o.valeur_id ? <Link className="lien-poste" to={`/valeurs/${o.valeur_id}`}>{nomValeur[o.valeur_id]}</Link> : '—'}</td>
+                    <td className="texte" title={nomValeur[o.valeur_id]}>{o.valeur_id ? <Link className="lien-poste" to={`/valeurs/${o.valeur_id}`}>{nomValeur[o.valeur_id]}</Link> : '—'}</td>
                     <td>{o.quantite ? nombre(o.quantite, 4).replace(/,?0+$/, '') : '—'}</td>
                     <td>{o.prix ? nombre(o.prix, 2) : '—'}</td>
                     <td title={o.ttf ? `dont TTF ${nombre(o.ttf, 2)} €` : ''}>{o.frais ? nombre(o.frais, 2) : '—'}{o.ttf ? <sup className="discret"> TTF</sup> : null}</td>
@@ -142,12 +143,13 @@ function Contenu({ s }) {
       <div className="carte">
         <div className="section-titre">Positions</div>
         <div className="tableau-conteneur">
-          <table className="tableau">
+          <table className="tableau tableau-fixe" style={{ minWidth: 1240 }}>
+            <colgroup><col />{[96, 96, 96, 104, 72, 168, 84, 80, 192, 52].map((l, i) => <col key={i} style={{ width: l }} />)}</colgroup>
             <thead><tr><th>Valeur</th><th>Quantité</th><th>PRU (€)</th><th>Cours (€)</th><th>Valeur (€)</th><th>Poids</th><th>+/- latente</th><th>Jour</th><th>Position</th><th>Zone</th><th>PEA</th></tr></thead>
             <tbody>
               {s.positions.filter(l => l.quantite > 1e-9).map(l => (
                 <tr key={l.valeur_id}>
-                  <td className="texte"><Link className="lien-poste" to={`/valeurs/${l.valeur_id}`}>{l.nom}</Link><div className="valeur-symbole">{l.symbole}</div></td>
+                  <td className="texte" title={l.nom}><Link className="lien-poste" to={`/valeurs/${l.valeur_id}`}>{l.nom}</Link><div className="valeur-symbole">{l.symbole}</div></td>
                   <td>{nombre(l.quantite, 4).replace(/,?0+$/, '')}</td>
                   <td>{nombre(l.pru, 2)}</td>
                   <td>{nombre(l.cours_eur, 2)}</td>

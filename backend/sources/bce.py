@@ -40,3 +40,27 @@ def taux(devise: str, debut: date | None = None) -> pd.Series:
     df = pd.read_csv(io.StringIO(reponse.text), usecols=["TIME_PERIOD", "OBS_VALUE"])
     serie = pd.Series(df["OBS_VALUE"].to_numpy(dtype=float), index=pd.to_datetime(df["TIME_PERIOD"]))
     return serie.dropna().sort_index()
+
+
+SERIES = "https://data-api.ecb.europa.eu/service/data/{cle}"
+
+
+def serie(cle: str, debut: date | None = None) -> pd.DataFrame:
+    """Une serie de taux (courbe des taux, taux directeur, emprunts d'Etat) au format des cours :
+    une seance par observation, cloture = ouverture = haut = bas = le taux en %.
+    Les series mensuelles (« 2026-09 ») sont datees du dernier jour du mois qu'elles resument."""
+    params = {"format": "csvdata"}
+    if debut:
+        params["startPeriod"] = debut.isoformat()[:7] if "/M." in cle else debut.isoformat()
+    try:
+        reponse = obtenir(SERIES.format(cle=cle), params=params, delai=(5, 60))
+    except ErreurReseau as e:
+        raise SourceIndisponible(f"BCE : série {cle} indisponible ({e})") from e
+    if not reponse.text.strip():
+        return pd.DataFrame()
+    df = pd.read_csv(io.StringIO(reponse.text), usecols=["TIME_PERIOD", "OBS_VALUE"]).dropna()
+    periodes = df["TIME_PERIOD"].astype(str)
+    jours = [pd.Period(p, freq="M").end_time.date() if len(p) == 7 else date.fromisoformat(p) for p in periodes]
+    valeurs = df["OBS_VALUE"].astype(float).to_numpy()
+    return pd.DataFrame({"jour": jours, "ouverture": valeurs, "haut": valeurs, "bas": valeurs, "cloture": valeurs,
+                         "ajuste": valeurs, "volume": None}).drop_duplicates("jour", keep="last").reset_index(drop=True)

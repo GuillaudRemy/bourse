@@ -5,7 +5,27 @@ Version publiée au moment de la décision : **0.5.3**.
 
 ---
 
-## Version 0.6.0 — ≈ 5,5 jours
+## Version 0.6.0 — ≈ 5,5 jours · codée le 29/10/2026
+
+Ce qui a été fait, et ce qui diffère du plan :
+
+- **Colonnes fixes** : tableau des valeurs, Screener, positions et opérations du portefeuille. Un test d'interface
+  vérifie que les en-têtes ne bougent pas après un tri, un changement de page ou une recherche.
+- **Menu** : 5 entrées (Aujourd'hui, Marchés, Portefeuille, Outils, Aide) avec des sous-onglets sous la barre ;
+  Réglages derrière l'icône d'engrenage. Pas de capture préalable : à valider pendant la recette, l'ordre et les
+  libellés se changent en une ligne.
+- **Taux européens** : Yahoo ne les fournit pas (Bund, OAT, BTP introuvables). Ils viennent de la **BCE** :
+  taux de dépôt et taux à 10 ans de la zone euro (quotidiens), OAT, Bund, BTP et Bono 10 ans (moyennes
+  **mensuelles**, seule série gratuite par pays). Taux américains 3 mois, 5, 10 et 30 ans par Yahoo.
+- **Types ajoutés** : Devise (9 paires), Taux (11 séries), Obligations (6 ETF), Cryptomonnaie (4). Devises et taux
+  n'ont pas de droite : leur fiche s'ouvre sur l'analyse technique ; un taux varie en **points** (« +0,30 pt »).
+- **Taux sans risque** : zone euro AAA à 10 ans (BCE) pour des comptes en euros et autres devises, Trésor américain à
+  10 ans pour des comptes en dollars. DCF par défaut = taux sans risque + prime de risque (réglage, 5 %), arrondi
+  au demi-point, entre 6 et 15 %. Exemple au 28/10/2026 : 3,39 % + 5 % = 8,5 %.
+- **Consensus** : un relevé par jour au plus, à chaque mise à jour complète et à l'ouverture de l'onglet Bénéfices ;
+  historique par semaine sous le tableau des prévisions.
+- **Réponses brutes** : dossier `brut/` à côté de la base, un sous-dossier par jour, purge à 30 jours et plafond de
+  500 Mo. Taille visible dans À propos ; à mesurer pendant la recette (elle n'était pas connue d'avance).
 
 ### 0. Colonnes de largeur fixe dans le tableau des valeurs — ≈ 0,5 j
 
@@ -68,6 +88,9 @@ taux de référence et les ETF.
 - Le menu à 5 entrées sur le PC de papa : tout se retrouve-t-il sans chercher ?
 - Une devise, un taux, une cryptomonnaie ajoutés depuis le catalogue ; chiffres comparés à Boursorama.
 - Le DCF d'une valeur avant et après le taux sans risque : écart expliqué.
+- Valeurs : trier par PER, par nom, changer de page : les colonnes restent en place.
+- Fiche d'une action, onglet Bénéfices : la ligne « Historique des prévisions » apparaît (premier relevé).
+- À propos : taille des réponses brutes après une journée, puis après une « Tout mettre à jour ».
 
 ---
 

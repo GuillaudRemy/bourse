@@ -20,6 +20,7 @@ from backend.api import (
     univers,
     valeurs,
 )
+from backend.core import brut
 from backend.core import journal as journal_evenements
 from backend.core.config import config
 from backend.services import taches
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
     # sont ce qui a le plus de valeur ici.
     journal_evenements.configurer().info("demarrage de Bourse %s", config.APP_VERSION)
     migrate.main()
+    brut.purger()
     if config.ACTUALISATION_AU_DEMARRAGE:
         taches.lancer_si_besoin()
     yield

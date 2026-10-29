@@ -105,3 +105,48 @@ test('suppression groupée depuis le tableau des valeurs', async ({ page, reques
   await expect(page.locator('tr', { hasText: 'JETABLE1' })).toHaveCount(0)
   await expect(page.locator('tr', { hasText: 'Essai SA' })).toHaveCount(1)
 })
+
+test('menu à 5 entrées, sous-onglets et anciennes adresses', async ({ page }) => {
+  await page.goto('/accueil')
+  const menu = page.locator('.nav-liens .nav-lien')
+  await expect(menu).toHaveText(['Aujourd’hui', 'Marchés', 'Portefeuille', 'Outils', 'Aide'])
+  await menu.filter({ hasText: 'Marchés' }).click()
+  await expect(page).toHaveURL(/\/valeurs$/)
+  await expect(page.locator('.sous-nav-lien')).toHaveText(['Valeurs suivies', 'Screener', 'Comparer'])
+  await page.locator('.sous-nav-lien', { hasText: 'Screener' }).click()
+  await expect(page).toHaveURL(/\/screener$/)
+  await expect(menu.filter({ hasText: 'Marchés' })).toHaveClass(/actif/)
+  await page.goto('/calendrier')                                  // adresse d'avant la 0.6.0
+  await expect(menu.filter({ hasText: 'Aujourd’hui' })).toHaveClass(/actif/)
+  await page.getByRole('link', { name: 'Réglages' }).click()
+  await expect(page).toHaveURL(/\/reglages$/)
+  await expect(page.getByText('Prime de risque des actions (%)')).toBeVisible()
+})
+
+test('tableau des valeurs : les colonnes ne bougent pas', async ({ page, request }) => {
+  const noms = ['A', 'Une société au nom vraiment très très long pour tester la coupure SA', 'Moyenne', 'BB', 'Groupe Industriel',
+    'C', 'Dd', 'Ee international', 'Ff', 'Gg', 'Hh holding', 'Ii', 'Jj', 'Kk', 'Ll', 'Mm', 'Nn', 'Oo', 'Pp', 'Qq', 'Rr', 'Ss']
+  const existantes = (await (await request.get('/api/valeurs')).json()).map(v => v.symbole)
+  for (const [i, nom] of noms.entries()) {
+    if (existantes.includes(`COL${i}`)) continue
+    await request.post('/api/valeurs', { data: { symbole: `COL${i}`, nom, source: 'import', type: i % 3 ? 'action' : 'etf', devise: 'EUR' } })
+  }
+  await request.put('/api/reglages/valeurs_par_page', { data: { valeur: '20' } })
+  await page.goto('/valeurs')
+  const positions = async () => page.locator('.tableau thead th').evaluateAll(ths => ths.map(th => Math.round(th.getBoundingClientRect().left)))
+  await expect(page.locator('.tableau tbody tr')).toHaveCount(20)
+  const avant = await positions()
+  await page.locator('th', { hasText: 'PER' }).click()
+  expect(await positions()).toEqual(avant)
+  await page.locator('th', { hasText: 'Valeur' }).click()
+  expect(await positions()).toEqual(avant)
+  await page.getByRole('button', { name: 'Suivante' }).click()
+  expect(await positions()).toEqual(avant)
+  await page.getByLabel('Rechercher dans les valeurs').fill('long')
+  expect(await positions()).toEqual(avant)
+  // Nom trop long : coupe, en entier au survol.
+  const cellule = page.locator('td.texte', { hasText: 'Une société' })
+  await expect(cellule).toHaveAttribute('title', noms[1])
+  expect(await cellule.evaluate(td => td.scrollWidth <= td.clientWidth + 1)).toBeTruthy()
+  await request.put('/api/reglages/valeurs_par_page', { data: { valeur: '50' } })
+})

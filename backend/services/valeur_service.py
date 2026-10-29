@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -8,7 +9,7 @@ from sqlmodel import Session, col, select
 
 from backend.db.schema import Transaction, Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
-from backend.services import alertes_service, cache
+from backend.services import alertes_service, cache, consensus_service
 from backend.services.stockage import (
     charger_divisions,
     clotures_depuis,
@@ -20,7 +21,7 @@ from backend.services.stockage import (
     enregistrer_fondamentaux,
     enregistrer_taux,
 )
-from backend.sources import bce, esef, matieres, sec, yahoo, yahoo_direct
+from backend.sources import bce, catalogue, esef, sec, yahoo, yahoo_direct
 from backend.sources.base import Identite, SourceIndisponible
 
 
@@ -42,16 +43,24 @@ class ValeurService:
         if self._db.exec(select(Valeur).where(Valeur.symbole == symbole)).first():
             raise HTTPException(409, f"La valeur « {symbole} » est déjà suivie.")
 
-        if data.source == "yahoo":
+        dans_catalogue = catalogue.trouver(symbole)
+        if dans_catalogue and dans_catalogue[1].source == "bce":
+            # Taux europeens : series BCE, en %, sans devise (rien a convertir).
+            type_, entree = dans_catalogue
+            valeur = Valeur(symbole=symbole, source="bce", nom=data.nom or entree.nom, type=type_, place="BCE",
+                            infos=json.dumps({"serie": entree.serie, "detail": entree.detail}))
+        elif data.source == "yahoo":
             try:
                 fiche = yahoo.fiche(symbole)
             except SourceIndisponible as e:
                 raise HTTPException(502, str(e)) from e
+            # Catalogue : nom francais plutot que celui de Yahoo (« Gold Dec 26 », « 10-Year Bond »), et le bon
+            # type (Yahoo range les taux americains parmi les indices, les ETF obligataires parmi les ETF).
+            type_ = dans_catalogue[0] if dans_catalogue else fiche.type
             valeur = Valeur(
-                # Matiere premiere : nom francais du catalogue plutot que l'echeance (« Gold Dec 26 »).
-                symbole=symbole, source="yahoo", nom=data.nom or matieres.nom(symbole) or fiche.nom, type=fiche.type,
-                devise=fiche.devise, place=fiche.place, secteur=fiche.secteur, pays=fiche.pays,
-                infos=json.dumps(fiche.infos), isin=(data.isin or "").upper() or None,
+                symbole=symbole, source="yahoo", nom=data.nom or catalogue.nom(symbole) or fiche.nom, type=type_,
+                devise=None if type_ == "taux" else fiche.devise, place=fiche.place, secteur=fiche.secteur,
+                pays=fiche.pays, infos=json.dumps(fiche.infos), isin=(data.isin or "").upper() or None,
             )
         else:
             valeur = Valeur(
@@ -65,7 +74,7 @@ class ValeurService:
         alertes_service.creer_par_defaut(self._db, valeur)
         self._db.commit()
 
-        if valeur.source == "yahoo" and actualiser:
+        if valeur.source in TELECHARGEES and actualiser:
             self.actualiser(valeur.id)
         return self.get(valeur.id)
 
@@ -158,6 +167,8 @@ class ValeurService:
             # Valider tout de suite : SQLite n'a qu'un ecrivain a la fois, et les appels reseau
             # qui suivent (comptes : jusqu'a 20 s) bloqueraient les autres valeurs actualisees en parallele.
             self._db.commit()
+        elif valeur.source == "bce":
+            nb_cours = self._cours_bce(valeur, avertissements, recents)
 
         if valeur.source == "yahoo" and complet:
             try:
@@ -173,6 +184,12 @@ class ValeurService:
                 valeur.devise_comptes = valeur.devise_comptes or fiche.devise_comptes
             except SourceIndisponible as e:
                 avertissements.append(str(e))
+            if valeur.type == "taux":
+                valeur.devise = None          # Yahoo donne « USD » pour un taux americain : c'est un %
+            if valeur.type == "action":
+                # Historique des previsions : un instantane par actualisation complete (secondaire : sans erreur).
+                with contextlib.suppress(SourceIndisponible):
+                    consensus_service.enregistrer(self._db, valeur_id, yahoo.consensus(valeur.symbole))
         self._db.flush()
 
         if change:
@@ -190,6 +207,25 @@ class ValeurService:
         if avertissements:
             message += " " + " · ".join(avertissements)
         return Resultat(message=message, cours=nb_cours, fondamentaux=nb_fond, avertissements=avertissements)
+
+    def _cours_bce(self, valeur: Valeur, avertissements: list[str], recents: bool) -> int:
+        """Taux europeens (BCE) : la serie entiere est petite ; en mode « cours », le dernier mois seulement."""
+        trouve = catalogue.trouver(valeur.symbole)        # le catalogue d'abord : valeur recue par un partage
+        cle = trouve[1].serie if trouve else json.loads(valeur.infos or "{}").get("serie")
+        if not cle:
+            raise HTTPException(409, f"{valeur.nom} : série BCE inconnue.")
+        dernier = dernier_cours(self._db, valeur.id)
+        debut = dernier - timedelta(days=40) if recents and dernier else None
+        try:
+            cours = bce.serie(cle, debut)
+        except SourceIndisponible as e:
+            if dernier is None:
+                raise HTTPException(502, str(e)) from e
+            avertissements.append(str(e))
+            return 0
+        nombre = enregistrer_cours(self._db, valeur.id, cours) if not cours.empty else 0
+        self._db.commit()
+        return nombre
 
     def _actualiser_comptes(self, valeur: Valeur, avertissements: list[str]) -> tuple[int, list[str]]:
         if valeur.type != "action":
@@ -265,6 +301,7 @@ class ValeurService:
         return valeur
 
 
+TELECHARGEES = ("yahoo", "bce")    # sources actualisees automatiquement (« import » : fichiers a la main)
 COMPLET_TOUS_LES = timedelta(days=7)
 RECOUVREMENT_JOURS = 10          # seances deja connues retelechargees pour verifier qu'elles n'ont pas change
 ECART_RECOUVREMENT = 0.005      # au-dela, la source a corrige son historique : on recharge tout
