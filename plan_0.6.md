@@ -116,6 +116,15 @@ signature SignPath (candidature à votre nom), assistant sous Windows, test auto
 (ne s'exécute que dans la chaîne de publication). Restent aussi 5 gros modules à typer (stockage, analyse, valeurs,
 portefeuille, SEC : environ 250 corrections mécaniques).
 
+## Notes pour la prochaine version (demandées le 29/10/2026, pendant la bêta 0.6.1)
+
+- **Cryptomonnaies en dollars** : toujours cotées contre le dollar (BTC-USD, ETH-USD…), comme sur la plupart
+  des plateformes, au lieu de l'euro. Les cryptos déjà suivies en EUR seront à convertir, ou à remplacer en douceur.
+- **Plus de type « Obligations »** : ce sont des ETF. Le type disparaît (les valeurs existantes passent en « ETF »),
+  et les ETF obligataires du catalogue s'ajoutent depuis l'onglet ETF.
+- **Menu** : « Marchés » ne contient plus que les valeurs suivies (plus de sous-onglets) ; **Screener** et
+  **Comparer** passent dans « Outils », à côté du simulateur, du backtest et de la couverture des données.
+
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 
 ### Vos demandes
