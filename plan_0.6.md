@@ -122,8 +122,11 @@ portefeuille, SEC : environ 250 corrections mécaniques).
   des plateformes, au lieu de l'euro. Les cryptos déjà suivies en EUR seront à convertir, ou à remplacer en douceur.
 - **Plus de type « Obligations »** : ce sont des ETF. Le type disparaît (les valeurs existantes passent en « ETF »),
   et les ETF obligataires du catalogue s'ajoutent depuis l'onglet ETF.
-- **Menu** : « Marchés » ne contient plus que les valeurs suivies (plus de sous-onglets) ; **Screener** et
-  **Comparer** passent dans « Outils », à côté du simulateur, du backtest et de la couverture des données.
+- **Menu** : « Marchés » ne contient plus que les valeurs suivies ; « Aujourd'hui » ne garde que le résumé du jour.
+  **Screener**, **Comparer**, **Calendrier** et **Alertes** passent dans « Outils », avec le simulateur, le backtest
+  et la couverture des données.
+- **Plus de seconde barre horizontale** (les sous-onglets sous le menu) : « Outils » devient un **menu déroulant**
+  qui s'ouvre depuis le haut, au clic sur l'entrée. Même principe pour « Aide » (Méthode, Glossaire, À propos).
 
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 
