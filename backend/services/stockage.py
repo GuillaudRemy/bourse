@@ -8,7 +8,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, func, select
 
 from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
-from backend.db.schema import Cours, Division, Evenement, Fondamental, TauxChange
+from backend.db.schema import Correction, Cours, Dividende, Division, Evenement, Fondamental, TauxChange
 from backend.services import cache
 from backend.sources.xbrl import DELAI_PUBLICATION, ajuster_divisions, facteur_divisions
 
@@ -98,6 +98,11 @@ def enregistrer_fondamentaux(db: Session, valeur_id: int, annees: dict[int, dict
         for cle, valeur in champs.items():
             actuelle = origine.get(cle)
             if actuelle is None or PRIORITE.get(actuelle, 0) <= rang:
+                avant = getattr(ligne, cle)
+                if actuelle == source and avant and abs(valeur / avant - 1) > SEUIL_REVISION:
+                    # La meme source donne un autre chiffre qu'avant : compte revise (ou erreur corrigee).
+                    db.add(Correction(valeur_id=valeur_id, type="comptes",
+                                      detail=f"{annee}, {cle} : {_court(avant)} → {_court(valeur)} ({source.upper()})"))
                 setattr(ligne, cle, valeur)
                 origine[cle] = source
                 modifiee = True
@@ -106,6 +111,53 @@ def enregistrer_fondamentaux(db: Session, valeur_id: int, annees: dict[int, dict
             ligne.source = max(origine.values(), key=lambda s: PRIORITE.get(s, 0))
             total += 1
     return total
+
+
+SEUIL_REVISION = 0.01            # ecart au-dela duquel un chiffre revu par sa source est journalise
+
+
+def _court(v: float) -> str:
+    return f"{v:,.4g}".replace(",", " ")
+
+
+def journaliser_correction_cours(db: Session, valeur_id: int, cours: pd.DataFrame, avant: dict[date, float]) -> None:
+    """Compare l'historique retelecharge a celui deja enregistre (memes jours) : une source qui retouche
+    son passe (cours errone corrige, ajustement refait) est journalisee. A appeler hors division d'actions,
+    qui modifie legitimement tout le passe."""
+    ecarts = []
+    # Le dernier jour enregistre a pu l'etre en cours de seance (cryptomonnaies, actualisation dans la journee) :
+    # son cours definitif n'est pas une correction.
+    dernier = max(avant, default=None)
+    for jour, cloture in zip(cours["jour"], cours["cloture"], strict=True):
+        if dernier is None or jour >= dernier:
+            continue
+        ancien = avant.get(jour)
+        if ancien and cloture and abs(cloture / ancien - 1) > 0.005:
+            ecarts.append((abs(cloture / ancien - 1), jour, ancien, cloture))
+    if ecarts:
+        _, jour, ancien, nouveau = max(ecarts)
+        db.add(Correction(valeur_id=valeur_id, type="cours",
+                          detail=f"{len(ecarts)} séance(s) modifiée(s) par la source ; le plus grand écart le "
+                                 f"{jour:%d/%m/%Y} : {_court(ancien)} → {_court(nouveau)}"))
+
+
+def enregistrer_dividendes(db: Session, valeur_id: int, cours: pd.DataFrame) -> int:
+    """Remplace les dividendes de la valeur par ceux de l'historique complet (colonne `dividende`)."""
+    if "dividende" not in cours.columns:
+        return 0
+    lignes = [(j, float(d)) for j, d in zip(cours["jour"], cours["dividende"], strict=True) if pd.notna(d) and d > 0]
+    for ancien in db.exec(select(Dividende).where(Dividende.valeur_id == valeur_id)):
+        db.delete(ancien)
+    db.flush()
+    for jour, montant in sorted(dict(lignes).items()):
+        db.add(Dividende(valeur_id=valeur_id, jour=jour, montant=montant))
+    return len(lignes)
+
+
+def charger_dividendes(db: Session, valeur_id: int) -> pd.Series:
+    lignes = db.exec(select(Dividende.jour, Dividende.montant).where(Dividende.valeur_id == valeur_id)
+                     .order_by(Dividende.jour)).all()
+    return pd.Series([m for _, m in lignes], index=pd.to_datetime([j for j, _ in lignes]), dtype=float)
 
 
 def enregistrer_divisions(db: Session, valeur_id: int, divisions: list[tuple]) -> None:

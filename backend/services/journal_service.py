@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from backend.core.config import config
 from backend.db.schema import Decision, PieceJointe, These, Valeur
@@ -49,7 +49,7 @@ class JournalService:
     def decisions(self, valeur_id: int) -> list[DecisionRead]:
         self._valeur(valeur_id)
         lignes = self._db.exec(select(Decision).where(Decision.valeur_id == valeur_id)
-                               .order_by(Decision.jour.desc(), Decision.id.desc()))
+                               .order_by(col(Decision.jour).desc(), col(Decision.id).desc()))
         return [DecisionRead.model_validate(d) for d in lignes]
 
     def ecrire_decision(self, valeur_id: int, data: DecisionEcriture, decision_id: int | None = None) -> DecisionRead:
@@ -70,19 +70,21 @@ class JournalService:
     def pieces(self, valeur_id: int) -> list[PieceRead]:
         self._valeur(valeur_id)
         lignes = self._db.exec(select(PieceJointe).where(PieceJointe.valeur_id == valeur_id)
-                               .order_by(PieceJointe.created_at.desc()))
+                               .order_by(col(PieceJointe.created_at).desc()))
         return [PieceRead.model_validate(p) for p in lignes]
 
     async def ajouter_piece(self, valeur_id: int, fichier: UploadFile) -> PieceRead:
+        return self.enregistrer_piece(valeur_id, fichier.filename or "document", await fichier.read(), fichier.content_type)
+
+    def enregistrer_piece(self, valeur_id: int, nom: str, contenu: bytes, type_mime: str | None = None) -> PieceRead:
         self._valeur(valeur_id)
-        contenu = await fichier.read()
         if len(contenu) > TAILLE_MAX:
             raise HTTPException(413, "Fichier trop volumineux (150 Mo maximum).")
-        nom = Path(fichier.filename or "document").name
+        nom = Path(nom).name
         disque = f"{uuid.uuid4().hex}{Path(nom).suffix.lower()[:10]}"
         (dossier_pieces() / disque).write_bytes(contenu)
         piece = PieceJointe(valeur_id=valeur_id, nom=nom, fichier=disque, taille=len(contenu),
-                            type_mime=fichier.content_type or mimetypes.guess_type(nom)[0] or "application/octet-stream")
+                            type_mime=type_mime or mimetypes.guess_type(nom)[0] or "application/octet-stream")
         self._db.add(piece)
         self._db.commit()
         self._db.refresh(piece)

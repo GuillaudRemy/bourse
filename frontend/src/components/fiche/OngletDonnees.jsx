@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { TYPES } from '../../lib/zones'
 import { date } from '../../lib/format'
 import DepotFichier from '../DepotFichier'
+import Controles from './Controles'
 
 const EXEMPLE = `date;ouverture;haut;bas;cloture;cloture_ajustee;volume
 02/01/2003;31,20;31,85;31,02;31,70;12,41;1 523 400
@@ -51,6 +52,7 @@ export default function OngletDonnees({ analyse, recharger }) {
   return (
     <div className="grille-2">
       <div className="pile" style={{ gap: 16 }}>
+        <Controles valeurId={valeur.id} />
         <div className="carte">
           <div className="section-titre">Importer des cours</div>
           <div className="carte-corps pile">

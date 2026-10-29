@@ -89,9 +89,20 @@ def trouver_lei(nom: str) -> str | None:
     return meilleur if score_meilleur >= 0.75 else None
 
 
+def lei_par_isin(isin: str) -> str | None:
+    """LEI exact d'un emetteur a partir de l'ISIN de son action (GLEIF, base officielle des LEI) :
+    plus sur que la comparaison des noms, qui peut confondre deux societes proches."""
+    try:
+        reponse = json_("https://api.gleif.org/api/v1/lei-records", params={"filter[isin]": isin})
+    except ErreurReseau:
+        return None
+    donnees = reponse.get("data") or []
+    return donnees[0]["id"] if len(donnees) == 1 else None
+
+
 # ── Comptes ──────────────────────────────────────────────────────────
 def comptes(identite: Identite, divisions: Sequence[tuple[date, float]] = ()) -> Comptes:
-    lei = identite.lei or trouver_lei(identite.nom)
+    lei = identite.lei or (identite.isin and lei_par_isin(identite.isin)) or trouver_lei(identite.nom)
     if not lei:
         raise SourceIndisponible(
             f"ESEF : société introuvable pour « {identite.nom} ». Renseignez son LEI dans les réglages de la valeur.")
@@ -120,10 +131,29 @@ def comptes(identite: Identite, divisions: Sequence[tuple[date, float]] = ()) ->
         facteur = facteur_divisions(list(divisions), reference)
         for annee, valeurs in extraits["annees"].items():
             # Rapport plus recent = chiffres retraites : il remplace l'annee deja connue.
-            annees.setdefault(int(annee), {}).update(ajuster_divisions(valeurs, facteur))
+            annees.setdefault(int(annee), {}).update(ajuster_divisions(corriger_echelle(valeurs), facteur))
         if extraits.get("devise"):
             identite.decouverts["devise_comptes"] = extraits["devise"]
     return annees
+
+
+def corriger_echelle(valeurs: dict) -> dict:
+    """Certains depots declarent le BPA et le nombre d'actions avec une echelle fausse (x 1 000 000 : Capgemini,
+    exercice 2022). Repere : ramenes a la bonne echelle, ils redeviennent coherents avec bpa = benefice / actions."""
+    v = dict(valeurs)
+    n, bpa, benefice = v.get("nombre_actions"), v.get("bpa"), v.get("benefice_net")
+    if not (n and bpa and benefice):
+        return v
+    for k in (1e6, 1e3):
+        if n > 2e11 and 1e5 < n / k < 5e10 and abs(benefice / (n / k) / (bpa / k) - 1) < 0.15:
+            v["nombre_actions"], v["bpa"] = n / k, bpa / k
+            if v.get("dividende") and v["dividende"] > 1e3:
+                v["dividende"] /= k
+            return v
+        if abs(bpa) > 1e4 and abs(benefice / n / (bpa / k) - 1) < 0.15:       # le BPA seul est faux
+            v["bpa"] = bpa / k
+            return v
+    return v
 
 
 def _extraire(depot: dict) -> dict:

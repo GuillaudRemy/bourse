@@ -74,6 +74,7 @@ export const api = {
     list:       ()          => request('/valeurs'),
     synthese:   ()          => request('/valeurs/synthese'),
     catalogue:  ()          => request('/valeurs/catalogue'),
+    controles:  (id)        => request(`/valeurs/${id}/controles`),
     recherche:  (q)         => request(`/valeurs/recherche${parametres({ q })}`),
     get:        (id)        => request(`/valeurs/${id}`),
     analyse:    (id, opts)  => request(`/valeurs/${id}/analyse${parametres(opts)}`),
@@ -164,6 +165,16 @@ export const api = {
   },
   comparer:  (opts) => request(`/comparer${parametres(opts)}`),
   backtest:  (valeurId, opts) => request(`/backtest${valeurId ? `/${valeurId}` : ''}${parametres(opts)}`),
+  couverture: () => request('/donnees/couverture'),
+  amf: {
+    documents: (id)        => request(`/valeurs/${id}/amf`),
+    lire:      (id, annee) => request(`/valeurs/${id}/amf/lire`, { method: 'POST', ...corps({ annee }) }),
+  },
+  simulateur: {
+    classes:  ()           => request('/simulateur/classes'),
+    lancer:   (simulation) => request('/simulateur', { method: 'POST', ...corps(simulation) }),
+    mesurer:  (valeurId)   => request(`/simulateur/mesurer/${valeurId}`),
+  },
 
   calendrier:  (opts) => request(`/calendrier${parametres(opts || {})}`),
   actualites:  (id)   => request(`/valeurs/${id}/actualites`),

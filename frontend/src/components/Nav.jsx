@@ -9,7 +9,7 @@ const MENU = [
   { label: 'Aujourd’hui',  pages: [['/accueil', 'Résumé du jour'], ['/calendrier', 'Calendrier'], ['/alertes', 'Alertes']] },
   { label: 'Marchés',      pages: [['/valeurs', 'Valeurs suivies'], ['/screener', 'Screener'], ['/comparer', 'Comparer']] },
   { label: 'Portefeuille', pages: [['/portefeuille', 'Portefeuille']] },
-  { label: 'Outils',       pages: [['/backtest', 'Backtest']] },
+  { label: 'Outils',       pages: [['/simulateur', 'Simulateur de patrimoine'], ['/backtest', 'Backtest'], ['/donnees', 'Couverture des données']] },
   { label: 'Aide',         pages: [['/methode', 'Méthode'], ['/glossaire', 'Glossaire'], ['/a-propos', 'À propos']] },
 ]
 const dans = (chemin, page) => chemin === page || chemin.startsWith(page + '/')

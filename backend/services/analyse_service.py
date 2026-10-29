@@ -39,6 +39,9 @@ INDUSTRIES_CYCLES_LONGS = {"Banks - Diversified", "Banks - Regional", "Aerospace
                            "Insurance - Life", "Insurance - Property & Casualty"}
 
 
+COTATION_ARRETEE_JOURS = 21
+
+
 def ecart_points(cloture: pd.Series, jours: int) -> float | None:
     """Ecart en points sur les `jours` calendaires precedant la derniere observation (taux)."""
     debut = cloture.loc[:cloture.index[-1] - pd.Timedelta(days=jours)]
@@ -377,6 +380,9 @@ class AnalyseService:
                 "rsi": _f(rsi14.iloc[-1]),
                 "ecart_mm200": _f(cloture.iloc[-1] / mm200.iloc[-1] - 1) if pd.notna(mm200.iloc[-1]) else None,
                 "qualite": qualite.controler(cours, taux=valeur.type == "taux")["statut"],
+                # Plus de cotation depuis 3 semaines (hors series mensuelles) : retiree de la cote ?
+                "cotation_arretee": valeur.source != "bce"
+                                    and (pd.Timestamp.today() - cloture.index[-1]).days > COTATION_ARRETEE_JOURS,
             }
             if valeur.type == "taux":          # variations en points (voir _stats_taux)
                 ligne |= {

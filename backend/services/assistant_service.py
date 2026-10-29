@@ -152,9 +152,29 @@ def lancer_rapport(db: Session, valeur_id: int, nom: str, contenu: bytes) -> str
     with _verrou:
         _travaux[travail_id] = {"etape": "Lecture du PDF", "fait": 0, "total": 0, "termine": False,
                                 "erreur": None, "analyse_id": None}
-    threading.Thread(target=_lire_rapport, args=(travail_id, valeur_id, valeur.nom, nom, contenu, modele),
+    societe = valeur.nom + echelle(db, valeur_id)
+    threading.Thread(target=_lire_rapport, args=(travail_id, valeur_id, societe, nom, contenu, modele),
                      daemon=True, name="assistant-rapport").start()
     return travail_id
+
+
+def echelle(db: Session, valeur_id: int) -> str:
+    """Ordres de grandeur du dernier exercice connu, pour que le modele juge les proportions : une depreciation
+    de 50 M€ est majeure pour une PME, anecdotique pour un groupe de 80 Md€ de chiffre d'affaires."""
+    from backend.services.stockage import charger_fondamentaux
+    comptes = [f for f in charger_fondamentaux(db, valeur_id) if f.get("chiffre_affaires")]
+    if not comptes:
+        return ""
+    dernier = comptes[-1]
+    reperes = [f"{libelle} {dernier[cle] / 1e6:,.0f} M".replace(",", " ")
+               for cle, libelle in (("chiffre_affaires", "chiffre d'affaires"), ("benefice_net", "resultat net"),
+                                    ("total_actif", "total du bilan")) if dernier.get(cle)]
+    return f" (exercice {dernier['annee']} : {', '.join(reperes)}, dans la devise des comptes)"
+
+
+PROPORTIONS = ("Juge l'importance de chaque fait par rapport a la taille de la societe : donne le montant quand le texte "
+               "le cite, et ne qualifie de majeur ou significatif qu'un montant superieur a environ 5 % du chiffre "
+               "d'affaires, du resultat net ou du bilan ; en dessous, dis qu'il est limite au regard de la taille du groupe.")
 
 
 def _maj(travail_id: str, **champs) -> None:
@@ -181,7 +201,7 @@ def _lire_rapport(travail_id: str, valeur_id: int, societe: str, nom: str, conte
                     f"Extrait du rapport annuel de {societe}. Releve les points importants pour un actionnaire de long "
                     "terme : risques, strategie, perspectives, et tout signe de rupture (changement de metier, "
                     "acquisition ou cession majeure, restructuration, depreciation, litige, changement de direction). "
-                    "Au plus 8 points. Une ligne par point, exactement sous cette forme :\n"
+                    + PROPORTIONS + " Au plus 8 points. Une ligne par point, exactement sous cette forme :\n"
                     "- [risque|strategie|perspective|rupture] (p. NUMERO) phrase courte\n\n" + lot}])
             points += lire_points(reponse)
             _maj(travail_id, fait=i + 1)
@@ -256,7 +276,7 @@ def _synthetiser(modele: str, societe: str, points: list[dict]) -> dict:
     resume = ollama.discuter(modele, [
         {"role": "system", "content": PRUDENCE},
         {"role": "user", "content": f"Points releves dans le rapport annuel de {societe}. Resume-les en 5 lignes "
-                                    "de texte simple, sans liste ni titre.\n\n" + liste}]).strip()
+                                    "de texte simple, sans liste ni titre. " + PROPORTIONS + "\n\n" + liste}]).strip()
     questions = [re.sub(r"^([-*•]|\d+[.)])\s+", "", l.strip()) for l in ollama.discuter(modele, [
         {"role": "system", "content": PRUDENCE},
         {"role": "user", "content": f"A partir de ces points du rapport annuel de {societe}, ecris 3 a 5 questions "

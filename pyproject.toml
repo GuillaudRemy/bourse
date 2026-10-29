@@ -32,11 +32,9 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
+# Modules encore a typer completement (requetes SQLModel surtout) : 5 restants sur 14 en 0.6.1.
 module = [
-    "backend.api.journal", "backend.api.recherche", "backend.api.suivi", "backend.api.univers",
-    "backend.services.alertes_service", "backend.services.analyse_service", "backend.services.export_service",
-    "backend.services.import_service", "backend.services.journal_service", "backend.services.portefeuille_service",
-    "backend.services.releve_service", "backend.services.stockage", "backend.services.valeur_service",
-    "backend.sources.sec",
+    "backend.services.analyse_service", "backend.services.portefeuille_service", "backend.services.stockage",
+    "backend.services.valeur_service", "backend.sources.sec",
 ]
 ignore_errors = true

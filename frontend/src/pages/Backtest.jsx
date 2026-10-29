@@ -1,3 +1,4 @@
+// @ts-check
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -15,7 +16,7 @@ export default function Backtest() {
   const [valeurs, setValeurs] = useState([])
   const [listes, setListes] = useState([])
   const [cible, setCible] = useState('tout')            // 'tout' | 'liste:ID' | ID de valeur
-  const [p, setP] = useState({ achat: -1, vente: 1, depart_investi: false, frais: '', annees_min: 10, fenetre: '' })
+  const [p, setP] = useState(/** @type {any} */ ({ achat: -1, vente: 1, depart_investi: false, frais: '', annees_min: 10, fenetre: '' }))
   const [r, setR] = useState(null)
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState(null)

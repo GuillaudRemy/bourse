@@ -17,6 +17,8 @@ import Alertes from './pages/Alertes'
 import Screener from './pages/Screener'
 import Comparer from './pages/Comparer'
 import Backtest from './pages/Backtest'
+import Simulateur from './pages/Simulateur'
+import Couverture from './pages/Couverture'
 
 export default function App() {
   return (
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="/screener"    element={<Screener />} />
         <Route path="/comparer"    element={<Comparer />} />
         <Route path="/backtest"    element={<Backtest />} />
+        <Route path="/simulateur"  element={<Simulateur />} />
+        <Route path="/donnees"     element={<Couverture />} />
         <Route path="/glossaire"   element={<Glossaire />} />
         <Route path="/a-propos"    element={<APropos />} />
         <Route path="/valeurs/:id/rapport" element={<Rapport />} />

@@ -1,3 +1,4 @@
+// @ts-check
 import { CandlestickSeries, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers } from 'lightweight-charts'
 import { useGraphique, points, echelle, couleur, alpha } from '../lib/graphique'
 
@@ -48,6 +49,7 @@ export default function GraphiqueTechnique({ t, options, annotations = [], onCli
     })
 
     // Annotations : niveaux (lignes horizontales), lignes de tendance, notes datees.
+    /** @type {any[]} */
     const notes = []
     for (const a of annotations) {
       const d = a.donnees

@@ -2,6 +2,7 @@
 import io
 
 import pandas as pd
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from backend.db.champs import CHAMPS
@@ -34,6 +35,8 @@ def _classeur(onglets: dict[str, pd.DataFrame]) -> bytes:
 
 def valeur(db: Session, valeur_id: int) -> tuple[str, bytes]:
     v = db.get(Valeur, valeur_id)
+    if v is None:
+        raise HTTPException(404, "Valeur introuvable.")
     service = AnalyseService(db)
     analyse = service.analyse(valeur_id)
     fiche = service.fiche_resumee(v)

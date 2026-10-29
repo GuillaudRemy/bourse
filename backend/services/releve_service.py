@@ -83,9 +83,7 @@ def proposer(db: Session, compte_id: int, contenu: bytes) -> dict:
             "jour": jours.iloc[i].isoformat(), "type": type_, "libelle": libelle[:120], "isin": isin,
             "symbole": symbole, "valeur_id": valeur.id if valeur else None, "valeur_nom": valeur.nom if valeur else None,
             "quantite": abs(quantite) if quantite is not None else None,
-            "prix": abs(brut["prix"]) if brut.get("prix") is not None else None,
-            "frais": abs(brut["frais"]) if brut.get("frais") is not None else None,
-            "montant": abs(brut["montant"]) if brut.get("montant") is not None else None,
+            **{cle: abs(v) if (v := brut.get(cle)) is not None else None for cle in ("prix", "frais", "montant")},
         })
     if not lignes:
         raise HTTPException(400, "Aucune opération lisible dans le fichier.")
@@ -121,6 +119,7 @@ def valider(db: Session, compte_id: int, lignes: list[dict]) -> dict:
             if existante is None:
                 existante_id = valeurs.create(ValeurCreate(symbole=l["suggestion"]["symbole"]), actualiser=False).id
                 existante = db.get(Valeur, existante_id)
+            assert existante is not None
             if l.get("isin") and not existante.isin:
                 existante.isin = l["isin"]
             l["valeur_id"] = existante.id

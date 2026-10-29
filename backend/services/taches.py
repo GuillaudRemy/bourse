@@ -9,7 +9,9 @@ Rapidite (plusieurs centaines de valeurs) :
   · actualisation legere (cours et divisions, un seul appel) ; comptes, fiche et calendrier
     seulement s'ils datent de plus d'une semaine (valeur_service.complet_du).
 """
+import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 
@@ -20,6 +22,7 @@ from backend.core import brut, reglages
 from backend.core.journal import journal
 from backend.db.db import engine
 from backend.db.schema import Valeur
+from backend.services import cache
 
 _log = journal("taches")
 PARALLELE = 4          # au-dela, Yahoo limite le debit (erreurs 429)
@@ -54,34 +57,63 @@ def etat_sans_verrou() -> dict:
     return {**_etat, "echecs": list(_etat["echecs"]), "avertissements": list(_etat["avertissements"])}
 
 
-def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto") -> None:
+ABANDON = 5             # echecs d'affilee apres lesquels l'actualisation rapide ne reessaie plus la valeur
+# secondes avant le second essai des valeurs en echec (coupure, limite de debit) ; 0 dans les tests
+REPRISE_APRES = float(os.environ.get("BOURSE_REPRISE_APRES", "20"))
+
+
+def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto", dernier_essai: bool = True) -> bool:
+    """Vrai si la valeur est actualisee (ou volontairement ignoree). `dernier_essai=False` : un echec n'est
+    ni compte ni signale, la valeur sera reessayee en fin de lot."""
     from backend.services.valeur_service import ValeurService, complet_du  # import tardif : evite un cycle
     with _verrou:
         _etat["courant"] = nom
+    erreur = None
     with Session(engine) as db:
         try:
             valeur = db.get(Valeur, valeur_id)
             if valeur is None:                  # supprimee entre-temps
-                return
+                return True
+            if valeur.echecs >= ABANDON and mode != "complet":
+                # Valeur « morte » (retiree de la cote, symbole change) : plus d'appels inutiles a chaque
+                # actualisation rapide ; « Tout mettre a jour » la reessaie.
+                with _verrou:
+                    _etat["avertissements"].append(f"{nom} : ignorée après {valeur.echecs} échecs d'affilée "
+                                                   "(cotation arrêtée ou symbole changé ?) ; « Tout mettre à jour » la réessaie")
+                return True
             complet = mode == "complet" or (mode == "auto" and complet_du(valeur))
             # Un historique complet est retelecharge quand tout est mis a jour ; sinon, seances recentes.
             resultat = ValeurService(db).actualiser(valeur_id, complet=complet, change=False, recents=mode != "complet")
+            if valeur.echecs:
+                valeur.echecs, valeur.derniere_erreur = 0, None
+                db.commit()
             if resultat.avertissements:
                 with _verrou:
                     _etat["avertissements"].append(f"{nom} : {' · '.join(resultat.avertissements)}")
+            return True
         except HTTPException as e:
             db.rollback()
             _log.warning("actualisation de %s : %s", nom, e.detail)
-            with _verrou:
-                _etat["echecs"].append(f"{nom} : {e.detail}")
+            erreur = str(e.detail)
         except Exception as e:     # jamais laisser une valeur bloquer les suivantes
             db.rollback()
             _log.exception("actualisation de %s : erreur inattendue", nom)
-            with _verrou:
-                _etat["echecs"].append(f"{nom} : {e}")
+            erreur = str(e)
         finally:
-            with _verrou:
-                _etat["faits"] += 1
+            if erreur is None or dernier_essai:
+                with _verrou:
+                    _etat["faits"] += 1
+    if dernier_essai:
+        with Session(engine) as db:
+            valeur = db.get(Valeur, valeur_id)
+            if valeur is not None:
+                valeur.echecs += 1
+                valeur.derniere_erreur = erreur[:500]
+                db.commit()
+                cache.invalider(valeur_id)
+        with _verrou:
+            _etat["echecs"].append(f"{nom} : {erreur}")
+    return False
 
 
 def _travailler(ids: list[tuple[int, str]], mode: str = "auto") -> None:
@@ -98,7 +130,15 @@ def _travailler(ids: list[tuple[int, str]], mode: str = "auto") -> None:
         with _verrou:
             _etat["avertissements"] += avertissements
         with ThreadPoolExecutor(max_workers=PARALLELE, thread_name_prefix="actualisation") as groupe:
-            list(groupe.map(lambda v: _actualiser_une(v[0], v[1], mode), ids))
+            reussites = list(groupe.map(lambda v: _actualiser_une(v[0], v[1], mode, dernier_essai=False), ids))
+        # Reprise automatique : les echecs passagers (coupure, limite de debit) passent souvent au second essai,
+        # une valeur a la fois apres une pause.
+        a_reprendre = [v for v, ok in zip(ids, reussites, strict=True) if not ok]
+        if a_reprendre:
+            _log.info("reprise de %d valeur(s) en echec", len(a_reprendre))
+            time.sleep(REPRISE_APRES)
+            for v in a_reprendre:
+                _actualiser_une(v[0], v[1], mode)
         reglages.ecrire("derniere_actualisation", date.today().isoformat())
         brut.purger()
         _log.info("actualisation terminee : %d valeur(s), %d echec(s) en %.0f s", len(ids), len(_etat["echecs"]),

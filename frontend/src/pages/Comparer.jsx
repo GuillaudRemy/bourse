@@ -1,3 +1,4 @@
+// @ts-check
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -6,6 +7,7 @@ import { STATUTS } from '../lib/zones'
 import { BadgeZone } from '../components/Jauge'
 import GraphiqueLignes, { COULEURS } from '../components/GraphiqueLignes'
 
+/** @type {[string, (f: any) => any][]} */
 const LIGNES = [
   ['Cours', l => prix(l.dernier, unite(l.valeur))], ['Performance 1 an', l => pct(l.perf_1an, { signe: true })],
   ['Performance 5 ans', l => pct(l.perf_5ans, { signe: true })], ['Pente de la droite', l => pct(l.pente, { signe: true })],
@@ -48,6 +50,7 @@ export default function Comparer() {
   const nom = id => valeurs.find(v => String(v.id) === String(id))?.nom ?? id
   const choisis = ids.filter(id => donnees?.series[id])
   const base100 = useMemo(() => {
+    /** @type {{ nom: string, valeurs: any, couleur?: string, pointille?: boolean, epaisseur?: number }[]} */
     const lignes = choisis.map(id => ({ nom: nom(id), valeurs: donnees.series[id] }))
     if (lignes.length && reference && donnees?.series[reference] && !ids.includes(reference)) {
       lignes.push({ nom: `${nom(reference)} (référence)`, valeurs: donnees.series[reference], couleur: '#9CA3AF', pointille: true, epaisseur: 1.5 })

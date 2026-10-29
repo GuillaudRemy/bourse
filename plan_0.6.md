@@ -94,7 +94,29 @@ taux de référence et les ETF.
 
 ---
 
-## Version 0.7.0 — reportés
+## Version 0.6.1 — le contenu prévu pour la 0.7.0 · codée le 29/10/2026, publiée en bêta (0.6.1-beta.1)
+
+Publiée d'abord pour le seul PC où « Recevoir les versions bêta » vaut « oui » ; 0.6.1 pour tous ensuite, sur feu vert.
+
+| Fait | Détail |
+|---|---|
+| **Simulateur de patrimoine** (Outils) | Versement mensuel, capital de départ, 5 à 40 ans, 5 placements (actions, obligations, or, fonds en euros, livret), modèles de répartition, 3 000 trajectoires, fourchette pessimiste / médiane / optimiste, option « euros d'aujourd'hui ». Chaque hypothèse peut être **mesurée sur une valeur suivie** (rendement réel sur 20 ans, dividendes réinvestis, en euros). |
+| **Comptes européens d'avant 2020** | Archives de l'AMF (documents de référence depuis 2005 pour les sociétés cotées à Paris) : onglet Fondamentaux, une année = un clic, lecture assistée du PDF puis **relecture** avant enregistrement (≈ 40 s par document, 3 à 5 exercices chacun). Le PDF est rangé dans le journal, où l'assistant peut le lire. Autres pays européens : non couverts (pas d'archive gratuite équivalente trouvée). |
+| **Seconde source de cours** | Euronext (Paris, Amsterdam, Bruxelles, Lisbonne, Milan, Oslo, Dublin) et Nasdaq (États-Unis) : clôtures des 2 dernières années comparées à Yahoo à chaque mise à jour complète. Stooq bloque désormais les téléchargements automatisés : écarté. Sur 11 actions de test : 10 vérifiées, 0 désaccord. |
+| **Dividendes conservés** | Chaque dividende est gardé ; le rendement total est recalculé et comparé au cours ajusté de Yahoo (écart LVMH : 0,06 %). |
+| **Contrôle qualité des comptes** | BPA ≠ bénéfice ÷ actions, bilan déséquilibré, variation × 5 d'une année sur l'autre, années manquantes ; score de confiance sur 100. A trouvé dès le premier essai une vraie erreur du dépôt ESEF 2022 de Capgemini (BPA et nombre d'actions × 1 000 000), désormais corrigée automatiquement à la lecture. |
+| **Page « Couverture des données »** (Outils) | Profondeur des cours et des comptes, sources, ISIN / LEI, dividendes, incidents, corrections, par valeur. |
+| **Actualisation robuste** | Nouvel essai automatique des échecs en fin de lot ; échecs d'affilée comptés ; après 5, une valeur « morte » n'est plus réessayée que par « Tout mettre à jour » ; badge « cotation arrêtée ? » dans Valeurs ; **journal des corrections** (séances retouchées par Yahoo, comptes révisés par leur source). |
+| **Identifiants** | ISIN retrouvé par Euronext ; LEI exact par l'ISIN (GLEIF) avant la comparaison des noms. OpenFIGI : inutile pour l'instant. |
+| **Assistant** | Connaît la taille de l'entreprise (CA, résultat, bilan) et ne qualifie de « majeur » qu'un fait de plus de 5 % environ. |
+| **Typage** | 9 modules sur 14 sortis de la liste d'exceptions mypy ; plus aucun fichier d'interface sans `@ts-check`. |
+
+**Reportés** (dépendent de vous ou d'un PC Windows) : relevés de courtiers (vrais relevés anonymisés nécessaires),
+signature SignPath (candidature à votre nom), assistant sous Windows, test automatique du retour arrière Windows
+(ne s'exécute que dans la chaîne de publication). Restent aussi 5 gros modules à typer (stockage, analyse, valeurs,
+portefeuille, SEC : environ 250 corrections mécaniques).
+
+## Version 0.7.0 — reportés (état avant la 0.6.1)
 
 ### Vos demandes
 

@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from backend.core import reglages
 from backend.db.db import get_session
@@ -65,8 +65,8 @@ def essai_notification():
 @router.get("/calendrier")
 def calendrier(jours_avant: int = 30, jours_apres: int = 90, db: Session = Depends(get_session)):
     debut, fin = date.today() - timedelta(days=jours_avant), date.today() + timedelta(days=jours_apres)
-    lignes = db.exec(select(Evenement, Valeur).join(Valeur, Valeur.id == Evenement.valeur_id)
-                     .where(Evenement.jour >= debut, Evenement.jour <= fin).order_by(Evenement.jour))
+    lignes = db.exec(select(Evenement, Valeur).join(Valeur, col(Valeur.id) == col(Evenement.valeur_id))
+                     .where(Evenement.jour >= debut, Evenement.jour <= fin).order_by(col(Evenement.jour)))
     return [{"jour": e.jour.isoformat(), "type": e.type, "detail": e.detail, "valeur_id": v.id, "nom": v.nom,
              "symbole": v.symbole} for e, v in lignes]
 

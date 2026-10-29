@@ -112,7 +112,7 @@ def _lire(contenu: bytes) -> pd.DataFrame:
 def _associer(df: pd.DataFrame, alias: dict[str, list[str]]) -> dict[str, str]:
     """Champ -> nom de colonne du fichier."""
     colonnes = {_normaliser(c): c for c in df.columns}
-    trouve = {}
+    trouve: dict[str, str] = {}
     for champ, noms in alias.items():
         for nom in noms:
             if nom in colonnes and colonnes[nom] not in trouve.values():
@@ -169,6 +169,7 @@ def importer_cours(db: Session, valeur: Valeur, contenu: bytes) -> Resultat:
     if propre.empty:
         raise HTTPException(400, "Aucune ligne exploitable (dates ou cours illisibles).")
 
+    assert valeur.id is not None
     nombre = enregistrer_cours(db, valeur.id, propre.sort_values("jour"))
     db.commit()
     sans_ajuste = "ajuste" not in colonnes
@@ -195,6 +196,7 @@ def importer_fondamentaux(db: Session, valeur: Valeur, contenu: bytes, source: s
             f"Colonnes lues : {', '.join(map(str, df.columns))}."
         ))
 
+    assert valeur.id is not None
     nombre = enregistrer_fondamentaux(db, valeur.id, annees, source)
     db.commit()
     postes = sorted({c for v in annees.values() for c, x in v.items() if x is not None and not pd.isna(x)})

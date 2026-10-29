@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from backend.db.db import get_session
 from backend.db.schema import Annotation, Valeur
@@ -83,7 +83,8 @@ def _annotation(a: Annotation) -> dict:
 
 @annotations.get("")
 def lire_annotations(valeur_id: int, db: Session = Depends(get_session)):
-    return [_annotation(a) for a in db.exec(select(Annotation).where(Annotation.valeur_id == valeur_id).order_by(Annotation.id))]
+    requete = select(Annotation).where(Annotation.valeur_id == valeur_id).order_by(col(Annotation.id))
+    return [_annotation(a) for a in db.exec(requete)]
 
 
 @annotations.post("", status_code=201)

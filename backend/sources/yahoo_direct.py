@@ -52,10 +52,14 @@ def _cours(g: dict) -> pd.DataFrame:
     decalage = g.get("meta", {}).get("gmtoffset", 0)     # date locale de la place de cotation
     q = g["indicators"]["quote"][0]
     ajuste = (g["indicators"].get("adjclose") or [{}])[0].get("adjclose")
+    jours = [datetime.fromtimestamp(t + decalage, UTC).date() for t in g["timestamp"]]
+    dividendes = {datetime.fromtimestamp(int(d["date"]) + decalage, UTC).date(): d.get("amount")
+                  for d in ((g.get("events") or {}).get("dividends") or {}).values() if d.get("date")}
     df = pd.DataFrame({
-        "jour": [datetime.fromtimestamp(t + decalage, UTC).date() for t in g["timestamp"]],
+        "jour": jours,
         "ouverture": q.get("open"), "haut": q.get("high"), "bas": q.get("low"),
         "cloture": q.get("close"), "ajuste": ajuste, "volume": q.get("volume"),
+        "dividende": [dividendes.get(j, 0.0) for j in jours],
     })
     return df.dropna(subset=["cloture"]).drop_duplicates("jour", keep="last").reset_index(drop=True)
 

@@ -9,9 +9,11 @@ from fastapi.responses import FileResponse
 from backend import migrate
 from backend.api import (
     assistant,
+    donnees,
     fondamentaux,
     imports,
     journal,
+    outils,
     portefeuille,
     recherche,
     reglages,
@@ -56,6 +58,8 @@ app.add_middleware(
 )
 
 app.include_router(valeurs.router,      prefix=config.API_PREFIX)
+app.include_router(outils.router,       prefix=config.API_PREFIX)
+app.include_router(donnees.router,      prefix=config.API_PREFIX)
 app.include_router(fondamentaux.router, prefix=config.API_PREFIX)
 app.include_router(imports.router,      prefix=config.API_PREFIX)
 app.include_router(reglages.router,     prefix=config.API_PREFIX)

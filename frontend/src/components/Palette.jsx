@@ -5,7 +5,7 @@ import { api } from '../lib/api'
 
 const PAGES = [
   ['Aujourd’hui', '/accueil'], ['Valeurs', '/valeurs'], ['Screener', '/screener'], ['Comparer', '/comparer'],
-  ['Backtest', '/backtest'], ['Portefeuille', '/portefeuille'], ['Calendrier', '/calendrier'], ['Alertes', '/alertes'],
+  ['Backtest', '/backtest'], ['Simulateur de patrimoine', '/simulateur'], ['Couverture des données', '/donnees'], ['Portefeuille', '/portefeuille'], ['Calendrier', '/calendrier'], ['Alertes', '/alertes'],
   ['Méthode', '/methode'], ['Glossaire', '/glossaire'], ['Réglages', '/reglages'], ['À propos', '/a-propos'],
 ]
 const sansAccents = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()

@@ -6,7 +6,7 @@ from typing import Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from backend.analyse.backtest import Regle, agreger, simuler
 from backend.analyse.frais import assujetti_ttf, ordre, taux_ttf
@@ -26,7 +26,7 @@ def screener(liste_id: Optional[int] = None, db: Session = Depends(get_session))
     requete = select(Valeur).order_by(Valeur.nom)
     if liste_id:
         ids = [lv.valeur_id for lv in db.exec(select(ListeValeur).where(ListeValeur.liste_id == liste_id))]
-        requete = requete.where(Valeur.id.in_(ids))
+        requete = requete.where(col(Valeur.id).in_(ids))
     service = AnalyseService(db)
     return [service.fiche_resumee(v) for v in db.exec(requete)]
 
@@ -152,12 +152,15 @@ def backtest_univers(liste_id: Optional[int] = None, achat: float = -1.0, vente:
     requete = select(Valeur).where(Valeur.type == "action")
     if liste_id:
         ids = [lv.valeur_id for lv in db.exec(select(ListeValeur).where(ListeValeur.liste_id == liste_id))]
-        requete = requete.where(Valeur.id.in_(ids))
-    lignes, resultats = [], {}
+        requete = requete.where(col(Valeur.id).in_(ids))
+    lignes: list[dict] = []
+    resultats: dict[str, dict] = {}
     for valeur in db.exec(requete.order_by(Valeur.nom)):
         regle = _regle(achat, vente, frais, annees_min, fenetre, liquidites, depart_investi, valeur)
+        assert valeur.id is not None
         r = simuler(_cours_base(db, valeur.id), regle)
-        resultats[str(valeur.id)] = r
+        if r is not None:
+            resultats[str(valeur.id)] = r
         details = {"debut": r["debut"], "strategie": r["strategie"], "conserver": r["conserver"],
                    "temps_investi": r["temps_investi"], "operations": len(r["operations"])} if r else {"trop_court": True}
         lignes.append({"id": valeur.id, "nom": valeur.nom, **details})

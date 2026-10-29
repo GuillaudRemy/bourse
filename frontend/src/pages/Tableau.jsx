@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { pct, prix, nombre, sigma, ton, dateHeure, unite, variation } from '../lib/format'
+import { pct, prix, nombre, sigma, ton, date, dateHeure, unite, variation } from '../lib/format'
 import { TYPES } from '../lib/zones'
 
 const sansAccents = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -256,6 +256,12 @@ export default function Tableau() {
                       <div className="valeur-nom">
                         {l.valeur.nom}
                         {l.qualite === 'alerte' && <span className="badge statut-alerte" style={{ marginLeft: 6 }} title="Données de cours suspectes : voir l'onglet Données de la fiche">données suspectes</span>}
+                        {(l.cotation_arretee || l.valeur.echecs >= 3) && (
+                          <span className="badge statut-attention" style={{ marginLeft: 6 }}
+                                title={`${l.cotation_arretee ? `Pas de cours depuis le ${date(l.jour)}. ` : ''}${l.valeur.echecs ? `${l.valeur.echecs} échec(s) d'actualisation d'affilée : ${l.valeur.derniere_erreur ?? ''}. ` : ''}Retirée de la cote, rachetée ou symbole changé ? Vérifiez chez votre courtier.`}>
+                            cotation arrêtée ?
+                          </span>
+                        )}
                       </div>
                       <div className="valeur-symbole">
                         {l.valeur.symbole} · {TYPES[l.valeur.type]}{l.valeur.source === 'import' ? ' · importé' : ''}

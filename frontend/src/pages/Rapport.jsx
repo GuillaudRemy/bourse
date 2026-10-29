@@ -1,3 +1,4 @@
+// @ts-check
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -34,10 +35,10 @@ export default function Rapport() {
           <div className={`mono ${ton(stats?.variation_jour)}`}>{variation(stats?.variation_jour, stats?.en_points, { decimales: 2 })} · {date(stats?.jour)}</div>
         </div>
       </div>
-      {[['Droite de régression', <OngletRegression key="r" analyse={analyse} dividendes setDividendes={rien} debut="" setDebut={rien} enEuros={false} setEnEuros={rien} />],
+      {(/** @type {[string, any][]} */ ([['Droite de régression', <OngletRegression key="r" analyse={analyse} dividendes setDividendes={rien} debut="" setDebut={rien} enEuros={false} setEnEuros={rien} />],
         ['Bénéfices', <OngletBenefices key="b" analyse={analyse} />],
         ['Qualité', <OngletQualite key="q" analyse={analyse} />],
-        ['Valorisation', <OngletValorisation key="v" analyse={analyse} />]].map(([titre, contenu]) => (
+        ['Valorisation', <OngletValorisation key="v" analyse={analyse} />]])).map(([titre, contenu]) => (
         <section key={titre} className="rapport-section">
           <h2 className="rapport-titre">{titre}</h2>
           {contenu}

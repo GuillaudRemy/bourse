@@ -1,4 +1,6 @@
 """Univers (composition des indices) et listes personnelles."""
+from collections.abc import Sequence
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
@@ -85,10 +87,10 @@ def _liste(db: Session, nom: str) -> Liste:
     return liste
 
 
-def _ajouter(db: Session, liste: Liste, ids: list[int]) -> None:
+def _ajouter(db: Session, liste: Liste, ids: Sequence[int | None]) -> None:
     presentes = {lv.valeur_id for lv in db.exec(select(ListeValeur).where(ListeValeur.liste_id == liste.id))}
     for vid in set(ids) - presentes:
-        if db.get(Valeur, vid):
+        if vid is not None and liste.id is not None and db.get(Valeur, vid) is not None:
             db.add(ListeValeur(liste_id=liste.id, valeur_id=vid))
     db.commit()
 

@@ -17,7 +17,7 @@ from email.message import EmailMessage
 
 import pandas as pd
 from fastapi import HTTPException
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 
 from backend.analyse import indicateurs as ind
 from backend.analyse.regression import ajuster
@@ -50,11 +50,16 @@ def creer_par_defaut(db: Session, valeur: Valeur) -> None:
     if valeur.type != "action":
         return
     for type_, seuil in PAR_DEFAUT:
-        db.add(Alerte(valeur_id=valeur.id, type=type_, seuil=seuil))
+        db.add(Alerte(valeur_id=_id(valeur), type=type_, seuil=seuil))
+
+
+def _id(valeur: Valeur) -> int:
+    assert valeur.id is not None, "valeur non enregistree"
+    return valeur.id
 
 
 def _mesures(db: Session, valeur: Valeur) -> dict:
-    cours = charger_cours(db, valeur.id)
+    cours = charger_cours(db, _id(valeur))
     if cours.empty:
         return {}
     cloture = cours["cloture"]
@@ -115,7 +120,7 @@ def evaluer(db: Session, valeur_id: int) -> list[Declenchement]:
 # ── Notifications ────────────────────────────────────────────────────
 def notifier(messages: list[str]) -> list[str]:
     """Renvoie les canaux utilises ; n'echoue jamais."""
-    canaux = []
+    canaux: list[str] = []
     if not config.NOTIFICATIONS:
         return canaux
     if reglages.lire("notifications_bureau") == "oui" and _bureau(messages):
@@ -185,7 +190,7 @@ class AlerteService:
         self._db = session
 
     def alertes(self, valeur_id: int | None = None) -> list[dict]:
-        requete = select(Alerte, Valeur).join(Valeur, Valeur.id == Alerte.valeur_id)
+        requete = select(Alerte, Valeur).join(Valeur, col(Valeur.id) == col(Alerte.valeur_id))
         if valeur_id:
             requete = requete.where(Alerte.valeur_id == valeur_id)
         return [{"id": a.id, "valeur_id": a.valeur_id, "valeur": v.nom, "type": a.type, "seuil": a.seuil,
@@ -217,7 +222,7 @@ class AlerteService:
         self._db.commit()
 
     def declenchements(self, limite: int = 100) -> dict:
-        lignes = self._db.exec(select(Declenchement).order_by(Declenchement.moment.desc()).limit(limite))
+        lignes = self._db.exec(select(Declenchement).order_by(col(Declenchement.moment).desc()).limit(limite))
         non_lus = self._db.exec(select(func.count()).select_from(Declenchement).where(Declenchement.lu == False)).one()
         return {"non_lus": non_lus, "liste": [d.model_dump(mode="json") for d in lignes]}
 

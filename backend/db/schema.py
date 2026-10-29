@@ -43,6 +43,10 @@ class Valeur(SQLModel, table=True):
     maj_le: Optional[datetime] = None
     # Derniere actualisation COMPLETE (comptes, fiche, calendrier) : hebdomadaire, les cours etant quotidiens.
     complet_le: Optional[datetime] = None
+    # Echecs d'actualisation d'affilee (remis a zero au premier succes) et dernier message : une valeur
+    # qui echoue des jours de suite a sans doute ete retiree de la cote, ou a change de symbole.
+    echecs:          int = 0
+    derniere_erreur: Optional[str] = None
 
     cours: List["Cours"] = Relationship(
         back_populates="valeur",
@@ -355,5 +359,28 @@ class ConsensusPrevision(SQLModel, table=True):
     haut:      Optional[float] = None
     analystes: Optional[int] = None
     objectif:  Optional[float] = None    # objectif de cours moyen a 12 mois, le meme jour
+
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
+
+
+class Dividende(SQLModel, table=True):
+    """Dividende par action detache le `jour` (dans la devise de cotation, ajuste des divisions), conserve
+    pour recalculer soi-meme le rendement total et le comparer au cours ajuste de Yahoo."""
+    __table_args__ = (UniqueConstraint("valeur_id", "jour"),)
+
+    id:      Optional[int] = Field(default=None, primary_key=True)
+    jour:    date
+    montant: float
+
+    valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
+
+
+class Correction(SQLModel, table=True):
+    """Journal des corrections : une source a modifie apres coup des donnees deja enregistrees
+    (historique de cours retouche, compte annuel revise). Pour comprendre pourquoi un chiffre a change."""
+    id:         Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    type:       str                      # cours · comptes · symbole
+    detail:     str
 
     valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))

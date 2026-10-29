@@ -48,6 +48,8 @@ class ValeurRead(BaseModel):
     lei:              Optional[str] = None
     cik:              Optional[str] = None
     devise_comptes:   Optional[str] = None
+    echecs:           int = 0
+    derniere_erreur:  Optional[str] = None
     debut_regression: Optional[date]
     rupture:          bool
     notes:            Optional[str]

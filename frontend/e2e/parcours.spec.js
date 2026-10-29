@@ -150,3 +150,16 @@ test('tableau des valeurs : les colonnes ne bougent pas', async ({ page, request
   expect(await cellule.evaluate(td => td.scrollWidth <= td.clientWidth + 1)).toBeTruthy()
   await request.put('/api/reglages/valeurs_par_page', { data: { valeur: '50' } })
 })
+
+test('simulateur de patrimoine et couverture des données', async ({ page }) => {
+  await page.goto('/simulateur')
+  await expect(page.locator('.sous-nav-lien')).toHaveText(['Simulateur de patrimoine', 'Backtest', 'Couverture des données'])
+  await expect(page.getByText('Résultat médian')).toBeVisible()
+  await page.getByLabel('Part Actions (monde)').fill('40')
+  await expect(page.getByText('la répartition doit faire 100 %')).toBeVisible()
+  await page.locator('select', { hasText: 'Modèle…' }).selectOption('Dynamique')
+  await expect(page.getByText('la répartition doit faire 100 %')).toHaveCount(0)
+  await page.goto('/donnees')
+  await expect(page.getByRole('heading', { name: 'Couverture des données' })).toBeVisible()
+  await expect(page.locator('.tableau tbody tr').first()).toBeVisible()
+})

@@ -1,3 +1,4 @@
+// @ts-check
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { pct, nombre, grand } from '../../lib/format'
@@ -5,8 +6,10 @@ import { useChamps, ETATS, SOURCES } from '../../lib/champs'
 import DepotFichier from '../DepotFichier'
 import Barres from '../Barres'
 import RelecturePdf from '../RelecturePdf'
+import ArchivesAmf from './ArchivesAmf'
 import { Stat } from './OngletRegression'
 
+/** @type {[string, string, (v: any) => string][]} */
 const INFOS = [
   ['per',                    'PER (12 derniers mois)', v => nombre(v, 1)],
   ['per_previsionnel',       'PER prévisionnel',       v => nombre(v, 1)],
@@ -172,6 +175,10 @@ export default function OngletFondamentaux({ analyse, recharger }) {
             automatiquement des divisions d'actions ultérieures (÷).
           </span>
         </form>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <ArchivesAmf valeurId={valeur.id} annees={analyse.fondamentaux.map(f => f.annee)} onProposition={setProposition} />
       </div>
 
       <div className="grille-2">

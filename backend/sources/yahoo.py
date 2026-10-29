@@ -175,10 +175,12 @@ def cours_et_divisions(symbole: str) -> tuple[pd.DataFrame, list[tuple[date, flo
         divisions_ = [(jour.date(), float(r)) for jour, r in historique["Stock Splits"].items() if r and r > 0 and r != 1]
     df = historique.rename(columns={
         "Open": "ouverture", "High": "haut", "Low": "bas",
-        "Close": "cloture", "Adj Close": "ajuste", "Volume": "volume",
+        "Close": "cloture", "Adj Close": "ajuste", "Volume": "volume", "Dividends": "dividende",
     })
     df["jour"] = [d.date() for d in df.index]
-    df = df[["jour", "ouverture", "haut", "bas", "cloture", "ajuste", "volume"]]
+    if "dividende" not in df.columns:
+        df["dividende"] = 0.0
+    df = df[["jour", "ouverture", "haut", "bas", "cloture", "ajuste", "volume", "dividende"]]
     return df.dropna(subset=["cloture"]).reset_index(drop=True), divisions_
 
 

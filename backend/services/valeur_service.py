@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
@@ -11,17 +11,20 @@ from backend.db.schema import Transaction, Valeur
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services import alertes_service, cache, consensus_service
 from backend.services.stockage import (
+    charger_cours,
     charger_divisions,
     clotures_depuis,
     dernier_cours,
     dernier_taux,
     enregistrer_cours,
+    enregistrer_dividendes,
     enregistrer_divisions,
     enregistrer_evenements,
     enregistrer_fondamentaux,
     enregistrer_taux,
+    journaliser_correction_cours,
 )
-from backend.sources import bce, catalogue, esef, sec, yahoo, yahoo_direct
+from backend.sources import bce, catalogue, contre_verification, esef, sec, yahoo, yahoo_direct
 from backend.sources.base import Identite, SourceIndisponible
 
 
@@ -128,7 +131,8 @@ class ValeurService:
             return None
         connues = clotures_depuis(self._db, valeur.id, debut)
         for jour, cloture in zip(cours["jour"], cours["cloture"], strict=True):
-            if jour in connues and connues[jour] and abs(cloture / connues[jour] - 1) > ECART_RECOUVREMENT:
+            # Le dernier jour connu a pu etre enregistre en cours de seance : son ecart ne prouve rien.
+            if jour < dernier and connues.get(jour) and abs(cloture / connues[jour] - 1) > ECART_RECOUVREMENT:
                 return None
         nouvelles = sum(1 for j in cours["jour"] if j > dernier)
         enregistrer_cours(self._db, valeur.id, cours)
@@ -162,8 +166,13 @@ class ValeurService:
             if resultat is None:
                 raise HTTPException(502, "Cours indisponibles : " + " · ".join(avertissements))
             cours, divisions = resultat
+            # Journal des corrections : la source a-t-elle retouche des seances deja connues ? (Une
+            # nouvelle division modifie legitimement tout le passe : pas une correction.)
+            if set(divisions) == set(charger_divisions(self._db, valeur.id)):
+                journaliser_correction_cours(self._db, valeur.id, cours, clotures_depuis(self._db, valeur.id, date.min))
             nb_cours = enregistrer_cours(self._db, valeur.id, cours)
             enregistrer_divisions(self._db, valeur.id, divisions)
+            enregistrer_dividendes(self._db, valeur.id, cours)
             # Valider tout de suite : SQLite n'a qu'un ecrivain a la fois, et les appels reseau
             # qui suivent (comptes : jusqu'a 20 s) bloqueraient les autres valeurs actualisees en parallele.
             self._db.commit()
@@ -192,6 +201,8 @@ class ValeurService:
                     consensus_service.enregistrer(self._db, valeur_id, yahoo.consensus(valeur.symbole))
         self._db.flush()
 
+        if valeur.source == "yahoo" and complet and contre_verification.couvre(valeur.symbole, valeur.place, valeur.type):
+            self._contre_verifier(valeur, avertissements)
         if change:
             self._actualiser_change(valeur, avertissements)
         nb_fond, sources = self._actualiser_comptes(valeur, avertissements) if complet else (0, [])
@@ -207,6 +218,31 @@ class ValeurService:
         if avertissements:
             message += " " + " · ".join(avertissements)
         return Resultat(message=message, cours=nb_cours, fondamentaux=nb_fond, avertissements=avertissements)
+
+    def _contre_verifier(self, valeur: Valeur, avertissements: list[str]) -> None:
+        """Compare les clotures des 2 dernieres annees a Euronext ou Nasdaq (une fois par semaine, avec la mise a
+        jour complete). Resultat garde dans `infos` ; au passage, l'ISIN d'une valeur Euronext est complete."""
+        try:
+            if "." in valeur.symbole:
+                trouve = contre_verification.isin_euronext(valeur.symbole)
+                if not trouve:
+                    return
+                isin, mic = trouve
+                valeur.isin = valeur.isin or isin
+                autre, source = contre_verification.euronext(isin, mic), "Euronext"
+            else:
+                autre, source = contre_verification.nasdaq(valeur.symbole), "Nasdaq"
+        except SourceIndisponible as e:
+            avertissements.append(f"Contre-vérification des cours impossible : {e}")
+            return
+        if autre.empty:
+            return
+        cloture = charger_cours(self._db, valeur.id)["cloture"]
+        resultat = contre_verification.comparer(cloture[cloture.index >= autre.index[0]], autre, source)
+        valeur.infos = json.dumps(json.loads(valeur.infos or "{}") | {"contre_verification": resultat})
+        if resultat["statut"] == "alerte":
+            avertissements.append(f"Cours différents de {source} sur {resultat['desaccords']} séances "
+                                  f"(jusqu'à {resultat['ecart_max']:+.1%} le {resultat['jour_ecart_max']})")
 
     def _cours_bce(self, valeur: Valeur, avertissements: list[str], recents: bool) -> int:
         """Taux europeens (BCE) : la serie entiere est petite ; en mode « cours », le dernier mois seulement."""

@@ -9,6 +9,7 @@ os.environ["DOSSIER_SAUVEGARDES"] = str(_TMP / "sauvegardes")
 os.environ["ACTUALISATION_AU_DEMARRAGE"] = "false"
 os.environ["NOTIFICATIONS"] = "false"
 os.environ["CONSERVER_BRUT"] = "false"
+os.environ["BOURSE_REPRISE_APRES"] = "0"
 
 import numpy as np
 import pandas as pd
