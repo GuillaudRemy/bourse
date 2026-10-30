@@ -45,7 +45,7 @@ def list_valeurs(service: ValeurService = Depends(get_service)):
 
 @router.get("/catalogue")
 def catalogue_marches():
-    """Marches proposes a l'ajout en un clic : matieres premieres, devises, taux, obligations, cryptomonnaies."""
+    """Marches proposes a l'ajout en un clic : matieres premieres, devises, taux, ETF obligataires, cryptomonnaies."""
     from backend.sources import catalogue
     return {type_: [{"symbole": e.symbole, "nom": e.nom, "detail": e.detail, "source": e.source} for e in entrees]
             for type_, entrees in catalogue.FAMILLES.items()}

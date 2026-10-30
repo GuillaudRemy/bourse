@@ -18,8 +18,7 @@ export const STATUTS = {
 }
 
 export const TYPES = {
-  action: 'Action', indice: 'Indice', etf: 'ETF', obligation: 'Obligations', matiere: 'Matière première',
-  devise: 'Devise', taux: 'Taux', crypto: 'Cryptomonnaie',
+  action: 'Action', indice: 'Indice', etf: 'ETF', matiere: 'Matière première', devise: 'Devise', taux: 'Taux', crypto: 'Cryptomonnaie',
 }
 /** Pas de droite de regression : une devise n'a pas de tendance de fond, un taux pas de croissance. */
 export const SANS_DROITE = ['devise', 'taux']

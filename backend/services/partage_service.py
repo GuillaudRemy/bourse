@@ -33,11 +33,20 @@ from backend.db.schema import (
 )
 from backend.services import cache
 from backend.services.stockage import enregistrer_fondamentaux, provenance
+from backend.sources import catalogue
 
 FORMAT, VERSION = "bourse-partage", 1
 SOURCES_SAISIES = {"manuel", "import", "pdf"}
 CHAMPS_VALEUR = ["symbole", "nom", "type", "source", "devise", "place", "secteur", "pays", "isin", "lei", "cik",
                  "devise_comptes", "debut_regression", "rupture", "notes"]
+
+
+def _moderniser(fiche: dict) -> None:
+    """Fichier de partage d'une version 0.6.0 : plus de type « obligation », cryptomonnaies en dollars."""
+    if fiche.get("type") == "obligation":
+        fiche["type"] = "etf"
+    if fiche.get("type") == "crypto":
+        fiche["symbole"], fiche["devise"] = catalogue.en_dollars(fiche["symbole"]), "USD"
 
 
 def _json(objet) -> dict:
@@ -138,6 +147,7 @@ def importer(db: Session, contenu: bytes, portefeuille: bool) -> dict:
     par_symbole = {v.symbole: v for v in db.exec(select(Valeur))}
 
     for fiche in donnees["valeurs"]:
+        _moderniser(fiche)
         v = par_symbole.get(fiche["symbole"])
         if v is None:
             champs = {k: fiche.get(k) for k in CHAMPS_VALEUR if fiche.get(k) is not None}

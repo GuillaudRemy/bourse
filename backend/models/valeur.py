@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-TypeValeur = Literal["action", "indice", "etf", "matiere", "devise", "taux", "obligation", "crypto"]
+TypeValeur = Literal["action", "indice", "etf", "matiere", "devise", "taux", "crypto"]
 
 
 class ValeurCreate(BaseModel):

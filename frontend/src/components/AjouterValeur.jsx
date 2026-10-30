@@ -8,8 +8,8 @@ const FAMILLES = {
   matiere: 'Prix de marché réels (contrat à terme le plus proche, en dollars), sans passer par un ETF. Historique quotidien depuis 2000 environ.',
   devise: 'Taux de change quotidiens depuis 2003 environ. Pas de droite de régression : une devise n’a pas de tendance de fond.',
   taux: 'Taux d’intérêt en % : zone euro et pays européens (BCE), États-Unis (Yahoo). Pas de droite de régression ; variations en points.',
-  obligation: 'Les obligations ne se suivent pas une à une gratuitement : ces ETF obligataires en sont des paniers, et se lisent comme un ETF.',
-  crypto: 'Cotations en euros, 7 jours sur 7. Historique court et volatilité extrême : la droite se lit avec la plus grande prudence.',
+  etf: 'ETF obligataires : les obligations ne se suivent pas une à une gratuitement, ces ETF en sont des paniers. Pour tout autre ETF, utilisez la recherche Yahoo Finance.',
+  crypto: 'Cotations en dollars, 7 jours sur 7. Historique court et volatilité extrême : la droite se lit avec la plus grande prudence.',
 }
 
 /** Ajout d'une valeur : recherche chez Yahoo, catalogue (matieres, devises, taux…), ou creation vide pour un import. */
@@ -62,7 +62,7 @@ export default function AjouterValeur({ onFermer, onAjoutee, texteInitial = '' }
           Yahoo Finance
         </button>
         <button className={`segment${mode === 'catalogue' ? ' actif' : ''}`} onClick={() => setMode('catalogue')}>
-          Matières, devises, taux…
+          Matières, devises, taux, ETF…
         </button>
         <button className={`segment${mode === 'import' ? ' actif' : ''}`} onClick={() => setMode('import')}>
           Données importées

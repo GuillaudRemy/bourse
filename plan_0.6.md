@@ -116,17 +116,18 @@ signature SignPath (candidature à votre nom), assistant sous Windows, test auto
 (ne s'exécute que dans la chaîne de publication). Restent aussi 5 gros modules à typer (stockage, analyse, valeurs,
 portefeuille, SEC : environ 250 corrections mécaniques).
 
-## Notes pour la prochaine version (demandées le 29/10/2026, pendant la bêta 0.6.1)
+## Ajouts de la 0.6.1-beta.3 (30/10/2026)
 
-- **Cryptomonnaies en dollars** : toujours cotées contre le dollar (BTC-USD, ETH-USD…), comme sur la plupart
-  des plateformes, au lieu de l'euro. Les cryptos déjà suivies en EUR seront à convertir, ou à remplacer en douceur.
-- **Plus de type « Obligations »** : ce sont des ETF. Le type disparaît (les valeurs existantes passent en « ETF »),
-  et les ETF obligataires du catalogue s'ajoutent depuis l'onglet ETF.
-- **Menu** : « Marchés » ne contient plus que les valeurs suivies ; « Aujourd'hui » ne garde que le résumé du jour.
-  **Screener**, **Comparer**, **Calendrier** et **Alertes** passent dans « Outils », avec le simulateur, le backtest
-  et la couverture des données.
-- **Plus de seconde barre horizontale** (les sous-onglets sous le menu) : « Outils » devient un **menu déroulant**
-  qui s'ouvre depuis le haut, au clic sur l'entrée. Même principe pour « Aide » (Méthode, Glossaire, À propos).
+- **Cryptomonnaies en dollars** : BTC-USD, ETH-USD, SOL-USD, XRP-USD au catalogue ; toute crypto ajoutée dans une autre
+  devise passe en dollars ; celles déjà suivies en euros sont converties à la mise à jour (cours retéléchargés).
+  Si la paire en dollars était déjà suivie aussi, la paire en euros reste, à supprimer à la main.
+- **Plus de type « Obligations »** : ce sont des ETF. Les valeurs passent en « ETF », et les ETF obligataires du
+  catalogue s'ajoutent depuis la famille ETF ; leur mise en garde de lecture est conservée.
+- **Menu** : Aujourd'hui et Marchés n'ont plus de sous-pages ; Outils (Screener, Comparer, Calendrier, Alertes,
+  Simulateur, Backtest, Couverture des données) et Aide (Méthode, Glossaire, À propos) sont des **listes déroulantes** ;
+  plus de seconde barre horizontale.
+- **Correctif** : la contre-vérification faisait échouer l'ajout et la mise à jour complète des ETF cotés sur
+  Euronext (fichier au format différent, ex. CAC.PA). Une panne de ce contrôle reste désormais un simple avertissement.
 
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 

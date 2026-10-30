@@ -25,7 +25,7 @@ ECART = 0.01                    # au-dela, deux clotures du meme jour sont jugee
 
 
 def couvre(symbole: str, place: str | None, type_: str) -> bool:
-    if type_ not in ("action", "etf", "obligation"):
+    if type_ not in ("action", "etf"):
         return False
     suffixe = symbole.rsplit(".", 1)[1] if "." in symbole else ""
     return suffixe in EURONEXT or (not suffixe and (place or "") in PLACES_US)
@@ -63,9 +63,13 @@ def euronext(isin: str, mic: str) -> pd.Series:
     debut = next((i for i, ligne in enumerate(lignes) if ligne.startswith("Date;")), None)
     if debut is None:
         return pd.Series(dtype=float)
-    df = pd.read_csv(io.StringIO("\n".join(lignes[debut:])), sep=";")
-    serie = pd.Series(pd.to_numeric(df["Close"], errors="coerce").to_numpy(),
-                      index=pd.to_datetime(df["Date"], format="%d/%m/%Y"))
+    # index_col=False : les ETF ont une colonne de plus que leur en-tete (vwap), qui decalerait tout le tableau.
+    try:
+        df = pd.read_csv(io.StringIO("\n".join(lignes[debut:])), sep=";", index_col=False)
+        serie = pd.Series(pd.to_numeric(df["Close"], errors="coerce").to_numpy(),
+                          index=pd.to_datetime(df["Date"], format="%d/%m/%Y"))
+    except (ValueError, KeyError) as e:
+        raise SourceIndisponible(f"Euronext : fichier de cours de {isin} illisible ({e})") from e
     return serie.dropna().sort_index()
 
 

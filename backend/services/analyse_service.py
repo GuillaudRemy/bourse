@@ -147,8 +147,8 @@ class AnalyseService:
             "stats": self._stats(cloture, mm50, mm200, rsi14, points=valeur.type == "taux"),
             "signaux": ind.signaux(cloture, mm50, mm200, rsi14, points=valeur.type == "taux"),
             "qualite": qualite.controler(cours, taux=valeur.type == "taux"),
-            "avertissement_indice": ({"texte": catalogue.AVERTISSEMENTS[valeur.type], "symbole": None, "nom": None}
-                                     if valeur.type in catalogue.AVERTISSEMENTS
+            "avertissement_indice": ({"texte": texte, "symbole": None, "nom": None}
+                                     if (texte := catalogue.avertissement(valeur.symbole, valeur.type))
                                      else indices.avertissement(valeur.symbole, valeur.nom, valeur.type)),
             "fondamentaux": fondamentaux,
             "comptes": (comptes := self._comptes(valeur, fondamentaux)),

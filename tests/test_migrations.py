@@ -40,3 +40,25 @@ def test_base_neuve(tmp_path):
     with sqlite3.connect(base) as c:
         tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"valeur", "cours", "fondamental", "alembic_version"} <= tables
+
+
+def test_cryptos_en_dollars_et_etf_obligataires(tmp_path):
+    """Base de la 0.6.0 : BTC-EUR passe en BTC-USD (cours effaces, actualisation relancee), obligations -> ETF."""
+    base = tmp_path / "bourse.db"
+    _migrer(base, tmp_path / "sauvegardes")
+    with sqlite3.connect(base) as c:
+        c.execute("UPDATE alembic_version SET version_num = '0009'")
+        c.execute("INSERT INTO valeur (id, created_at, symbole, nom, type, source, devise, rupture, echecs) VALUES "
+                  "(1, '2026-01-01', 'BTC-EUR', 'Bitcoin', 'crypto', 'yahoo', 'EUR', 0, 0),"
+                  "(2, '2026-01-01', 'EUNH.DE', 'Oblig', 'obligation', 'yahoo', 'EUR', 0, 0),"
+                  "(3, '2026-01-01', 'ETH-EUR', 'Ether', 'crypto', 'yahoo', 'EUR', 0, 0),"
+                  "(4, '2026-01-01', 'ETH-USD', 'Ether $', 'crypto', 'yahoo', 'USD', 0, 0)")
+        c.execute("INSERT INTO cours (valeur_id, jour, cloture) VALUES (1, '2026-01-02', 100), (3, '2026-01-02', 50)")
+        c.execute("INSERT INTO reglage (cle, valeur) VALUES ('derniere_actualisation', '2026-10-29')")
+    _migrer(base, tmp_path / "sauvegardes")
+    with sqlite3.connect(base) as c:
+        assert c.execute("SELECT symbole, devise FROM valeur WHERE id = 1").fetchone() == ("BTC-USD", "USD")
+        assert c.execute("SELECT type FROM valeur WHERE id = 2").fetchone() == ("etf",)
+        assert c.execute("SELECT symbole FROM valeur WHERE id = 3").fetchone() == ("ETH-EUR",)   # doublon : garde tel quel
+        assert c.execute("SELECT valeur_id FROM cours").fetchall() == [(3,)]
+        assert c.execute("SELECT COUNT(*) FROM reglage WHERE cle = 'derniere_actualisation'").fetchone()[0] == 0

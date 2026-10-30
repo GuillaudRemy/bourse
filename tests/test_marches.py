@@ -1,4 +1,4 @@
-"""Version 0.6.0 : devises, taux, obligations, cryptomonnaies ; taux sans risque ; historique du consensus."""
+"""Versions 0.6.0 et 0.6.1 : devises, taux, ETF obligataires, cryptomonnaies ; taux sans risque ; historique du consensus."""
 from datetime import date, timedelta
 
 import numpy as np
@@ -8,8 +8,11 @@ from sqlmodel import Session
 
 from backend.db.db import engine
 from backend.main import app
+from backend.models.valeur import ValeurCreate
 from backend.services import consensus_service, taux_service
-from backend.sources import bce, catalogue
+from backend.services.valeur_service import ValeurService
+from backend.sources import bce, catalogue, yahoo
+from backend.sources.yahoo import Fiche
 
 
 def _taux_fictifs(cle, debut=None):
@@ -24,7 +27,11 @@ def test_catalogue_coherent():
     symboles = [e.symbole for entrees in catalogue.FAMILLES.values() for e in entrees]
     assert len(symboles) == len(set(symboles))
     assert all(e.serie for e in catalogue.TAUX if e.source == "bce")
-    assert set(catalogue.AVERTISSEMENTS) == set(catalogue.FAMILLES)
+    assert set(catalogue.AVERTISSEMENTS) == set(catalogue.FAMILLES) - {"etf"}
+    assert catalogue.avertissement("EUNH.DE", "etf") == catalogue.ETF_OBLIGATAIRE
+    assert catalogue.avertissement("CAC.PA", "etf") is None             # un ETF d'actions : pas de mise en garde obligataire
+    assert all(e.symbole.endswith("-USD") for e in catalogue.CRYPTOS)
+    assert catalogue.en_dollars("doge-eur") == "DOGE-USD" and catalogue.en_dollars("BTC-USD") == "BTC-USD"
     assert catalogue.nom("gc=f") == "Or (once troy)" and catalogue.nom("^TNX") == "Taux américain à 10 ans"
 
 
@@ -52,7 +59,7 @@ def test_taux_bce_sans_droite_variations_en_points(monkeypatch):
 def test_catalogue_api():
     with TestClient(app) as client:
         c = client.get("/valeurs/catalogue").json()
-        assert set(c) == {"matiere", "devise", "taux", "obligation", "crypto"}
+        assert set(c) == {"matiere", "devise", "taux", "etf", "crypto"}
         assert any(e["symbole"] == "TAUX-FR-10A" and e["source"] == "bce" for e in c["taux"])
 
 
@@ -85,3 +92,15 @@ def test_serie_bce_mensuelle_datee_en_fin_de_mois(monkeypatch):
     monkeypatch.setattr(bce, "obtenir", lambda *a, **k: Reponse())
     df = bce.serie("IRS/M.FR.L.L40.CI.0000.EUR.N.Z", date.today() - timedelta(days=60))
     assert list(df["jour"]) == [date(2026, 8, 31), date(2026, 9, 30)] and list(df["cloture"]) == [4.0, 4.44]
+
+
+def test_crypto_ajoutee_en_euros_passe_en_dollars(monkeypatch):
+    def fiche(symbole):
+        return Fiche(symbole=symbole, nom=f"Nom {symbole}", type="crypto", devise=symbole[-3:], place="CCC", secteur=None,
+                     pays=None, infos={})
+    monkeypatch.setattr(yahoo, "fiche", fiche)
+    with TestClient(app) as client:
+        with Session(engine) as db:
+            r = ValeurService(db).create(ValeurCreate(symbole="BTC-EUR"), actualiser=False)
+        assert (r.symbole, r.devise, r.nom) == ("BTC-USD", "USD", "Bitcoin")
+        assert client.post("/valeurs", json={"symbole": "BTC-GBP"}).status_code == 409

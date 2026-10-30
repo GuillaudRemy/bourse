@@ -1,4 +1,4 @@
-"""Catalogue des marches suivis sans recherche : matieres premieres, devises, taux, obligations, cryptomonnaies.
+"""Catalogue des marches suivis sans recherche : matieres premieres, devises, taux, ETF obligataires, cryptomonnaies.
 
 Chaque famille s'ajoute en un clic, avec un nom francais et le bon type (Yahoo classe par exemple
 le taux americain a 10 ans parmi les indices, et nomme l'or par son echeance « Gold Dec 26 »).
@@ -6,6 +6,7 @@ le taux americain a 10 ans parmi les indices, et nomme l'or par son echeance « 
 Les taux europeens ne sont pas chez Yahoo : ils viennent de la BCE (source « bce »), quotidiens
 pour la courbe de la zone euro et le taux de depot, mensuels pour les emprunts d'Etat par pays.
 """
+import re
 from typing import NamedTuple
 
 
@@ -60,8 +61,8 @@ TAUX = [
     Entree("^TNX", "Taux américain à 10 ans", "quotidien"),
     Entree("^TYX", "Taux américain à 30 ans", "quotidien"),
 ]
-OBLIGATIONS = [
-    # Pas d'obligations « en direct » gratuites : des ETF obligataires, qui se lisent comme un ETF.
+ETF_OBLIGATAIRES = [
+    # Pas d'obligations « en direct » gratuites : des ETF, ranges avec les autres ETF.
     Entree("EUNH.DE", "Obligations d'État zone euro (iShares Core)", "toutes durées, en euros"),
     Entree("XGLE.DE", "Obligations d'État zone euro (Xtrackers)", "toutes durées, en euros"),
     Entree("IBGL.AS", "Obligations d'État zone euro 15-30 ans (iShares)", "longues durées, en euros"),
@@ -70,12 +71,13 @@ OBLIGATIONS = [
     Entree("TLT", "Obligations d'État américaines 20 ans et plus (iShares)", "en dollars"),
 ]
 CRYPTOS = [
-    Entree("BTC-EUR", "Bitcoin", "en euros, depuis 2014"),
-    Entree("ETH-EUR", "Ether", "en euros, depuis 2017"),
-    Entree("SOL-EUR", "Solana", "en euros, depuis 2020"),
-    Entree("XRP-EUR", "XRP", "en euros, depuis 2017"),
+    # Toujours contre le dollar, la devise de reference de ce marche.
+    Entree("BTC-USD", "Bitcoin", "en dollars, depuis 2014"),
+    Entree("ETH-USD", "Ether", "en dollars, depuis 2017"),
+    Entree("SOL-USD", "Solana", "en dollars, depuis 2020"),
+    Entree("XRP-USD", "XRP", "en dollars, depuis 2017"),
 ]
-FAMILLES = {"matiere": MATIERES, "devise": DEVISES, "taux": TAUX, "obligation": OBLIGATIONS, "crypto": CRYPTOS}
+FAMILLES = {"matiere": MATIERES, "devise": DEVISES, "taux": TAUX, "etf": ETF_OBLIGATAIRES, "crypto": CRYPTOS}
 PAR_SYMBOLE = {e.symbole: (type_, e) for type_, entrees in FAMILLES.items() for e in entrees}
 
 # Pas de droite de regression : ni tendance de fond (devise), ni croissance (taux, parfois negatif).
@@ -91,13 +93,26 @@ AVERTISSEMENTS = {
     "taux": "Taux d'intérêt, en % par an : pas de droite de régression (un taux ne croît pas comme une entreprise, et il "
             "a même été négatif en zone euro de 2015 à 2022). Les variations s'expriment en points. Quand les taux "
             "montent, le prix des obligations déjà émises baisse, et inversement.",
-    "obligation": "ETF obligataire : un panier d'obligations, intérêts réinvestis. Son cours baisse quand les taux "
-                  "montent, d'autant plus que ses obligations sont longues. La droite décrit le rendement moyen passé, "
-                  "qui dépendait du niveau des taux de l'époque.",
     "crypto": "Cryptomonnaie : pas de bénéfices ni de dividendes, un historique court (depuis 2014 pour le bitcoin) et "
               "une volatilité extrême (des baisses de 70 à 80 % sont déjà survenues plusieurs fois). La droite résume "
               "un passé très court et ne dit rien d'un prix « normal » : à lire avec la plus grande prudence.",
 }
+
+
+ETF_OBLIGATAIRE = ("ETF obligataire : un panier d'obligations, intérêts réinvestis. Son cours baisse quand les taux "
+                   "montent, d'autant plus que ses obligations sont longues. La droite décrit le rendement moyen passé, "
+                   "qui dépendait du niveau des taux de l'époque.")
+_SYMBOLES_OBLIGATAIRES = {e.symbole for e in ETF_OBLIGATAIRES}
+
+
+def avertissement(symbole: str, type_: str) -> str | None:
+    """Mise en garde de lecture propre a ce type de valeur (ou a un ETF obligataire du catalogue)."""
+    return ETF_OBLIGATAIRE if symbole.upper() in _SYMBOLES_OBLIGATAIRES else AVERTISSEMENTS.get(type_)
+
+
+def en_dollars(symbole: str) -> str:
+    """Une cryptomonnaie se suit toujours contre le dollar : « BTC-EUR » -> « BTC-USD »."""
+    return re.sub(r"-[A-Z]{3}$", "-USD", symbole.upper())
 
 
 def trouver(symbole: str) -> tuple[str, Entree] | None:

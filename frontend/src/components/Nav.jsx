@@ -1,16 +1,17 @@
 // @ts-check
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { lire, enregistrer, THEMES, TAILLES } from '../lib/apparence'
 
-// Cinq entrees ; chacune regroupe ses pages en sous-onglets. Les adresses ne changent pas (favoris intacts).
+// Cinq entrees ; Outils et Aide s'ouvrent en liste deroulante. Les adresses ne changent pas (favoris intacts).
 const MENU = [
-  { label: 'Aujourd’hui',  pages: [['/accueil', 'Résumé du jour'], ['/calendrier', 'Calendrier'], ['/alertes', 'Alertes']] },
-  { label: 'Marchés',      pages: [['/valeurs', 'Valeurs suivies'], ['/screener', 'Screener'], ['/comparer', 'Comparer']] },
-  { label: 'Portefeuille', pages: [['/portefeuille', 'Portefeuille']] },
-  { label: 'Outils',       pages: [['/simulateur', 'Simulateur de patrimoine'], ['/backtest', 'Backtest'], ['/donnees', 'Couverture des données']] },
-  { label: 'Aide',         pages: [['/methode', 'Méthode'], ['/glossaire', 'Glossaire'], ['/a-propos', 'À propos']] },
+  { label: 'Aujourd’hui',  to: '/accueil' },
+  { label: 'Marchés',      to: '/valeurs' },
+  { label: 'Portefeuille', to: '/portefeuille' },
+  { label: 'Outils', pages: [['/screener', 'Screener'], ['/comparer', 'Comparer'], ['/calendrier', 'Calendrier'], ['/alertes', 'Alertes'],
+                             ['/simulateur', 'Simulateur de patrimoine'], ['/backtest', 'Backtest'], ['/donnees', 'Couverture des données']] },
+  { label: 'Aide',   pages: [['/methode', 'Méthode'], ['/glossaire', 'Glossaire'], ['/a-propos', 'À propos']] },
 ]
 const dans = (chemin, page) => chemin === page || chemin.startsWith(page + '/')
 
@@ -31,18 +32,39 @@ export default function Nav() {
   }, [])
 
   const { pathname } = useLocation()
-  const groupeActif = MENU.find(g => g.pages.some(([page]) => dans(pathname, page)))
+  const [ouvert, setOuvert] = useState(null)            // libelle de la liste deroulante ouverte
+  const barre = useRef(null)
+  useEffect(() => setOuvert(null), [pathname])
+  useEffect(() => {
+    if (!ouvert) return
+    const clic = e => { if (!barre.current?.contains(e.target)) setOuvert(null) }
+    const touche = e => { if (e.key === 'Escape') setOuvert(null) }
+    document.addEventListener('mousedown', clic)
+    document.addEventListener('keydown', touche)
+    return () => { document.removeEventListener('mousedown', clic); document.removeEventListener('keydown', touche) }
+  }, [ouvert])
 
   return (
-    <>
     <nav className="nav">
       <div className="nav-marque">Bourse<span>.</span></div>
-      <div className="nav-liens">
-        {MENU.map(groupe => (
-          <NavLink key={groupe.label} to={groupe.pages[0][0]}
-                   className={`nav-lien${groupe === groupeActif ? ' actif' : ''}`}>
-            {groupe.label}
-          </NavLink>
+      <div className="nav-liens" ref={barre}>
+        {MENU.map(e => e.to ? (
+          <NavLink key={e.label} to={e.to} className={({ isActive }) => `nav-lien${isActive ? ' actif' : ''}`}>{e.label}</NavLink>
+        ) : (
+          <div key={e.label} className="nav-groupe">
+            <button className={`nav-lien${e.pages.some(([page]) => dans(pathname, page)) ? ' actif' : ''}`} aria-haspopup="menu" aria-expanded={ouvert === e.label}
+                    onClick={() => setOuvert(ouvert === e.label ? null : e.label)}>
+              {e.label} <span aria-hidden="true" className="nav-fleche">▾</span>
+            </button>
+            {ouvert === e.label && (
+              <div className="menu-deroulant" role="menu">
+                {e.pages.map(([page, label]) => (
+                  <NavLink key={page} to={page} role="menuitem" onClick={() => setOuvert(null)}
+                           className={({ isActive }) => `menu-entree${isActive ? ' actif' : ''}`}>{label}</NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
       <span className="espaceur" />
@@ -75,15 +97,5 @@ export default function Nav() {
         </svg>
       </NavLink>
     </nav>
-    {groupeActif && groupeActif.pages.length > 1 && (
-      <div className="sous-nav no-print">
-        <div className="sous-nav-liens">
-          {groupeActif.pages.map(([page, label]) => (
-            <NavLink key={page} to={page} className={({ isActive }) => `sous-nav-lien${isActive ? ' actif' : ''}`}>{label}</NavLink>
-          ))}
-        </div>
-      </div>
-    )}
-    </>
   )
 }

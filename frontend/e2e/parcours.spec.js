@@ -106,18 +106,25 @@ test('suppression groupée depuis le tableau des valeurs', async ({ page, reques
   await expect(page.locator('tr', { hasText: 'Essai SA' })).toHaveCount(1)
 })
 
-test('menu à 5 entrées, sous-onglets et anciennes adresses', async ({ page }) => {
+test('menu à 5 entrées, listes déroulantes et anciennes adresses', async ({ page }) => {
   await page.goto('/accueil')
   const menu = page.locator('.nav-liens .nav-lien')
-  await expect(menu).toHaveText(['Aujourd’hui', 'Marchés', 'Portefeuille', 'Outils', 'Aide'])
+  await expect(menu).toHaveText([/Aujourd’hui/, /Marchés/, /Portefeuille/, /Outils/, /Aide/])
   await menu.filter({ hasText: 'Marchés' }).click()
   await expect(page).toHaveURL(/\/valeurs$/)
-  await expect(page.locator('.sous-nav-lien')).toHaveText(['Valeurs suivies', 'Screener', 'Comparer'])
-  await page.locator('.sous-nav-lien', { hasText: 'Screener' }).click()
+  await expect(page.locator('.menu-deroulant')).toHaveCount(0)
+  await menu.filter({ hasText: 'Outils' }).click()
+  await expect(page.locator('.menu-entree')).toHaveText(['Screener', 'Comparer', 'Calendrier', 'Alertes',
+    'Simulateur de patrimoine', 'Backtest', 'Couverture des données'])
+  await page.keyboard.press('Escape')                             // se referme sans changer de page
+  await expect(page.locator('.menu-deroulant')).toHaveCount(0)
+  await menu.filter({ hasText: 'Outils' }).click()
+  await page.locator('.menu-entree', { hasText: 'Screener' }).click()
   await expect(page).toHaveURL(/\/screener$/)
-  await expect(menu.filter({ hasText: 'Marchés' })).toHaveClass(/actif/)
+  await expect(page.locator('.menu-deroulant')).toHaveCount(0)
+  await expect(menu.filter({ hasText: 'Outils' })).toHaveClass(/actif/)
   await page.goto('/calendrier')                                  // adresse d'avant la 0.6.0
-  await expect(menu.filter({ hasText: 'Aujourd’hui' })).toHaveClass(/actif/)
+  await expect(menu.filter({ hasText: 'Outils' })).toHaveClass(/actif/)
   await page.getByRole('link', { name: 'Réglages' }).click()
   await expect(page).toHaveURL(/\/reglages$/)
   await expect(page.getByText('Prime de risque des actions (%)')).toBeVisible()
@@ -153,7 +160,6 @@ test('tableau des valeurs : les colonnes ne bougent pas', async ({ page, request
 
 test('simulateur de patrimoine et couverture des données', async ({ page }) => {
   await page.goto('/simulateur')
-  await expect(page.locator('.sous-nav-lien')).toHaveText(['Simulateur de patrimoine', 'Backtest', 'Couverture des données'])
   await expect(page.getByText('Résultat médian')).toBeVisible()
   await page.getByLabel('Part Actions (monde)').fill('40')
   await expect(page.getByText('la répartition doit faire 100 %')).toBeVisible()

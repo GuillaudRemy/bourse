@@ -151,3 +151,36 @@ def test_echelle_esef_corrigee():
     assert corrige["bpa"] == pytest.approx(8.79) and corrige["nombre_actions"] == pytest.approx(176_019_736)
     normal = {"bpa": 9.37, "nombre_actions": 177_396_346.0, "benefice_net": 1_663e6}
     assert corriger_echelle(normal) == normal
+
+
+def test_euronext_format_etf(monkeypatch):
+    """Fichier d'un ETF : une colonne (vwap) de plus dans les lignes que dans l'en-tete."""
+    texte = ('﻿"Historical Data"\n"From 2026-10-20 to 2026-10-29"\nFR0007052782\n'
+             'Date;Open;High;Low;Last;Close;"Number of Shares";"Number of Trades";Turnover\n'
+             "29/10/2026;80.44;80.94;80.39;80.69;80.69;25018;210;2020729;80.771005\n"
+             "28/10/2026;80.00;80.09;79.71;79.91;79.91;20194;158;1613627;79.90625\n")
+
+    class Reponse:
+        content = texte.encode()
+    monkeypatch.setattr(contre_verification, "obtenir", lambda *a, **k: Reponse())
+    serie = contre_verification.euronext("FR0007052782", "XPAR")
+    assert list(serie) == [79.91, 80.69] and serie.index[-1] == pd.Timestamp("2026-10-29")
+
+
+def test_contre_verification_jamais_bloquante(monkeypatch):
+    """Une panne de ce controle secondaire reste un avertissement : la valeur est actualisee quand meme."""
+    from backend.services.valeur_service import ValeurService
+    from backend.sources import yahoo
+    from backend.sources.yahoo import Fiche
+    fiche = Fiche(symbole="PANNE.PA", nom="Panne", type="etf", devise="EUR", place="PAR", secteur=None, pays=None, infos={})
+    cours = pd.DataFrame({"jour": [date(2026, 1, 2)], "cloture": [10.0]})
+    monkeypatch.setattr(yahoo, "fiche", lambda s: fiche)
+    monkeypatch.setattr(yahoo, "cours_et_divisions", lambda s: (cours, []))
+    monkeypatch.setattr(yahoo, "evenements", lambda s: [])
+    monkeypatch.setattr(ValeurService, "_contre_verifier", lambda *a: 1 / 0)
+    with Session(engine) as db:
+        v = Valeur(symbole="PANNE.PA", nom="Panne", source="yahoo", type="etf", place="PAR", devise="EUR")
+        db.add(v)
+        db.commit()
+        r = ValeurService(db).actualiser(v.id)
+    assert any("Contre-vérification" in a for a in r.avertissements)

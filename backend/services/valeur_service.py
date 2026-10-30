@@ -55,10 +55,16 @@ class ValeurService:
         elif data.source == "yahoo":
             try:
                 fiche = yahoo.fiche(symbole)
+                if fiche.type == "crypto" and catalogue.en_dollars(symbole) != symbole:
+                    symbole = catalogue.en_dollars(symbole)
+                    if self._db.exec(select(Valeur).where(Valeur.symbole == symbole)).first():
+                        raise HTTPException(409, f"La valeur « {symbole} » est déjà suivie.")
+                    fiche = yahoo.fiche(symbole)
+                    dans_catalogue = catalogue.trouver(symbole)
             except SourceIndisponible as e:
                 raise HTTPException(502, str(e)) from e
             # Catalogue : nom francais plutot que celui de Yahoo (« Gold Dec 26 », « 10-Year Bond »), et le bon
-            # type (Yahoo range les taux americains parmi les indices, les ETF obligataires parmi les ETF).
+            # type (Yahoo range les taux americains parmi les indices).
             type_ = dans_catalogue[0] if dans_catalogue else fiche.type
             valeur = Valeur(
                 symbole=symbole, source="yahoo", nom=data.nom or catalogue.nom(symbole) or fiche.nom, type=type_,
@@ -202,7 +208,10 @@ class ValeurService:
         self._db.flush()
 
         if valeur.source == "yahoo" and complet and contre_verification.couvre(valeur.symbole, valeur.place, valeur.type):
-            self._contre_verifier(valeur, avertissements)
+            try:
+                self._contre_verifier(valeur, avertissements)
+            except Exception as e:        # controle secondaire : jamais un echec de toute la valeur
+                avertissements.append(f"Contre-vérification des cours impossible : {e}")
         if change:
             self._actualiser_change(valeur, avertissements)
         nb_fond, sources = self._actualiser_comptes(valeur, avertissements) if complet else (0, [])
