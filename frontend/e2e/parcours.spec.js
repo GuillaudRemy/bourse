@@ -158,6 +158,34 @@ test('tableau des valeurs : les colonnes ne bougent pas', async ({ page, request
   await request.put('/api/reglages/valeurs_par_page', { data: { valeur: '50' } })
 })
 
+test('favoris : en tête du tri par valeur, ignorés par les autres tris', async ({ page, request }) => {
+  const creer = async (symbole, nom) => {
+    const r = await request.post('/api/valeurs', { data: { symbole, nom, source: 'import', devise: 'EUR' } })
+    return (await r.json()).id
+  }
+  const ids = [await creer('FAVA', 'Aaa favori test'), await creer('FAVZ', 'Zzz favori test')]
+  await page.goto('/valeurs')
+  await page.getByLabel('Rechercher dans les valeurs').fill('favori test')
+  const noms = () => page.locator('.tableau tbody .valeur-nom').allTextContents()
+  await expect(page.locator('.tableau tbody tr')).toHaveCount(2)
+  expect(await noms()).toEqual(['Aaa favori test', 'Zzz favori test'])
+
+  await page.locator('tr', { hasText: 'FAVZ' }).getByRole('button', { name: 'Ajouter aux favoris' }).click()
+  await expect(page).toHaveURL(/\/valeurs$/)        // l'etoile n'ouvre pas la fiche
+  await expect(page.locator('.tableau tbody .valeur-nom').first()).toHaveText('Zzz favori test')
+  await page.locator('th', { hasText: 'Valeur' }).click()   // sens inverse : toujours en tete
+  expect(await noms()).toEqual(['Zzz favori test', 'Aaa favori test'])
+  await page.locator('th', { hasText: 'Valeur' }).click()
+  expect(await noms()).toEqual(['Zzz favori test', 'Aaa favori test'])
+  await page.locator('th', { hasText: 'Cours' }).click()    // sans donnees : ordre d'origine, sans le favori
+  expect(await noms()).toEqual(['Aaa favori test', 'Zzz favori test'])
+
+  await page.reload()                                       // conserve, et visible sur la fiche
+  await page.locator('tr', { hasText: 'FAVZ' }).click()
+  await expect(page.getByRole('button', { name: 'Retirer des favoris' })).toBeVisible()
+  for (const id of ids) await request.delete(`/api/valeurs/${id}`)
+})
+
 test('simulateur de patrimoine et couverture des données', async ({ page }) => {
   await page.goto('/simulateur')
   await expect(page.getByText('Résultat médian')).toBeVisible()

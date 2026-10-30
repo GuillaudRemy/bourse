@@ -25,6 +25,7 @@ class ValeurUpdate(BaseModel):
     secteur:          Optional[str] = Field(default=None, max_length=80)
     debut_regression: Optional[date] = None
     rupture:          Optional[bool] = None
+    favori:           Optional[bool] = None
     notes:            Optional[str] = None
     isin:             Optional[str] = Field(default=None, max_length=12)
     lei:              Optional[str] = Field(default=None, max_length=20)
@@ -52,6 +53,7 @@ class ValeurRead(BaseModel):
     derniere_erreur:  Optional[str] = None
     debut_regression: Optional[date]
     rupture:          bool
+    favori:           bool = False
     notes:            Optional[str]
     infos:            dict = {}
     maj_le:           Optional[datetime]

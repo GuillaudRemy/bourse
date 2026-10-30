@@ -42,12 +42,26 @@ def test_base_neuve(tmp_path):
     assert {"valeur", "cours", "fondamental", "alembic_version"} <= tables
 
 
+def test_favoris_pas_de_favori_par_defaut(tmp_path):
+    base = tmp_path / "bourse.db"
+    _migrer(base, tmp_path / "sauvegardes")
+    with sqlite3.connect(base) as c:
+        c.execute("UPDATE alembic_version SET version_num = '0010'")
+        c.execute("ALTER TABLE valeur DROP COLUMN favori")
+        c.execute("INSERT INTO valeur (created_at, symbole, nom, type, source, rupture, echecs) "
+                  "VALUES ('2026-01-01', 'AI.PA', 'Air Liquide', 'action', 'yahoo', 0, 0)")
+    _migrer(base, tmp_path / "sauvegardes")
+    with sqlite3.connect(base) as c:
+        assert c.execute("SELECT favori FROM valeur").fetchall() == [(0,)]
+
+
 def test_cryptos_en_dollars_et_etf_obligataires(tmp_path):
     """Base de la 0.6.0 : BTC-EUR passe en BTC-USD (cours effaces, actualisation relancee), obligations -> ETF."""
     base = tmp_path / "bourse.db"
     _migrer(base, tmp_path / "sauvegardes")
     with sqlite3.connect(base) as c:
         c.execute("UPDATE alembic_version SET version_num = '0009'")
+        c.execute("ALTER TABLE valeur DROP COLUMN favori")
         c.execute("INSERT INTO valeur (id, created_at, symbole, nom, type, source, devise, rupture, echecs) VALUES "
                   "(1, '2026-01-01', 'BTC-EUR', 'Bitcoin', 'crypto', 'yahoo', 'EUR', 0, 0),"
                   "(2, '2026-01-01', 'EUNH.DE', 'Oblig', 'obligation', 'yahoo', 'EUR', 0, 0),"

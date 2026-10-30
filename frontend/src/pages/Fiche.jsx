@@ -13,6 +13,7 @@ import OngletValorisation from '../components/fiche/OngletValorisation'
 import OngletJournal      from '../components/fiche/OngletJournal'
 import OngletDonnees      from '../components/fiche/OngletDonnees'
 import OngletAssistant    from '../components/fiche/OngletAssistant'
+import Favori             from '../components/Favori'
 
 const ONGLETS = [
   { cle: 'regression',   libelle: 'Droite de régression', droite: true },
@@ -20,9 +21,9 @@ const ONGLETS = [
   { cle: 'benefices',    libelle: 'Bénéfices',    action: true },
   { cle: 'qualite',      libelle: 'Qualité',      action: true },
   { cle: 'valorisation', libelle: 'Valorisation', action: true },
+  { cle: 'fondamentaux', libelle: 'Fondamentaux', action: true },
   { cle: 'journal',      libelle: 'Journal' },
   { cle: 'assistant',    libelle: 'Assistant', ia: true },
-  { cle: 'fondamentaux', libelle: 'Fondamentaux', action: true },
   { cle: 'donnees',      libelle: 'Données & réglages' },
 ]
 
@@ -62,6 +63,13 @@ export default function Fiche() {
     finally { setActualisation(false) }
   }
 
+  const basculerFavori = async favori => {
+    try {
+      const v = await api.valeurs.update(id, { favori })
+      setAnalyse(a => ({ ...a, valeur: { ...a.valeur, favori: v.favori } }))
+    } catch (e) { setErreur(e.message) }
+  }
+
   if (!analyse) {
     return (
       <div className="page">
@@ -82,7 +90,7 @@ export default function Fiche() {
 
       <div className="fiche-entete">
         <div>
-          <h1 className="fiche-titre">{valeur.nom}</h1>
+          <h1 className="fiche-titre"><Favori actif={valeur.favori} onBasculer={basculerFavori} /> {valeur.nom}</h1>
           <div className="fiche-meta">
             <span className="mono">{valeur.symbole}</span>
             <span className="etiquette">{TYPES[valeur.type]}</span>

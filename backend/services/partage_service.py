@@ -38,7 +38,7 @@ from backend.sources import catalogue
 FORMAT, VERSION = "bourse-partage", 1
 SOURCES_SAISIES = {"manuel", "import", "pdf"}
 CHAMPS_VALEUR = ["symbole", "nom", "type", "source", "devise", "place", "secteur", "pays", "isin", "lei", "cik",
-                 "devise_comptes", "debut_regression", "rupture", "notes"]
+                 "devise_comptes", "debut_regression", "rupture", "favori", "notes"]
 
 
 def _moderniser(fiche: dict) -> None:

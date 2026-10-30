@@ -9,6 +9,7 @@ const sansAccents = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLo
 import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
 import ImporterIndice from '../components/ImporterIndice'
+import Favori from '../components/Favori'
 
 // Largeurs FIXES (px), prevues pour le contenu le plus large possible (« 12 345 GBp », « Surévaluation
 // manifeste », « +123,4 % ») : trier, changer de page ou chercher ne deplace plus les colonnes. La colonne
@@ -42,7 +43,7 @@ export default function Tableau() {
   const [recherche, setRecherche] = useSearchParams()
   const [ajout, setAjout] = useState(() => recherche.get('ajouter') !== null)
   const [progression, setProgression] = useState(null)
-  const [tri, setTri] = useState({ cle: 'position', sens: 1 })
+  const [tri, setTri] = useState({ cle: 'nom', sens: 1 })
   const [filtre, setFiltre] = useState('tous')
   const [listes, setListes] = useState([])
   const [listeId, setListeId] = useState('')
@@ -105,6 +106,8 @@ export default function Tableau() {
       .filter(l => !texte.trim() || sansAccents(`${l.valeur.nom} ${l.valeur.symbole} ${l.valeur.isin ?? ''} ${l.valeur.secteur ?? ''}`)
         .includes(sansAccents(texte.trim())))
       .sort((a, b) => {
+        // Tri par nom, dans les deux sens : les favoris d'abord. Les autres tris les ignorent.
+        if (tri.cle === 'nom' && a.valeur.favori !== b.valeur.favori) return a.valeur.favori ? -1 : 1
         const va = colonne.valeur(a), vb = colonne.valeur(b)
         // Les valeurs sans donnee vont toujours en bas.
         if (va === null || va === undefined) return 1
@@ -117,6 +120,12 @@ export default function Tableau() {
   const affichees = triees.slice((pageAffichee - 1) * parPage, pageAffichee * parPage)
 
   const trier = cle => setTri(t => ({ cle, sens: t.cle === cle ? -t.sens : 1 }))
+  const basculerFavori = async (id, favori) => {
+    const marquer = f => setLignes(ls => ls.map(l => l.valeur.id === id ? { ...l, valeur: { ...l.valeur, favori: f } } : l))
+    marquer(favori)
+    try { await api.valeurs.update(id, { favori }) }
+    catch (e) { marquer(!favori); setErreur(e.message) }
+  }
   const supprimer = async () => {
     try {
       const ids = [...selection]
@@ -221,9 +230,10 @@ export default function Tableau() {
           </div>
         ) : (
           <div className="tableau-conteneur">
-            <table className="tableau tableau-fixe" style={{ minWidth: 1340 }}>
+            <table className="tableau tableau-fixe" style={{ minWidth: 1372 }}>
               <colgroup>
                 <col style={{ width: 36 }} />
+                <col style={{ width: 32 }} />
                 {COLONNES.map(c => <col key={c.cle} style={c.largeur ? { width: c.largeur } : undefined} />)}
               </colgroup>
               <thead>
@@ -237,6 +247,7 @@ export default function Tableau() {
                              setSelection(n)
                            }} />
                   </th>
+                  <th aria-label="Favori" title="Les favoris passent en tête quand on trie par Valeur" />
                   {COLONNES.map(c => (
                     <th key={c.cle} className={`triable${c.cle === 'nom' ? ' texte' : ''}`} title={c.aide} onClick={() => trier(c.cle)}>
                       {c.libelle}{tri.cle === c.cle ? (tri.sens > 0 ? ' ↑' : ' ↓') : ''}
@@ -252,6 +263,7 @@ export default function Tableau() {
                         const n = new Set(selection); n.has(l.valeur.id) ? n.delete(l.valeur.id) : n.add(l.valeur.id); setSelection(n)
                       }} />
                     </td>
+                    <td><Favori actif={l.valeur.favori} onBasculer={f => basculerFavori(l.valeur.id, f)} /></td>
                     <td className="texte" title={l.valeur.nom}>
                       <div className="valeur-nom">
                         {l.valeur.nom}

@@ -129,6 +129,13 @@ portefeuille, SEC : environ 250 corrections mécaniques).
 - **Correctif** : la contre-vérification faisait échouer l'ajout et la mise à jour complète des ETF cotés sur
   Euronext (fichier au format différent, ex. CAC.PA). Une panne de ce contrôle reste désormais un simple avertissement.
 
+## Ajouts de la 0.6.1 (31/10/2026)
+
+- **Fiche** : l'onglet Fondamentaux vient juste après Valorisation.
+- **Aujourd'hui** : « À venir » passe au-dessus de « Dernières alertes ».
+- **Favoris** : une étoile sur chaque valeur, tous types confondus (tableau et fiche). Les favoris passent en tête quand
+  on trie par Valeur, dans les deux sens ; les autres tris les ignorent. Le tableau s'ouvre désormais trié par Valeur.
+
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 
 ### Vos demandes

@@ -37,6 +37,8 @@ class Valeur(SQLModel, table=True):
     # L'utilisateur signale un changement de nature de l'entreprise (3e verification).
     rupture: bool = False
     notes:   Optional[str] = None
+    # Etoile de l'utilisateur : en tete de liste quand on trie par nom.
+    favori:  bool = False
 
     # Dernier instantane des ratios fournis par la source, en JSON.
     infos:  Optional[str] = None

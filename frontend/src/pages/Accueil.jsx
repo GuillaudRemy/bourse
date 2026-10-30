@@ -53,17 +53,6 @@ export default function Accueil() {
         </div>
         <div className="pile" style={{ gap: 16 }}>
           <div className="carte">
-            <div className="section-titre">Dernières alertes</div>
-            {r.alertes.liste.length === 0 && <div className="vide">Aucune alerte.</div>}
-            {r.alertes.liste.map(a => (
-              <div key={a.id} className="signal">
-                <span className={`signal-point ${a.lu ? 'neutre' : 'baisse'}`} />
-                <span style={{ flex: 1 }}>{a.message}</span>
-                <span className="discret">{dateHeure(a.moment)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="carte">
             <div className="section-titre">À venir</div>
             {r.evenements.length === 0 && <div className="vide">Rien dans les 14 prochains jours.</div>}
             {r.evenements.map((e, i) => (
@@ -71,6 +60,17 @@ export default function Accueil() {
                 <span className="mono" style={{ minWidth: 90 }}>{date(e.jour)}</span>
                 <Link to={`/valeurs/${e.valeur_id}`} className="lien-poste" style={{ flex: 1 }}>{e.nom}</Link>
                 <span className="discret">{EVENEMENTS[e.type] ?? e.type}</span>
+              </div>
+            ))}
+          </div>
+          <div className="carte">
+            <div className="section-titre">Dernières alertes</div>
+            {r.alertes.liste.length === 0 && <div className="vide">Aucune alerte.</div>}
+            {r.alertes.liste.map(a => (
+              <div key={a.id} className="signal">
+                <span className={`signal-point ${a.lu ? 'neutre' : 'baisse'}`} />
+                <span style={{ flex: 1 }}>{a.message}</span>
+                <span className="discret">{dateHeure(a.moment)}</span>
               </div>
             ))}
           </div>
