@@ -23,7 +23,7 @@ export default function Accueil() {
         <div>
           <h1 className="page-titre">Aujourd'hui</h1>
           <div className="page-sous-titre">
-            {r.nombre_valeurs} valeur(s) suivie(s) · dernière actualisation complète : {r.derniere_actualisation ? date(r.derniere_actualisation) : 'jamais'}
+            {r.nombre_actions} action(s) suivie(s) · dernière actualisation complète : {r.derniere_actualisation ? date(r.derniere_actualisation) : 'jamais'}
           </div>
         </div>
       </div>
@@ -35,14 +35,14 @@ export default function Accueil() {
               detail={p ? `performance ${pct(p.twr, { signe: true })} depuis le début` : ''} />
         <Stat libelle="Alertes non lues" valeur={r.alertes.non_lus} classe={r.alertes.non_lus ? 'negatif' : ''}
               detail={<Link to="/alertes">Voir les alertes</Link>} />
-        <Stat libelle="Dans les 14 jours" valeur={r.evenements.length} detail="résultats, dividendes" />
+        <Stat libelle="Dans les 14 jours" valeur={r.evenements_14_jours} detail="résultats, dividendes" />
       </div>
 
       <div className="grille-2" style={{ marginTop: 16 }}>
         <div className="pile" style={{ gap: 16 }}>
-          <Liste titre="Sous leur droite — à regarder" lignes={r.opportunites} vide="Aucune valeur sous sa droite d'au moins 1 écart-type."
+          <Liste titre="Les plus sous leur droite" lignes={r.sous_droite} vide="Aucune action sous sa droite."
                  detail={l => <><BadgeZone zone={l.zone} /> <span className="mono">{sigma(l.position)}</span></>} />
-          <Liste titre="Tout en haut du couloir — prudence" lignes={r.cheres} vide="Aucune valeur au-dessus de +2 écarts-types."
+          <Liste titre="Les plus au-dessus de leur droite" lignes={r.dessus_droite} vide="Aucune action au-dessus de sa droite."
                  detail={l => <><BadgeZone zone={l.zone} /> <span className="mono">{sigma(l.position)}</span></>} />
           <div className="grille-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <Liste titre="Plus fortes hausses" lignes={r.hausses} vide="—"
@@ -53,8 +53,8 @@ export default function Accueil() {
         </div>
         <div className="pile" style={{ gap: 16 }}>
           <div className="carte">
-            <div className="section-titre">À venir</div>
-            {r.evenements.length === 0 && <div className="vide">Rien dans les 14 prochains jours.</div>}
+            <div className="section-titre">Prochaines échéances</div>
+            {r.evenements.length === 0 && <div className="vide">Aucune échéance à venir.</div>}
             {r.evenements.map((e, i) => (
               <div key={i} className="signal">
                 <span className="mono" style={{ minWidth: 90 }}>{date(e.jour)}</span>

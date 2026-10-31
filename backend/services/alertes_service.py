@@ -221,9 +221,14 @@ class AlerteService:
         self._db.delete(alerte)
         self._db.commit()
 
-    def declenchements(self, limite: int = 100) -> dict:
-        lignes = self._db.exec(select(Declenchement).order_by(col(Declenchement.moment).desc()).limit(limite))
-        non_lus = self._db.exec(select(func.count()).select_from(Declenchement).where(Declenchement.lu == False)).one()
+    def declenchements(self, limite: int = 100, type_valeur: str | None = None) -> dict:
+        requete = select(Declenchement)
+        compte = select(func.count()).select_from(Declenchement).where(Declenchement.lu == False)
+        if type_valeur:
+            requete = requete.join(Valeur, col(Valeur.id) == col(Declenchement.valeur_id)).where(Valeur.type == type_valeur)
+            compte = compte.join(Valeur, col(Valeur.id) == col(Declenchement.valeur_id)).where(Valeur.type == type_valeur)
+        lignes = self._db.exec(requete.order_by(col(Declenchement.moment).desc()).limit(limite))
+        non_lus = self._db.exec(compte).one()
         return {"non_lus": non_lus, "liste": [d.model_dump(mode="json") for d in lignes]}
 
     def marquer_lus(self) -> None:

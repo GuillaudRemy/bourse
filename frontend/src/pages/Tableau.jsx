@@ -230,10 +230,10 @@ export default function Tableau() {
           </div>
         ) : (
           <div className="tableau-conteneur">
-            <table className="tableau tableau-fixe" style={{ minWidth: 1372 }}>
+            <table className="tableau tableau-fixe" style={{ minWidth: 1380 }}>
               <colgroup>
                 <col style={{ width: 36 }} />
-                <col style={{ width: 32 }} />
+                <col style={{ width: 40 }} />
                 {COLONNES.map(c => <col key={c.cle} style={c.largeur ? { width: c.largeur } : undefined} />)}
               </colgroup>
               <thead>
@@ -263,7 +263,7 @@ export default function Tableau() {
                         const n = new Set(selection); n.has(l.valeur.id) ? n.delete(l.valeur.id) : n.add(l.valeur.id); setSelection(n)
                       }} />
                     </td>
-                    <td><Favori actif={l.valeur.favori} onBasculer={f => basculerFavori(l.valeur.id, f)} /></td>
+                    <td className="cellule-favori"><Favori actif={l.valeur.favori} onBasculer={f => basculerFavori(l.valeur.id, f)} /></td>
                     <td className="texte" title={l.valeur.nom}>
                       <div className="valeur-nom">
                         {l.valeur.nom}

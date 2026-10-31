@@ -285,6 +285,8 @@ a { color: inherit; text-decoration: none; }
 .valeur-symbole { font-family: var(--f-mono); font-size: 11px; color: var(--faint); }
 .favori { background: none; border: none; padding: 0 2px; cursor: pointer; font: inherit; line-height: 1; color: var(--faint); }
 .favori:hover, .favori.actif { color: var(--c-mm20); }
+.tableau td.cellule-favori { padding: 0; text-align: center; }
+.cellule-favori .favori { font-size: 22px; }
 
 /* ─── PASTILLES DE ZONE ET DE STATUT ─────────────────────────────── */
 .badge {

@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
 from backend.core import reglages
 from backend.db.db import get_session
@@ -67,8 +67,12 @@ def calendrier(jours_avant: int = 30, jours_apres: int = 90, db: Session = Depen
     debut, fin = date.today() - timedelta(days=jours_avant), date.today() + timedelta(days=jours_apres)
     lignes = db.exec(select(Evenement, Valeur).join(Valeur, col(Valeur.id) == col(Evenement.valeur_id))
                      .where(Evenement.jour >= debut, Evenement.jour <= fin).order_by(col(Evenement.jour)))
-    return [{"jour": e.jour.isoformat(), "type": e.type, "detail": e.detail, "valeur_id": v.id, "nom": v.nom,
-             "symbole": v.symbole} for e, v in lignes]
+    return [_evenement(e, v) for e, v in lignes]
+
+
+def _evenement(e: Evenement, v: Valeur) -> dict:
+    return {"jour": e.jour.isoformat(), "type": e.type, "detail": e.detail, "valeur_id": v.id, "nom": v.nom,
+            "symbole": v.symbole}
 
 
 @router.get("/valeurs/{valeur_id}/actualites")
@@ -81,13 +85,21 @@ def actualites(valeur_id: int, db: Session = Depends(get_session)):
 
 @router.get("/resume")
 def resume(db: Session = Depends(get_session)):
-    """Ce qui compte aujourd'hui, en un coup d'oeil."""
+    """Ce qui compte aujourd'hui, en un coup d'oeil : les actions seulement, le reste se suit ailleurs.
+    Le portefeuille reste entier : c'est ce que vous possedez."""
+    actions = [l for l in AnalyseService(db).synthese() if l["valeur"]["type"] == "action"]
     # Donnees suspectes (contrôle qualite) : exclues des palmares, elles fausseraient tout.
-    lignes = [l for l in AnalyseService(db).synthese()
-              if l.get("variation_jour") is not None and l.get("qualite") != "alerte"]
+    lignes = [l for l in actions if l.get("variation_jour") is not None and l.get("qualite") != "alerte"]
     tri = sorted(lignes, key=lambda l: l["variation_jour"])
+    positions = sorted((l for l in lignes if l.get("position") is not None), key=lambda l: l["position"])
     porte = PortefeuilleService(db).synthese()
-    a_venir = calendrier(jours_avant=0, jours_apres=14, db=db)
+    aujourdhui = date.today()
+    a_venir = select(Evenement, Valeur).join(Valeur, col(Valeur.id) == col(Evenement.valeur_id)) \
+        .where(Valeur.type == "action", Evenement.jour >= aujourdhui)
+    prochains = db.exec(a_venir.order_by(col(Evenement.jour)).limit(10))
+    sous_14_jours = db.exec(select(func.count()).select_from(Evenement).join(Valeur, col(Valeur.id) == col(Evenement.valeur_id))
+                            .where(Valeur.type == "action", Evenement.jour >= aujourdhui,
+                                   Evenement.jour <= aujourdhui + timedelta(days=14))).one()
 
     def court(l):
         return {"id": l["valeur"]["id"], "nom": l["valeur"]["nom"], "variation_jour": l.get("variation_jour"),
@@ -99,11 +111,12 @@ def resume(db: Session = Depends(get_session)):
             "valeur": porte["totaux"]["valeur"], "variation_jour": porte["totaux"]["variation_jour"],
             "plus_value_latente": porte["totaux"]["plus_value_latente"], "twr": porte["performance"].get("twr"),
         },
-        "alertes": AlerteService(db).declenchements(limite=10),
-        "hausses": [court(l) for l in reversed(tri[-3:]) if l["variation_jour"] > 0],
-        "baisses": [court(l) for l in tri[:3] if l["variation_jour"] < 0],
-        "opportunites": [court(l) for l in lignes if l.get("zone") in ("opportunite_manifeste", "sous_evalue")],
-        "cheres": [court(l) for l in lignes if l.get("zone") == "surevaluation_manifeste"],
-        "evenements": a_venir,
-        "nombre_valeurs": len(lignes),
+        "alertes": AlerteService(db).declenchements(limite=5, type_valeur="action"),
+        "hausses": [court(l) for l in reversed(tri[-5:]) if l["variation_jour"] > 0],
+        "baisses": [court(l) for l in tri[:5] if l["variation_jour"] < 0],
+        "sous_droite": [court(l) for l in positions[:5] if l["position"] < 0],
+        "dessus_droite": [court(l) for l in reversed(positions[-5:]) if l["position"] > 0],
+        "evenements": [_evenement(e, v) for e, v in prochains],
+        "evenements_14_jours": sous_14_jours,
+        "nombre_actions": len(actions),
     }

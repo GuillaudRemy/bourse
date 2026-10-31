@@ -136,6 +136,14 @@ portefeuille, SEC : environ 250 corrections mécaniques).
 - **Favoris** : une étoile sur chaque valeur, tous types confondus (tableau et fiche). Les favoris passent en tête quand
   on trie par Valeur, dans les deux sens ; les autres tris les ignorent. Le tableau s'ouvre désormais trié par Valeur.
 
+## Version 0.6.2 (31/10/2026)
+
+- **Aujourd'hui ne parle que d'actions** : le logiciel est fait pour les actions individuelles, le reste est un bonus qui
+  se suit dans Marchés et les Outils. Seul le portefeuille reste entier. Affiche les 10 prochaines échéances (sans limite
+  de date), les 5 dernières alertes, les 5 actions les plus sous et les plus au-dessus de leur droite, les 5 plus fortes
+  hausses et baisses.
+- **Marchés** : étoile des favoris plus grande.
+
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 
 ### Vos demandes
