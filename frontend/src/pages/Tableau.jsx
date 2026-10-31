@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useActualisation } from '../lib/actualisation'
 import { pct, prix, nombre, sigma, ton, date, dateHeure, unite, variation } from '../lib/format'
 import { TYPES } from '../lib/zones'
 
@@ -10,6 +11,7 @@ import Jauge, { BadgeZone } from '../components/Jauge'
 import AjouterValeur from '../components/AjouterValeur'
 import ImporterIndice from '../components/ImporterIndice'
 import Favori from '../components/Favori'
+import BoutonActualiser from '../components/BoutonActualiser'
 
 // Largeurs FIXES (px), prevues pour le contenu le plus large possible (« 12 345 GBp », « Surévaluation
 // manifeste », « +123,4 % ») : trier, changer de page ou chercher ne deplace plus les colonnes. La colonne
@@ -42,7 +44,6 @@ export default function Tableau() {
   const [info, setInfo] = useState(null)
   const [recherche, setRecherche] = useSearchParams()
   const [ajout, setAjout] = useState(() => recherche.get('ajouter') !== null)
-  const [progression, setProgression] = useState(null)
   const [tri, setTri] = useState({ cle: 'nom', sens: 1 })
   const [filtre, setFiltre] = useState('tous')
   const [listes, setListes] = useState([])
@@ -69,30 +70,17 @@ export default function Tableau() {
 
   useEffect(() => { charger() }, [charger])
 
-  // Suivi de l'actualisation en tache de fond (lancee ici ou automatiquement au demarrage).
-  useEffect(() => {
-    let actif = true, minuterie = null
-    const suivre = async () => {
-      try {
-        const etat = await api.valeurs.actualisation()
-        if (!actif) return
-        setProgression(etat)
-        if (etat.en_cours) minuterie = setTimeout(suivre, 1500)
-        else if (etat.fin) {
-          charger()
-          const problemes = [...etat.echecs, ...etat.avertissements]
-          setInfo(`${etat.faits} valeur(s) actualisée(s).` + (problemes.length ? ` ${problemes.join(' · ')}` : ''))
-        }
-      } catch { /* serveur momentanement injoignable : on reessaiera au prochain clic */ }
-    }
-    if (progression === null || progression.en_cours) suivre()
-    return () => { actif = false; clearTimeout(minuterie) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progression?.en_cours])
+  // Actualisation en tache de fond, lancee ici, au demarrage ou par la veille horaire (celle-ci sans message).
+  const { etat: progression, lancer, suivreMaintenant } = useActualisation(etat => {
+    charger()
+    if (etat.mode === 'horaire') return
+    const problemes = [...etat.echecs, ...etat.avertissements]
+    setInfo(`${etat.faits} valeur(s) actualisée(s).` + (problemes.length ? ` ${problemes.join(' · ')}` : ''))
+  })
 
   const actualiserTout = async (mode = 'cours') => {
     setInfo(null)
-    try { setProgression(await api.valeurs.actualiserTout(mode)) }
+    try { await lancer(mode) }
     catch (e) { setErreur(e.message) }
   }
   const enCours = progression?.en_cours
@@ -151,10 +139,7 @@ export default function Tableau() {
           </div>
         </div>
         <div className="rangee">
-          <button className="btn" onClick={() => actualiserTout('cours')} disabled={enCours || !lignes?.length}
-                  title="Rapide : seulement les séances depuis la dernière mise à jour (l'historique est rechargé pour une valeur si un dividende ou une division l'exige)">
-            {enCours && progression?.mode !== 'complet' ? 'Actualisation…' : 'Actualiser les cours'}
-          </button>
+          <BoutonActualiser enCours={enCours} onClick={() => actualiserTout('cours')} disabled={!lignes?.length} />
           <button className="btn" onClick={() => actualiserTout('complet')} disabled={enCours || !lignes?.length}
                   title="Long : historique complet des cours, comptes annuels, fiche et calendrier de toutes les valeurs">
             {enCours && progression?.mode === 'complet' ? 'Mise à jour complète…' : 'Tout mettre à jour'}
@@ -321,7 +306,7 @@ export default function Tableau() {
         )}
       </div>
 
-      {importIndice && <ImporterIndice onFermer={message => { setImportIndice(false); if (message) { setInfo(message); chargerListes(); setProgression({ en_cours: true }) } charger() }} />}
+      {importIndice && <ImporterIndice onFermer={message => { setImportIndice(false); if (message) { setInfo(message); chargerListes(); suivreMaintenant() } charger() }} />}
       {ajout && (
         <AjouterValeur
           texteInitial={recherche.get('ajouter') ?? ''}

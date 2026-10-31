@@ -1,9 +1,11 @@
 // @ts-check
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useActualisation } from '../lib/actualisation'
 import { pct, prix, sigma, date, dateHeure, ton } from '../lib/format'
 import { BadgeZone } from '../components/Jauge'
+import BoutonActualiser from '../components/BoutonActualiser'
 import { Stat } from '../components/fiche/OngletRegression'
 
 const EVENEMENTS = { resultats: 'Résultats', detachement: 'Détachement du dividende', paiement: 'Paiement du dividende' }
@@ -11,7 +13,9 @@ const EVENEMENTS = { resultats: 'Résultats', detachement: 'Détachement du divi
 export default function Accueil() {
   const [r, setR] = useState(null)
   const [erreur, setErreur] = useState(null)
-  useEffect(() => { api.resume().then(setR).catch(e => setErreur(e.message)) }, [])
+  const charger = useCallback(() => api.resume().then(setR).catch(e => setErreur(e.message)), [])
+  useEffect(() => { charger() }, [charger])
+  const { etat, lancer } = useActualisation(charger)
 
   if (erreur) return <div className="page"><div className="erreur">{erreur}</div></div>
   if (!r) return <div className="page"><div className="chargement">Chargement…</div></div>
@@ -23,9 +27,10 @@ export default function Accueil() {
         <div>
           <h1 className="page-titre">Aujourd'hui</h1>
           <div className="page-sous-titre">
-            {r.nombre_actions} action(s) suivie(s) · dernière actualisation complète : {r.derniere_actualisation ? date(r.derniere_actualisation) : 'jamais'}
+            {r.nombre_actions} action(s) suivie(s) · actualisé {dateHeure(r.derniere_actualisation)}
           </div>
         </div>
+        <BoutonActualiser enCours={etat?.en_cours} onClick={() => lancer('cours').catch(e => setErreur(e.message))} />
       </div>
 
       <div className="stat-grille">

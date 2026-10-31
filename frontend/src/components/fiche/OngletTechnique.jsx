@@ -1,5 +1,5 @@
 // @ts-check
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { pct, prix, nombre, date, ton, variation } from '../../lib/format'
 import GraphiqueTechnique, { COULEURS_MM } from '../GraphiqueTechnique'
@@ -7,12 +7,21 @@ import { Stat, InterrupteurEuros } from './OngletRegression'
 
 const CLE_OPTIONS = 'bourse.options-techniques.2'
 const DEFAUT = {
-  unite: 'jour', bougies: true, log: false, mm: '20,50,200', periode_rsi: 14,
+  unite: 'jour', bougies: true, log: false, moyennes: true, mm: '20,50,200', periode_rsi: 14,
   bollinger: false, ichimoku: false, volume: true, rsi: true, macd: true, stochastique: false, adx: false, atr: false, obv: false,
 }
-const PANNEAUX = { bollinger: 'Bollinger', ichimoku: 'Ichimoku', volume: 'Volume', rsi: 'RSI', macd: 'MACD',
+const PANNEAUX = { bollinger: 'Bollinger', ichimoku: 'Ichimoku', moyennes: 'Moyennes mobiles', volume: 'Volume', rsi: 'RSI', macd: 'MACD',
                    stochastique: 'Stochastique', adx: 'ADX', atr: 'ATR', obv: 'OBV' }
-const TRACES = { niveau: 'Niveau (support, résistance)', ligne: 'Ligne de tendance (2 clics)', note: 'Note datée' }
+const TRACES = { niveau: 'Niveau (support, résistance)', ligne: 'Droite de tendance (2 clics)', note: 'Note datée' }
+const TRACES_COURTS = { niveau: 'Niveau', ligne: 'Droite', note: 'Note' }
+
+/** Un trace en une ligne. */
+function decrire(a) {
+  const d = a.donnees
+  if (a.type === 'niveau') return `Niveau ${nombre(d.prix, 2)}${d.texte ? ` — ${d.texte}` : ''}`
+  if (a.type === 'ligne') return `Droite ${date(d.t1)} → ${date(d.t2)}`
+  return `${date(d.jour)} : ${d.texte}`
+}
 
 function lireOptions() {
   try { return { ...DEFAUT, ...JSON.parse(localStorage.getItem(CLE_OPTIONS) || '{}') } } catch { return DEFAUT }
@@ -27,6 +36,21 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   const [annotations, setAnnotations] = useState([])
   const [mode, setMode] = useState(null)               // trace en cours : niveau | ligne | note
   const [premier, setPremier] = useState(null)         // premier point d'une ligne de tendance
+  const [saisie, setSaisie] = useState(null)           // point place, en attente du texte : { jour, prix, texte }
+  const [selection, setSelection] = useState(null)     // id du trace selectionne sur le graphique
+  const carte = useRef(null)
+  const [pleinEcran, setPleinEcran] = useState(false)
+
+  // Echap quitte aussi le plein ecran : on suit le navigateur plutot que le bouton.
+  useEffect(() => {
+    const suivre = () => setPleinEcran(document.fullscreenElement === carte.current)
+    document.addEventListener('fullscreenchange', suivre)
+    return () => document.removeEventListener('fullscreenchange', suivre)
+  }, [])
+  const basculerPleinEcran = () => {
+    const demande = pleinEcran ? document.exitFullscreen() : carte.current.requestFullscreen()
+    demande.catch(e => setErreur(e.message))
+  }
 
   const changer = (cle, v) => {
     const suivantes = { ...options, [cle]: v }
@@ -46,16 +70,39 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   const chargerAnnotations = useCallback(() => api.valeurs.annotations(valeur.id).then(setAnnotations).catch(() => {}), [valeur.id])
   useEffect(() => { chargerAnnotations() }, [chargerAnnotations])
 
-  const clic = useCallback(async ({ jour, prix: p }) => {
-    if (!mode) return
-    let donnees = null
-    if (mode === 'niveau') donnees = { prix: p, texte: prompt('Libellé du niveau (facultatif)', '') ?? '' }
-    else if (mode === 'note') { const texte = prompt(`Note au ${date(jour)}`); if (!texte) return; donnees = { jour, texte } }
-    else if (!premier) { setPremier({ jour, prix: p }); return }
-    else donnees = { t1: premier.jour, p1: premier.prix, t2: jour, p2: p }
-    await api.valeurs.annoter(valeur.id, { type: mode, donnees })
-    setPremier(null); setMode(null); chargerAnnotations()
-  }, [mode, premier, valeur.id, chargerAnnotations])
+  const annuler = () => { setMode(null); setPremier(null); setSaisie(null) }
+  const enregistrer = useCallback(async (type, donnees) => {
+    await api.valeurs.annoter(valeur.id, { type, donnees })
+    setPremier(null); setMode(null); setSaisie(null); chargerAnnotations()
+  }, [valeur.id, chargerAnnotations])
+
+  // Texte saisi dans la page, pas par prompt() : une fenetre du navigateur ferait quitter le plein ecran.
+  const clic = useCallback(({ jour, prix: p }) => {
+    if (mode === 'ligne') {
+      if (premier) enregistrer('ligne', { t1: premier.jour, p1: premier.prix, t2: jour, p2: p })
+      else setPremier({ jour, prix: p })
+    } else if (mode) setSaisie({ jour, prix: p, texte: '' })
+  }, [mode, premier, enregistrer])
+
+  const validerSaisie = e => {
+    e.preventDefault()
+    if (mode === 'niveau') enregistrer('niveau', { prix: saisie.prix, texte: saisie.texte })
+    else if (saisie.texte.trim()) enregistrer('note', { jour: saisie.jour, texte: saisie.texte.trim() })
+  }
+
+  const choisi = annotations.find(a => a.id === selection)
+  const supprimer = useCallback(async id => {
+    await api.valeurs.effacerAnnotation(valeur.id, id)
+    setSelection(null); chargerAnnotations()
+  }, [valeur.id, chargerAnnotations])
+  useEffect(() => {
+    if (!choisi) return
+    const touche = e => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) supprimer(choisi.id)
+    }
+    document.addEventListener('keydown', touche)
+    return () => document.removeEventListener('keydown', touche)
+  }, [choisi, supprimer])
 
   return (
     <div className="pile" style={{ gap: 16 }}>
@@ -71,7 +118,7 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
       </div>
 
       <div className="grille-2">
-        <div className="carte">
+        <div className="carte carte-plein-ecran" ref={carte}>
           <div className="graphique-barre">
             <div className="segments">
               {['jour', 'semaine', 'mois'].map(u => <button key={u} className={`segment${options.unite === u ? ' actif' : ''}`} onClick={() => changer('unite', u)}>{u[0].toUpperCase() + u.slice(1)}</button>)}
@@ -83,23 +130,54 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
               <input className="champ champ-mono" style={{ width: 110, padding: '3px 6px' }} value={options.mm} onChange={e => changer('mm', e.target.value)} /></label>
             <label className="interrupteur">RSI <input className="champ champ-mono" style={{ width: 46, padding: '3px 6px' }} value={options.periode_rsi} onChange={e => changer('periode_rsi', Number(e.target.value) || '')} /></label>
             <InterrupteurEuros valeur={valeur} enEuros={enEuros} setEnEuros={setEnEuros} />
+            <span className="espaceur" />
+            <button className="btn btn-mini" onClick={basculerPleinEcran} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'}
+                    title={pleinEcran ? 'Quitter le plein écran (Échap)' : 'Plein écran'}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d={pleinEcran ? 'M5 1v4H1M9 1v4h4M5 13V9H1M9 13V9h4' : 'M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9'} />
+              </svg>
+            </button>
           </div>
           <div className="graphique-barre">
             {Object.entries(PANNEAUX).map(([cle, l]) => (
               <label key={cle} className="interrupteur"><input type="checkbox" checked={options[cle]} onChange={e => changer(cle, e.target.checked)} /> {l}</label>
             ))}
+            {pleinEcran && (
+              <>
+                <span className="espaceur" />
+                {Object.entries(TRACES_COURTS).map(([cle, l]) => (
+                  <button key={cle} className={`btn btn-mini ${mode === cle ? 'btn-primaire' : 'btn-fantome'}`} title={TRACES[cle]}
+                          onClick={() => { setMode(cle); setPremier(null); setSaisie(null); setSelection(null) }}>{l}</button>
+                ))}
+              </>
+            )}
           </div>
           {erreur && <div className="erreur" style={{ margin: 12 }}>{erreur}</div>}
-          {mode && (
-            <div className="info" style={{ margin: '10px 14px 0' }}>
-              <span>{mode === 'ligne' && premier ? `Premier point au ${date(premier.jour)} (${nombre(premier.prix, 2)}) : cliquez le second.` : `Cliquez sur le graphique pour placer : ${TRACES[mode].toLowerCase()}.`}</span>
-              <button className="btn btn-mini" onClick={() => { setMode(null); setPremier(null) }}>Annuler</button>
-            </div>
-          )}
-          {t ? <GraphiqueTechnique t={t} options={valeur.source === 'bce' ? { ...options, bougies: false } : options} annotations={annotations} onClic={mode ? clic : null} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
+          <div className="graphique-zone">
+            {mode && (
+              <div className="trace-bulle">
+                {saisie ? (
+                  <form className="rangee" onSubmit={validerSaisie}>
+                    <input className="champ" autoFocus aria-label="Texte du tracé" placeholder={mode === 'niveau' ? 'Libellé (facultatif)' : `Note au ${date(saisie.jour)}`}
+                           value={saisie.texte} onChange={e => setSaisie({ ...saisie, texte: e.target.value })} />
+                    <button className="btn btn-mini btn-primaire">OK</button>
+                  </form>
+                ) : <span>{mode === 'ligne' && premier ? `Premier point au ${date(premier.jour)} (${nombre(premier.prix, 2)}) : cliquez le second.` : `Cliquez sur le graphique pour placer : ${TRACES[mode].toLowerCase()}.`}</span>}
+                <button className="btn btn-mini btn-fantome" onClick={annuler}>Annuler</button>
+              </div>
+            )}
+            {!mode && choisi && (
+              <div className="trace-bulle">
+                <span>{decrire(choisi)}</span>
+                <button className="btn btn-mini btn-danger" title="Touche Suppr" onClick={() => supprimer(choisi.id)}>Supprimer</button>
+              </div>
+            )}
+            {t ? <GraphiqueTechnique t={t} options={valeur.source === 'bce' ? { ...options, bougies: false } : options} annotations={annotations}
+                                     onClic={mode ? clic : null} onSelection={setSelection} selection={selection} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
+          </div>
           {t && (
             <div className="legende">
-              {Object.keys(t.moyennes).map((n, i) => <span key={n} className="legende-item"><span className="legende-trait" style={{ borderColor: COULEURS_MM[i % COULEURS_MM.length] }} />MM{n}</span>)}
+              {options.moyennes && Object.keys(t.moyennes).map((n, i) => <span key={n} className="legende-item"><span className="legende-trait" style={{ borderColor: COULEURS_MM[i % COULEURS_MM.length] }} />MM{n}</span>)}
               {options.ichimoku && <span className="legende-item">Ichimoku : tenkan (bleu), kijun (violet), nuage décalé (vert/rouge)</span>}
               {options.adx && <span className="legende-item">ADX &gt; 25 : tendance marquée</span>}
             </div>
@@ -114,16 +192,12 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
           <div className="carte">
             <div className="section-titre">Tracés</div>
             <div className="carte-corps rangee" style={{ flexWrap: 'wrap' }}>
-              {Object.entries(TRACES).map(([cle, l]) => <button key={cle} className={`btn btn-mini${mode === cle ? ' btn-primaire' : ''}`} onClick={() => { setMode(cle); setPremier(null) }}>{l}</button>)}
+              {Object.entries(TRACES).map(([cle, l]) => <button key={cle} className={`btn btn-mini${mode === cle ? ' btn-primaire' : ''}`} onClick={() => { setMode(cle); setPremier(null); setSaisie(null); setSelection(null) }}>{l}</button>)}
             </div>
             {annotations.map(a => (
               <div key={a.id} className="signal">
-                <span style={{ flex: 1 }}>
-                  {a.type === 'niveau' && `Niveau ${nombre(a.donnees.prix, 2)}${a.donnees.texte ? ` — ${a.donnees.texte}` : ''}`}
-                  {a.type === 'ligne' && `Ligne ${date(a.donnees.t1)} → ${date(a.donnees.t2)}`}
-                  {a.type === 'note' && `${date(a.donnees.jour)} : ${a.donnees.texte}`}
-                </span>
-                <button className="btn btn-mini btn-fantome" onClick={async () => { await api.valeurs.effacerAnnotation(valeur.id, a.id); chargerAnnotations() }}>×</button>
+                <span style={{ flex: 1 }}>{decrire(a)}</span>
+                <button className="btn btn-mini btn-fantome" onClick={() => supprimer(a.id)}>×</button>
               </div>
             ))}
           </div>

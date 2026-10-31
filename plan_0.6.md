@@ -144,6 +144,19 @@ portefeuille, SEC : environ 250 corrections mécaniques).
   hausses et baisses.
 - **Marchés** : étoile des favoris plus grande.
 
+## Version 0.6.3 (31/10/2026)
+
+- **Analyse technique** : bouton plein écran du graphique ; indicateurs plus petits ; en plein écran, boutons Niveau,
+  Droite et Note ; les droites de tendance sont infinies, avec un peu de vide à droite du graphique pour les lire ; un clic sur un tracé le sélectionne, puis Suppr ou « Supprimer » l'efface.
+- **Moyennes mobiles** : case pour les afficher ou les masquer, à côté de Volume.
+- **Réglages** : une ligne par réglage, rangés par rubrique, enregistrés aussitôt ; menus déroulants partout où c'est
+  possible (avec « Autre… » pour les montants) ; aide au survol du « ? ».
+- **Bouton d'actualisation commun** (carré, flèche qui tourne) sur Aujourd'hui et Marchés ; Aujourd'hui affiche l'heure.
+- **Veille horaire** : tant que le logiciel est ouvert, les cours de toutes les valeurs (pas seulement les actions) sont
+  actualisés dès que la dernière tentative date de plus d'une heure. Coupe avec le réglage « Actualisation automatique ».
+  Un échec pendant cette veille ne compte pas vers l'abandon d'une valeur : une coupure internet de 5 heures aurait
+  sinon fait passer toutes les valeurs pour mortes.
+
 ## Version 0.7.0 — reportés (état avant la 0.6.1)
 
 ### Vos demandes

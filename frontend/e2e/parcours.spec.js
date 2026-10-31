@@ -58,6 +58,76 @@ test('fiche : droite de régression et analyse technique', async ({ page }) => {
   await expect(page.getByText('RSI 14')).toBeVisible()
 })
 
+test('analyse technique : plein écran du graphique', async ({ page }) => {
+  await page.goto(`/valeurs/${id}?onglet=technique`)
+  await page.getByRole('button', { name: 'Plein écran', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Quitter le plein écran' })).toBeVisible()
+  const hauteur = await page.locator('.carte-plein-ecran .graphique').evaluate(e => e.getBoundingClientRect().height)
+  expect(hauteur).toBeGreaterThan(640)
+  await page.getByRole('button', { name: 'Quitter le plein écran' }).click()
+  await expect(page.getByRole('button', { name: 'Plein écran', exact: true })).toBeVisible()
+})
+
+test('même bouton d\'actualisation sur Aujourd\'hui et Marchés', async ({ page }) => {
+  for (const adresse of ['/accueil', '/valeurs']) {
+    await page.goto(adresse)
+    await expect(page.locator('.page-entete .btn-icone')).toBeVisible()
+    await expect(page.locator('.page-entete .btn-icone')).toHaveAttribute('title', /Actualis/)
+  }
+  await expect(page.getByRole('button', { name: 'Actualiser les cours', exact: true })).toHaveCount(0)
+})
+
+test('réglages : menus déroulants enregistrés aussitôt, « Autre… » pour le reste', async ({ page, request }) => {
+  await page.goto('/reglages')
+  await page.getByRole('combobox', { name: 'Valeurs affichées par page' }).selectOption('20')
+  await expect(page.getByText('Enregistré', { exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Part fixe par ordre' }).selectOption('__autre')
+  await page.locator('input#frais_fixe').fill('1,23')
+  await page.locator('input#frais_fixe').press('Enter')
+  await expect.poll(async () => (await (await request.get('/api/reglages')).json()).find(r => r.cle === 'frais_fixe').valeur).toBe('1,23')
+  await page.reload()
+  await expect(page.locator('input#frais_fixe')).toHaveValue('1,23')
+  await request.put('/api/reglages/frais_fixe', { data: { valeur: '' } })
+  await request.put('/api/reglages/valeurs_par_page', { data: { valeur: '50' } })
+})
+
+test('plein écran : tracer un niveau, le sélectionner sur le graphique et le supprimer', async ({ page, request }) => {
+  const nombre = async () => (await (await request.get(`/api/valeurs/${id}/annotations`)).json()).length
+  const avant = await nombre()
+  await page.goto(`/valeurs/${id}?onglet=technique`)
+  await page.getByRole('button', { name: 'Plein écran', exact: true }).click()
+  const graphique = page.locator('.graphique.haut')
+  await page.waitForTimeout(500)
+  const zone = await graphique.boundingBox()
+  // Sous la bulle d'aide, et souris hors du graphique : pas un pixel ne doit changer.
+  const courbe = async () => {
+    await page.mouse.move(zone.x + 200, 2)
+    await page.waitForTimeout(300)
+    return page.screenshot({ clip: { x: zone.x, y: zone.y + 60, width: zone.width, height: zone.height - 60 } })
+  }
+  const avantClic = await courbe()
+  await page.getByRole('button', { name: 'Niveau', exact: true }).click()
+  await page.locator('.trace-bulle').waitFor()
+  expect(avantClic.equals(await courbe())).toBeTruthy()
+  const point = [zone.x + zone.width / 2, zone.y + 120]
+  await page.mouse.move(...point)
+  await page.mouse.click(...point)
+  await page.getByLabel('Texte du tracé').fill('Support')
+  await page.getByLabel('Texte du tracé').press('Enter')
+  await expect.poll(nombre).toBe(avant + 1)
+  await expect(page.getByRole('button', { name: 'Quitter le plein écran' })).toBeVisible()   // saisie sans sortir du plein ecran
+
+  await expect(page.locator('.trace-bulle')).toHaveCount(0)
+  await expect(page.getByText(/Niveau .* — Support/)).toBeAttached()         // trace recharge par la page
+  await page.mouse.move(...point)
+  await page.waitForTimeout(600)                                             // pas un double-clic
+  await page.mouse.click(...point)
+  await expect(page.locator('.trace-bulle')).toContainText('Support')
+  await page.keyboard.press('Delete')
+  await expect.poll(nombre).toBe(avant)
+  await expect(page.locator('.trace-bulle')).toHaveCount(0)
+})
+
 test('recherche Ctrl+K ouvre une valeur', async ({ page }) => {
   await page.goto('/accueil')
   await page.keyboard.press('Control+k')
@@ -127,7 +197,7 @@ test('menu à 5 entrées, listes déroulantes et anciennes adresses', async ({ p
   await expect(menu.filter({ hasText: 'Outils' })).toHaveClass(/actif/)
   await page.getByRole('link', { name: 'Réglages' }).click()
   await expect(page).toHaveURL(/\/reglages$/)
-  await expect(page.getByText('Prime de risque des actions (%)')).toBeVisible()
+  await expect(page.locator('.reglage', { hasText: 'Prime de risque des actions' })).toBeVisible()
 })
 
 test('tableau des valeurs : les colonnes ne bougent pas', async ({ page, request }) => {

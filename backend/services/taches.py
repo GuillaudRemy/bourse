@@ -8,12 +8,15 @@ Rapidite (plusieurs centaines de valeurs) :
   · les taux de change sont charges une seule fois pour tout le lot ;
   · actualisation legere (cours et divisions, un seul appel) ; comptes, fiche et calendrier
     seulement s'ils datent de plus d'une semaine (valeur_service.complet_du).
+
+Tant que le logiciel est ouvert, `veiller` relance les cours de toutes les valeurs des qu'ils datent
+de plus d'une heure.
 """
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import Session, select
@@ -36,12 +39,14 @@ def etat() -> dict:
         return {**_etat, "echecs": list(_etat["echecs"]), "avertissements": list(_etat["avertissements"])}
 
 
-MODES = ("auto", "cours", "complet")
+MODES = ("auto", "cours", "complet", "horaire")
+PERIODE = timedelta(hours=1)
 
 
 def lancer(mode: str = "auto") -> dict:
     """`cours` : seances recentes seulement (rapide) ; `complet` : tout, pour toutes les valeurs ;
-    `auto` (demarrage, imports) : seances recentes, et le complet hebdomadaire quand il est du."""
+    `auto` (demarrage, imports) : seances recentes, et le complet hebdomadaire quand il est du ;
+    `horaire` (veille) : comme `cours`, mais un echec ne compte pas vers l'abandon de la valeur."""
     with _verrou:
         if _etat["en_cours"]:
             return etat_sans_verrou()
@@ -103,7 +108,8 @@ def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto", dernier_essai:
             if erreur is None or dernier_essai:
                 with _verrou:
                     _etat["faits"] += 1
-    if dernier_essai:
+    # Veille horaire : une coupure de quelques heures ne doit pas faire passer toutes les valeurs pour mortes.
+    if dernier_essai and mode != "horaire":
         with Session(engine) as db:
             valeur = db.get(Valeur, valeur_id)
             if valeur is not None:
@@ -111,6 +117,7 @@ def _actualiser_une(valeur_id: int, nom: str, mode: str = "auto", dernier_essai:
                 valeur.derniere_erreur = erreur[:500]
                 db.commit()
                 cache.invalider(valeur_id)
+    if dernier_essai:
         with _verrou:
             _etat["echecs"].append(f"{nom} : {erreur}")
     return False
@@ -146,6 +153,8 @@ def _travailler(ids: list[tuple[int, str]], mode: str = "auto") -> None:
     finally:
         with _verrou:
             _etat.update(en_cours=False, courant=None, fin=datetime.now(UTC).isoformat())
+        # Meme en echec : sans reseau, on reessaie dans une heure, pas a chaque tour de veille.
+        reglages.ecrire("derniere_tentative", datetime.now(UTC).isoformat())
 
 
 def lancer_si_besoin() -> bool:
@@ -156,3 +165,21 @@ def lancer_si_besoin() -> bool:
         return False
     lancer()
     return True
+
+
+def cours_perimes(maintenant: datetime | None = None) -> bool:
+    """Vrai si l'actualisation automatique est permise et que la derniere tentative date de plus d'une heure."""
+    if reglages.lire("actualisation_auto") != "oui":
+        return False
+    derniere = reglages.lire("derniere_tentative")
+    return not derniere or (maintenant or datetime.now(UTC)) - datetime.fromisoformat(derniere) >= PERIODE
+
+
+def veiller(arret: threading.Event) -> None:
+    """Fil de fond, tant que le logiciel tourne : relance les cours quand ils sont perimes."""
+    while not arret.wait(60):
+        try:
+            if cours_perimes():
+                lancer("horaire")
+        except Exception:      # la veille doit survivre a une base momentanement occupee
+            _log.exception("veille de l'actualisation")

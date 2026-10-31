@@ -51,6 +51,7 @@ export const echelle = log => ({ mode: log ? PriceScaleMode.Logarithmic : PriceS
  * Cree le graphique dans `conteneur` avec `construire(chart)`, et le reconstruit
  * quand `deps` changent. La fenetre de temps visible est conservee d'une
  * reconstruction a l'autre, sauf si `cle` change (autre valeur affichee).
+ * `construire` peut renvoyer une fonction, appelee avec la fenetre retablie (ou null).
  */
 export function useGraphique(construire, deps, cle) {
   const conteneur = useRef(null)
@@ -69,10 +70,11 @@ export function useGraphique(construire, deps, cle) {
     if (derniereCle.current !== cle) { fenetre.current = null; derniereCle.current = cle }
 
     const chart = createChart(conteneur.current, optionsCommunes())
-    construire(chart)   // fixe aussi la fenetre par defaut
+    const apres = construire(chart)   // fixe aussi la fenetre par defaut
     if (fenetre.current) {
       try { chart.timeScale().setVisibleRange(fenetre.current) } catch { /* plage hors donnees */ }
     }
+    apres?.(fenetre.current)          // retouche eventuelle, avec la fenetre retablie s'il y en a une
     // La fenetre n'est memorisee qu'une fois le graphique affiche : le double montage
     // du mode strict de React la lirait avant que la fenetre par defaut soit appliquee.
     let affiche = false

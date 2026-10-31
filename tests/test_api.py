@@ -192,3 +192,18 @@ def test_reponses_brutes_purgees(tmp_path, monkeypatch):
     monkeypatch.setattr(brut, "PLAFOND", 0)
     brut.purger()                                  # le jour en cours est toujours garde
     assert brut.resume()["fichiers"] == 1
+
+
+def test_reglages_en_menus():
+    with TestClient(app) as client:
+        reglages = {r["cle"]: r for r in client.get("/reglages").json()}
+        assert ["20", "20"] in reglages["valeurs_par_page"]["choix"]
+        # Valeur par defaut toujours proposee, sinon le menu afficherait autre chose que le reglage reel.
+        for r in reglages.values():
+            if r["choix"]:
+                assert r["defaut"] in [v for v, _ in r["choix"]], r["cle"]
+        assert client.put("/reglages/canal_beta", json={"valeur": "peut-etre"}).status_code == 422
+        assert client.put("/reglages/valeurs_par_page", json={"valeur": "33"}).status_code == 422
+        assert client.put("/reglages/frais_fixe", json={"valeur": "1,23"}).status_code == 200    # « Autre… »
+        assert client.put("/reglages/tranche_marginale", json={"valeur": ""}).status_code == 200
+        client.put("/reglages/frais_fixe", json={"valeur": ""})

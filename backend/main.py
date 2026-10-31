@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -35,9 +36,12 @@ async def lifespan(app: FastAPI):
     journal_evenements.configurer().info("demarrage de Bourse %s", config.APP_VERSION)
     migrate.main()
     brut.purger()
+    arret = threading.Event()
     if config.ACTUALISATION_AU_DEMARRAGE:
         taches.lancer_si_besoin()
+        threading.Thread(target=taches.veiller, args=(arret,), daemon=True, name="veille-actualisation").start()
     yield
+    arret.set()
 
 
 app = FastAPI(

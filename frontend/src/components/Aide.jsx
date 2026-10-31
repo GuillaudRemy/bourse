@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { GLOSSAIRE } from '../lib/glossaire'
 
-/** Petit « ? » : survol ou clic affiche la definition du terme. */
-export default function Aide({ terme }) {
+/** Petit « ? » : survol ou clic affiche la definition du terme, ou le texte fourni. */
+export default function Aide({ terme = '', titre = '', texte = '' }) {
   const [ouvert, setOuvert] = useState(false)
-  const entree = GLOSSAIRE[terme]
+  const entree = texte ? [titre, texte] : GLOSSAIRE[terme]
   if (!entree) return null
   return (
     <span className="aide" onMouseEnter={() => setOuvert(true)} onMouseLeave={() => setOuvert(false)}

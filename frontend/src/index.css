@@ -175,12 +175,25 @@ a { color: inherit; text-decoration: none; }
 .btn-danger { color: var(--danger); border-color: var(--erreur-bord); }
 .btn-danger:hover { background: var(--erreur-bg); border-color: var(--erreur-bord); }
 .btn-mini { padding: 3px 8px; font-size: 11.5px; border-radius: 5px; }
+.btn-icone { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.tourne { animation: tourner 1s linear infinite; }
+@keyframes tourner { to { transform: rotate(360deg); } }
 .btn-fantome { border-color: transparent; background: transparent; color: var(--muted); }
 .btn-fantome:hover { background: var(--surface-2); color: var(--ink); }
 
 /* ─── FORMULAIRES ────────────────────────────────────────────────── */
 .champ-groupe { display: flex; flex-direction: column; gap: 5px; }
 .champ-label { font-size: 12px; font-weight: 500; color: var(--muted); }
+.reglages-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; align-items: start; margin-bottom: 16px; }
+.reglage { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 4px 18px; border-bottom: 1px solid var(--ligne); }
+.reglage:last-child { border-bottom: none; }
+.reglage-libelle { display: inline-flex; align-items: center; font-size: 13px; min-width: 0; }
+.reglage-controle { display: flex; gap: 6px; flex: none; }
+.reglage-controle .champ { width: 170px; padding: 4px 8px; font-size: 13px; }
+.reglage-controle .champ.court { width: 86px; }
+details.carte > summary { cursor: pointer; display: flex; justify-content: space-between; list-style: none; }
+details.carte > summary::-webkit-details-marker { display: none; }
+details.carte:not([open]) > .section-titre { border-bottom: none; }
 .champ {
   padding: 8px 10px; border: 1px solid var(--border);
   border-radius: var(--r-sm); background: var(--surface); width: 100%;
@@ -350,6 +363,13 @@ a { color: inherit; text-decoration: none; }
 
 .graphique { width: 100%; height: 480px; }
 .graphique.haut { height: 640px; }
+.carte-plein-ecran:fullscreen { display: flex; flex-direction: column; border: none; border-radius: 0; }
+.carte-plein-ecran:fullscreen .graphique-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.carte-plein-ecran:fullscreen .graphique.haut { flex: 1; height: auto; min-height: 0; }
+.graphique-zone { position: relative; }
+.trace-bulle { position: absolute; top: 8px; left: 12px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+  font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.trace-bulle .champ { width: 200px; padding: 3px 7px; font-size: 12.5px; }
 .graphique-barre {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 14px; border-bottom: 1px solid var(--border);

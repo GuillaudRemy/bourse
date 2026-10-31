@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
-from backend.core import reglages
 from backend.db.db import get_session
 from backend.db.schema import Evenement, Valeur
 from backend.services.alertes_service import TYPES, AlerteService, notifier
@@ -87,7 +86,8 @@ def actualites(valeur_id: int, db: Session = Depends(get_session)):
 def resume(db: Session = Depends(get_session)):
     """Ce qui compte aujourd'hui, en un coup d'oeil : les actions seulement, le reste se suit ailleurs.
     Le portefeuille reste entier : c'est ce que vous possedez."""
-    actions = [l for l in AnalyseService(db).synthese() if l["valeur"]["type"] == "action"]
+    toutes = AnalyseService(db).synthese()
+    actions = [l for l in toutes if l["valeur"]["type"] == "action"]
     # Donnees suspectes (contrôle qualite) : exclues des palmares, elles fausseraient tout.
     lignes = [l for l in actions if l.get("variation_jour") is not None and l.get("qualite") != "alerte"]
     tri = sorted(lignes, key=lambda l: l["variation_jour"])
@@ -106,7 +106,7 @@ def resume(db: Session = Depends(get_session)):
                 "position": l.get("position"), "zone": l.get("zone"), "dernier": l.get("dernier"),
                 "devise": "pts" if l["valeur"].get("type") == "indice" else l["valeur"].get("devise")}
     return {
-        "derniere_actualisation": reglages.lire("derniere_actualisation") or None,
+        "derniere_actualisation": max((m for l in toutes if (m := l["valeur"].get("maj_le"))), default=None),
         "portefeuille": None if porte.get("vide") else {
             "valeur": porte["totaux"]["valeur"], "variation_jour": porte["totaux"]["variation_jour"],
             "plus_value_latente": porte["totaux"]["plus_value_latente"], "twr": porte["performance"].get("twr"),

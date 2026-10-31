@@ -1,15 +1,68 @@
 // @ts-check
+import { useEffect, useRef } from 'react'
 import { CandlestickSeries, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers } from 'lightweight-charts'
 import { useGraphique, points, echelle, couleur, alpha } from '../lib/graphique'
 
 const SANS = { priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }
 export const COULEURS_MM = ['#F59E0B', '#8B5CF6', '#0F766E', '#DB2777', '#0891B2', '#65A30D']
+const TRACE = '#7C3AED', TRACE_CHOISI = '#DB2777'
+const TOLERANCE = 7        // pixels autour d'un trace pour le selectionner
 
 const enTexte = t => typeof t === 'string' ? t
   : `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
 
-/** Cours (bougies ou ligne), moyennes, Bollinger, Ichimoku, annotations ; indicateurs dans des panneaux dessous. */
-export default function GraphiqueTechnique({ t, options, annotations = [], onClic, cle }) {
+const FUTUR = 0.08          // part du graphique laissee vide a droite, pour voir ou mene une droite de tendance
+
+/** Distance en pixels du point (x, y) a la droite passant par (x1, y1) et (x2, y2). */
+function distanceDroite(x, y, droite) {
+  const [x1, y1, x2, y2] = droite
+  return Math.abs((x2 - x1) * (y1 - y) - (x1 - x) * (y2 - y1)) / Math.hypot(x2 - x1, y2 - y1)
+}
+
+/**
+ * Droites de tendance infinies : dessinees directement sur le panneau du cours, d'un bord a l'autre.
+ * Elles ne sont pas des series, donc ni donnees en plus, ni effet sur l'echelle.
+ * `pixels(droite)` donne [x1, y1, x2, y2] ou null ; `droites()` la liste a dessiner.
+ */
+function primitiveDroites(pixels, droites) {
+  const rendu = {
+    draw(cible) {
+      cible.useBitmapCoordinateSpace(({ context, bitmapSize, horizontalPixelRatio: rx, verticalPixelRatio: ry }) => {
+        const largeur = bitmapSize.width / rx
+        for (const d of droites()) {
+          const p = pixels(d)
+          if (!p) continue
+          const [x1, y1, x2, y2] = p, pente = (y2 - y1) / (x2 - x1)
+          context.beginPath()
+          context.strokeStyle = d.choisie ? TRACE_CHOISI : TRACE
+          context.lineWidth = (d.choisie ? 3 : 2) * ry
+          context.moveTo(0, (y1 - x1 * pente) * ry)
+          context.lineTo(bitmapSize.width, (y1 + (largeur - x1) * pente) * ry)
+          context.stroke()
+        }
+      })
+    },
+  }
+  return {
+    actualiser: null,
+    attached({ requestUpdate }) { this.actualiser = requestUpdate },
+    detached() { this.actualiser = null },
+    updateAllViews() {},
+    paneViews() { return [{ renderer: () => rendu }] },
+  }
+}
+
+/**
+ * Cours (bougies ou ligne), moyennes, Bollinger, Ichimoku, annotations ; indicateurs dans des panneaux dessous.
+ * `onClic` : un trace est en cours, le clic le place. Sinon, le clic selectionne le trace vise (`onSelection`).
+ * Les traces se dessinent sur le graphique deja construit : tracer ou selectionner ne le reconstruit jamais,
+ * et ils ne comptent pas dans l'echelle des prix, donc la courbe ne bouge pas.
+ */
+export default function GraphiqueTechnique({ t, options, annotations = [], onClic, onSelection, selection = null, cle }) {
+  const scene = useRef(null)
+  const actuels = useRef({ annotations, onClic, onSelection })
+  useEffect(() => { actuels.current = { annotations, onClic, onSelection } })
+
   const conteneur = useGraphique(chart => {
     const { jours } = t
     const vert = couleur('--ok'), rouge = couleur('--danger')
@@ -44,23 +97,11 @@ export default function GraphiqueTechnique({ t, options, annotations = [], onCli
       chart.addSeries(LineSeries, { color: '#2563EB', lineWidth: 1, ...SANS }).setData(points(jours, t.ichimoku.tenkan))
       chart.addSeries(LineSeries, { color: '#9333EA', lineWidth: 1, ...SANS }).setData(points(jours, t.ichimoku.kijun))
     }
-    Object.entries(t.moyennes).forEach(([, valeurs], i) => {
-      chart.addSeries(LineSeries, { color: COULEURS_MM[i % COULEURS_MM.length], lineWidth: 1.5, ...SANS }).setData(points(jours, valeurs))
-    })
-
-    // Annotations : niveaux (lignes horizontales), lignes de tendance, notes datees.
-    /** @type {any[]} */
-    const notes = []
-    for (const a of annotations) {
-      const d = a.donnees
-      if (a.type === 'niveau') principale.createPriceLine({ price: d.prix, color: '#7C3AED', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: d.texte || '' })
-      if (a.type === 'ligne') {
-        const [p1, p2] = [{ time: d.t1, value: d.p1 }, { time: d.t2, value: d.p2 }].sort((x, y) => x.time.localeCompare(y.time))
-        if (p1.time !== p2.time) chart.addSeries(LineSeries, { color: '#7C3AED', lineWidth: 2, ...SANS }).setData([p1, p2])
-      }
-      if (a.type === 'note') notes.push({ time: d.jour, position: 'aboveBar', color: '#7C3AED', shape: 'arrowDown', text: d.texte })
+    if (options.moyennes) {
+      Object.entries(t.moyennes).forEach(([, valeurs], i) => {
+        chart.addSeries(LineSeries, { color: COULEURS_MM[i % COULEURS_MM.length], lineWidth: 1.5, ...SANS }).setData(points(jours, valeurs))
+      })
     }
-    if (notes.length) createSeriesMarkers(principale, notes.sort((x, y) => x.time.localeCompare(y.time)))
 
     if (options.volume && t.volume.some(v => v)) {
       const volume = chart.addSeries(HistogramSeries, { priceScaleId: 'volume', priceFormat: { type: 'volume' }, ...SANS })
@@ -89,22 +130,93 @@ export default function GraphiqueTechnique({ t, options, annotations = [], onCli
     if (options.obv) ajouter([[t.obv, '#65A30D']])
 
     const panneaux = chart.panes()
-    panneaux[0]?.setStretchFactor(3)
+    panneaux[0]?.setStretchFactor(6)      // indicateurs discrets : le cours garde l'essentiel de la hauteur
     panneaux.slice(1).forEach(p => p.setStretchFactor(1))
 
-    if (onClic) {
-      chart.subscribeClick(param => {
-        if (!param.time || !param.point) return
-        const prix = principale.coordinateToPrice(param.point.y)
-        if (prix !== null) onClic({ jour: enTexte(param.time), prix: Math.round(prix * 100) / 100 })
-      })
+    const echelleTemps = chart.timeScale()
+    const abscisse = jour => echelleTemps.timeToCoordinate(jours.findLast(j => j <= jour) ?? jours[0])
+    const pixels = d => {
+      const p = [abscisse(d.t1), principale.priceToCoordinate(d.p1), abscisse(d.t2), principale.priceToCoordinate(d.p2)]
+      return p.every(v => v !== null) && p[0] !== p[2] ? p : null
     }
+    const s = { chart, principale, marqueurs: createSeriesMarkers(principale, [], { autoScale: false }), niveaux: new Map(), droites: [], notes: [] }
+    s.primitive = primitiveDroites(pixels, () => s.droites)
+    principale.attachPrimitive(s.primitive)
+    scene.current = s
+
+    // Le trace le plus proche du point, dans le panneau du cours.
+    const tracePres = ({ x, y }) => {
+      let meilleur = null, plusPres = TOLERANCE
+      for (const a of actuels.current.annotations) {
+        const d = a.donnees
+        let distance = Infinity
+        if (a.type === 'niveau') distance = Math.abs(y - (principale.priceToCoordinate(d.prix) ?? Infinity))
+        if (a.type === 'note') distance = Math.abs(x - (abscisse(d.jour) ?? Infinity))
+        if (a.type === 'ligne') {
+          const p = pixels(d)
+          if (p) distance = distanceDroite(x, y, p)
+        }
+        if (distance <= plusPres) { meilleur = a; plusPres = distance }
+      }
+      return meilleur
+    }
+
+    chart.subscribeClick(param => {
+      if (!param.point) return
+      const { onClic: placer, onSelection: choisir } = actuels.current
+      if (!placer) {
+        choisir?.(param.paneIndex ? null : tracePres(param.point)?.id ?? null)
+        return
+      }
+      if (!param.time) return
+      const prix = principale.coordinateToPrice(param.point.y)
+      if (prix !== null) placer({ jour: enTexte(param.time), prix: Math.round(prix * 100) / 100 })
+    })
+    chart.subscribeCrosshairMove(param => {
+      const { onClic: placer } = actuels.current
+      conteneur.current.style.cursor = placer ? 'crosshair' : param.point && !param.paneIndex && tracePres(param.point) ? 'pointer' : ''
+    })
 
     const fin = jours[jours.length - 1]
     const debut = new Date(fin)
     debut.setFullYear(debut.getFullYear() - ({ jour: 2, semaine: 8, mois: 25 }[t.unite] ?? 2))
-    chart.timeScale().setVisibleRange({ from: debut.toISOString().slice(0, 10), to: fin })
-  }, [t, options, annotations, onClic], cle)
+    const defaut = { from: debut.toISOString().slice(0, 10), to: fin }
+    chart.timeScale().setVisibleRange(defaut)
+
+    return retablie => {
+      // Vue calee sur la derniere seance : un peu de vide a droite, pour lire le prolongement des droites.
+      // Calcul sur les dates : la fenetre logique n'existe pas encore tant que le graphique n'a pas sa taille.
+      const vue = retablie ?? defaut, dernier = jours.length - 1
+      if (enTexte(vue.to) < jours[dernier]) return
+      const premier = Math.max(0, jours.findIndex(j => j >= enTexte(vue.from)))
+      echelleTemps.setVisibleLogicalRange({ from: premier, to: dernier + (dernier - premier) * FUTUR })
+    }
+  }, [t, options], cle)
+
+  // Niveaux (lignes horizontales), lignes de tendance, notes datees.
+  useEffect(() => {
+    const s = scene.current
+    if (!s) return
+    s.niveaux.forEach(l => s.principale.removePriceLine(l))
+    s.niveaux.clear(); s.droites = []; s.notes = []
+    for (const a of annotations) {
+      const d = a.donnees
+      if (a.type === 'niveau') s.niveaux.set(a.id, s.principale.createPriceLine({ price: d.prix, color: TRACE, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: d.texte || '' }))
+      if (a.type === 'ligne') s.droites.push({ ...d, id: a.id })
+      if (a.type === 'note') s.notes.push({ id: a.id, time: d.jour, position: 'aboveBar', shape: 'arrowDown', text: d.texte })
+    }
+    s.notes.sort((x, y) => x.time.localeCompare(y.time))
+  }, [t, options, annotations])
+
+  // Le trace selectionne change de couleur, sur place.
+  useEffect(() => {
+    const s = scene.current
+    if (!s) return
+    s.niveaux.forEach((l, id) => { const c = id === selection; l.applyOptions({ color: c ? TRACE_CHOISI : TRACE, lineWidth: c ? 2 : 1, lineStyle: c ? LineStyle.Solid : LineStyle.Dashed }) })
+    s.droites.forEach(d => { d.choisie = d.id === selection })
+    s.primitive.actualiser?.()
+    s.marqueurs.setMarkers(s.notes.map(n => ({ ...n, color: n.id === selection ? TRACE_CHOISI : TRACE })))
+  }, [t, options, annotations, selection])
 
   return <div ref={conteneur} className="graphique haut" style={{ cursor: onClic ? 'crosshair' : undefined }} />
 }

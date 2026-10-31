@@ -26,8 +26,9 @@ def lire_reglages():
 def ecrire_reglage(cle: str, data: Ecriture):
     if cle not in reglages.PAR_CLE:
         raise HTTPException(404, "Réglage inconnu.")
-    if cle == "valeurs_par_page" and (data.valeur or "").strip() not in ("20", "50", "100"):
-        raise HTTPException(422, "Choisissez 20, 50 ou 100 valeurs par page.")
+    definition = reglages.PAR_CLE[cle]
+    if definition.choix and not definition.autre and (data.valeur or "").strip() not in {v for v, _ in definition.choix}:
+        raise HTTPException(422, f"{definition.libelle} : choisissez une des options proposées.")
     if cle == "prime_risque" and (texte := (data.valeur or "").strip()):
         try:
             prime = float(texte.replace(",", ".").replace("%", "").strip())
