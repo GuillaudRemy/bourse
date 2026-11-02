@@ -367,6 +367,8 @@ details.carte:not([open]) > .section-titre { border-bottom: none; }
 .carte-plein-ecran:fullscreen .graphique-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .carte-plein-ecran:fullscreen .graphique.haut { flex: 1; height: auto; min-height: 0; }
 .graphique-zone { position: relative; }
+.barre-outils { gap: 2px; padding-top: 6px; padding-bottom: 6px; }
+.barre-outils .discret { margin-right: 6px; font-size: 12px; }
 .trace-bulle { position: absolute; top: 8px; left: 12px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 5px 10px;
   font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
 .trace-bulle .champ { width: 200px; padding: 3px 7px; font-size: 12.5px; }

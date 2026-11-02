@@ -4,8 +4,9 @@ import math
 from datetime import date
 
 import pandas as pd
+from sqlalchemy import Table
 from sqlalchemy.dialects.sqlite import insert
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 
 from backend.db.champs import CLES, PAR_ACTION_CLES, PRIORITE
 from backend.db.schema import Correction, Cours, Dividende, Division, Evenement, Fondamental, TauxChange
@@ -37,7 +38,7 @@ def enregistrer_cours(db: Session, valeur_id: int, df: pd.DataFrame) -> int:
         for ligne in df.to_dict("records")
         if _nombre(ligne.get("cloture")) is not None
     ]
-    table = Cours.__table__
+    table: Table = Cours.__table__  # type: ignore[attr-defined]  # cree par SQLModel, non declare
     for i in range(0, len(lignes), PAQUET):
         requete = insert(table).values(lignes[i:i + PAQUET])
         requete = requete.on_conflict_do_update(
@@ -53,16 +54,16 @@ def dernier_cours(db: Session, valeur_id: int) -> date | None:
 
 
 def clotures_depuis(db: Session, valeur_id: int, debut: date) -> dict[date, float]:
-    lignes = db.exec(select(Cours.jour, Cours.cloture).where(Cours.valeur_id == valeur_id, Cours.jour >= debut)).all()
+    lignes = db.exec(select(col(Cours.jour), col(Cours.cloture)).where(Cours.valeur_id == valeur_id, Cours.jour >= debut)).all()
     return {j: c for j, c in lignes}
 
 
 def charger_cours(db: Session, valeur_id: int) -> pd.DataFrame:
     """Cours d'une valeur, indexes par date (DatetimeIndex), du plus ancien au plus recent."""
     lignes = db.exec(
-        select(Cours.jour, *[getattr(Cours, c) for c in COLONNES_COURS])
+        select(col(Cours.jour), *[col(getattr(Cours, c)) for c in COLONNES_COURS])
         .where(Cours.valeur_id == valeur_id)
-        .order_by(Cours.jour)
+        .order_by(col(Cours.jour))
     ).all()
     df = pd.DataFrame(lignes, columns=["jour", *COLONNES_COURS])
     df.index = pd.to_datetime(df.pop("jour"))
@@ -155,8 +156,8 @@ def enregistrer_dividendes(db: Session, valeur_id: int, cours: pd.DataFrame) -> 
 
 
 def charger_dividendes(db: Session, valeur_id: int) -> pd.Series:
-    lignes = db.exec(select(Dividende.jour, Dividende.montant).where(Dividende.valeur_id == valeur_id)
-                     .order_by(Dividende.jour)).all()
+    lignes = db.exec(select(col(Dividende.jour), col(Dividende.montant)).where(Dividende.valeur_id == valeur_id)
+                     .order_by(col(Dividende.jour))).all()
     return pd.Series([m for _, m in lignes], index=pd.to_datetime([j for j, _ in lignes]), dtype=float)
 
 
@@ -172,7 +173,7 @@ def enregistrer_divisions(db: Session, valeur_id: int, divisions: list[tuple]) -
 
 def charger_divisions(db: Session, valeur_id: int) -> list[tuple[date, float]]:
     return [(d.jour, d.ratio) for d in db.exec(
-        select(Division).where(Division.valeur_id == valeur_id).order_by(Division.jour))]
+        select(Division).where(Division.valeur_id == valeur_id).order_by(col(Division.jour)))]
 
 
 def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
@@ -180,7 +181,7 @@ def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
     manuels ramenes a la base d'actions actuelle (SEC et ESEF le sont deja, Yahoo aussi)."""
     divisions = charger_divisions(db, valeur_id)
     resultat = []
-    for ligne in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id).order_by(Fondamental.annee)):
+    for ligne in db.exec(select(Fondamental).where(Fondamental.valeur_id == valeur_id).order_by(col(Fondamental.annee))):
         origine = provenance(ligne)
         valeurs = {c: getattr(ligne, c) for c in CLES}
         publication = date(ligne.annee, 12, 31) + DELAI_PUBLICATION
@@ -203,7 +204,7 @@ def charger_fondamentaux(db: Session, valeur_id: int) -> list[dict]:
 def enregistrer_taux(db: Session, devise: str, serie: pd.Series) -> int:
     cache.invalider()
     lignes = [{"devise": devise, "jour": jour.date(), "taux": float(v)} for jour, v in serie.items()]
-    table = TauxChange.__table__
+    table: Table = TauxChange.__table__  # type: ignore[attr-defined]
     for i in range(0, len(lignes), PAQUET):
         requete = insert(table).values(lignes[i:i + PAQUET])
         db.exec(requete.on_conflict_do_update(index_elements=["devise", "jour"], set_={"taux": requete.excluded.taux}))
@@ -211,8 +212,8 @@ def enregistrer_taux(db: Session, devise: str, serie: pd.Series) -> int:
 
 
 def charger_taux(db: Session, devise: str) -> pd.Series:
-    lignes = db.exec(select(TauxChange.jour, TauxChange.taux).where(TauxChange.devise == devise)
-                     .order_by(TauxChange.jour)).all()
+    lignes = db.exec(select(col(TauxChange.jour), col(TauxChange.taux)).where(TauxChange.devise == devise)
+                     .order_by(col(TauxChange.jour))).all()
     return pd.Series([t for _, t in lignes], index=pd.to_datetime([j for j, _ in lignes]), dtype=float)
 
 

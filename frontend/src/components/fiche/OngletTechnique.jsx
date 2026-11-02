@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { pct, prix, nombre, date, ton, variation } from '../../lib/format'
 import GraphiqueTechnique, { COULEURS_MM } from '../GraphiqueTechnique'
+import { donneesDe } from '../../lib/traces'
 import { Stat, InterrupteurEuros } from './OngletRegression'
 
 const CLE_OPTIONS = 'bourse.options-techniques.2'
@@ -12,14 +13,26 @@ const DEFAUT = {
 }
 const PANNEAUX = { bollinger: 'Bollinger', ichimoku: 'Ichimoku', moyennes: 'Moyennes mobiles', volume: 'Volume', rsi: 'RSI', macd: 'MACD',
                    stochastique: 'Stochastique', adx: 'ADX', atr: 'ATR', obv: 'OBV' }
-const TRACES = { niveau: 'Niveau (support, résistance)', ligne: 'Droite de tendance (2 clics)', note: 'Note datée' }
-const TRACES_COURTS = { niveau: 'Niveau', ligne: 'Droite', note: 'Note' }
+// Outils de trace : libelle du bouton, explication au survol, consigne a chaque clic.
+/** @type {Record<string, [string, string, string[]]>} */
+const OUTILS = {
+  niveau:    ['Niveau', 'Niveau horizontal (support, résistance)', ['Cliquez à la hauteur du niveau.']],
+  ligne:     ['Droite', 'Droite de tendance, prolongée dans le passé et le futur', ['Cliquez un premier point de la droite.', 'Cliquez un second point.']],
+  canal:     ['Canal', 'Canal : une droite et sa parallèle', ['Cliquez un premier point de la droite.', 'Cliquez un second point.', 'Cliquez où passe la parallèle.']],
+  fibo:      ['Fibonacci', 'Retracements de Fibonacci entre un plus bas et un plus haut', ['Cliquez le point de départ du mouvement.', "Cliquez son point d'arrivée."]],
+  rectangle: ['Rectangle', 'Zone rectangulaire (consolidation, zone de support)', ['Cliquez un premier coin.', 'Cliquez le coin opposé.']],
+  note:      ['Note', 'Note datée', ['Cliquez la date de la note.']],
+  mesure:    ['Mesure', 'Écart en %, en barres et en jours entre deux points (non enregistré)', ['Cliquez le point de départ.', "Cliquez le point d'arrivée."]],
+}
 
 /** Un trace en une ligne. */
 function decrire(a) {
   const d = a.donnees
   if (a.type === 'niveau') return `Niveau ${nombre(d.prix, 2)}${d.texte ? ` — ${d.texte}` : ''}`
   if (a.type === 'ligne') return `Droite ${date(d.t1)} → ${date(d.t2)}`
+  if (a.type === 'canal') return `Canal ${date(d.t1)} → ${date(d.t2)}`
+  if (a.type === 'fibo') return `Fibonacci ${nombre(d.p1, 2)} → ${nombre(d.p2, 2)}`
+  if (a.type === 'rectangle') return `Rectangle ${date(d.t1)} → ${date(d.t2)}`
   return `${date(d.jour)} : ${d.texte}`
 }
 
@@ -34,8 +47,9 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   const [t, setT] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [annotations, setAnnotations] = useState([])
-  const [mode, setMode] = useState(null)               // trace en cours : niveau | ligne | note
-  const [premier, setPremier] = useState(null)         // premier point d'une ligne de tendance
+  const [mode, setMode] = useState(null)               // outil en cours (cle de OUTILS)
+  const [etape, setEtape] = useState(0)                // points deja poses avec cet outil
+  const [mesure, setMesure] = useState(null)           // resultat de la derniere mesure
   const [saisie, setSaisie] = useState(null)           // point place, en attente du texte : { jour, prix, texte }
   const [selection, setSelection] = useState(null)     // id du trace selectionne sur le graphique
   const carte = useRef(null)
@@ -70,23 +84,38 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
   const chargerAnnotations = useCallback(() => api.valeurs.annotations(valeur.id).then(setAnnotations).catch(() => {}), [valeur.id])
   useEffect(() => { chargerAnnotations() }, [chargerAnnotations])
 
-  const annuler = () => { setMode(null); setPremier(null); setSaisie(null) }
+  const choisirOutil = cle => { setMode(m => m === cle ? null : cle); setEtape(0); setMesure(null); setSaisie(null); setSelection(null) }
+  const annuler = () => { setMode(null); setEtape(0); setMesure(null); setSaisie(null) }
   const enregistrer = useCallback(async (type, donnees) => {
-    await api.valeurs.annoter(valeur.id, { type, donnees })
-    setPremier(null); setMode(null); setSaisie(null); chargerAnnotations()
+    try { await api.valeurs.annoter(valeur.id, { type, donnees }) }
+    catch (e) { setErreur(e.message) }
+    setMode(null); setEtape(0); setSaisie(null); chargerAnnotations()
   }, [valeur.id, chargerAnnotations])
 
-  // Texte saisi dans la page, pas par prompt() : une fenetre du navigateur ferait quitter le plein ecran.
-  const clic = useCallback(({ jour, prix: p }) => {
-    if (mode === 'ligne') {
-      if (premier) enregistrer('ligne', { t1: premier.jour, p1: premier.prix, t2: jour, p2: p })
-      else setPremier({ jour, prix: p })
-    } else if (mode) setSaisie({ jour, prix: p, texte: '' })
-  }, [mode, premier, enregistrer])
+  // Niveau et note demandent un texte, saisi dans la page et pas par prompt() : une fenetre du navigateur
+  // ferait quitter le plein ecran.
+  const placer = useCallback((type, points) => {
+    const donnees = donneesDe(type, points)
+    if (type === 'niveau' || type === 'note') setSaisie({ ...donnees, texte: '' })
+    else enregistrer(type, donnees)
+  }, [enregistrer])
+  const deplacerTrace = useCallback(async (id, donnees) => {
+    const a = annotations.find(x => x.id === id)
+    try { if (a) await api.valeurs.modifierAnnotation(valeur.id, id, { type: a.type, donnees }) }
+    catch (e) { setErreur(e.message) }
+    chargerAnnotations()
+  }, [annotations, valeur.id, chargerAnnotations])
+  const etapeSuivante = useCallback(n => setEtape(n), [])
+  useEffect(() => {
+    if (!mode) return
+    const touche = e => { if (e.key === 'Escape') annuler() }
+    document.addEventListener('keydown', touche)
+    return () => document.removeEventListener('keydown', touche)
+  }, [mode])
 
   const validerSaisie = e => {
     e.preventDefault()
-    if (mode === 'niveau') enregistrer('niveau', { prix: saisie.prix, texte: saisie.texte })
+    if (mode === 'niveau') enregistrer('niveau', { prix: saisie.prix, texte: saisie.texte.trim() })
     else if (saisie.texte.trim()) enregistrer('note', { jour: saisie.jour, texte: saisie.texte.trim() })
   }
 
@@ -142,15 +171,13 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
             {Object.entries(PANNEAUX).map(([cle, l]) => (
               <label key={cle} className="interrupteur"><input type="checkbox" checked={options[cle]} onChange={e => changer(cle, e.target.checked)} /> {l}</label>
             ))}
-            {pleinEcran && (
-              <>
-                <span className="espaceur" />
-                {Object.entries(TRACES_COURTS).map(([cle, l]) => (
-                  <button key={cle} className={`btn btn-mini ${mode === cle ? 'btn-primaire' : 'btn-fantome'}`} title={TRACES[cle]}
-                          onClick={() => { setMode(cle); setPremier(null); setSaisie(null); setSelection(null) }}>{l}</button>
-                ))}
-              </>
-            )}
+          </div>
+          <div className="graphique-barre barre-outils">
+            <span className="discret">Tracer</span>
+            {Object.entries(OUTILS).map(([cle, [libelle, aide]]) => (
+              <button key={cle} className={`btn btn-mini ${mode === cle ? 'btn-primaire' : 'btn-fantome'}`} title={aide}
+                      aria-pressed={mode === cle} onClick={() => choisirOutil(cle)}>{libelle}</button>
+            ))}
           </div>
           {erreur && <div className="erreur" style={{ margin: 12 }}>{erreur}</div>}
           <div className="graphique-zone">
@@ -162,7 +189,7 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
                            value={saisie.texte} onChange={e => setSaisie({ ...saisie, texte: e.target.value })} />
                     <button className="btn btn-mini btn-primaire">OK</button>
                   </form>
-                ) : <span>{mode === 'ligne' && premier ? `Premier point au ${date(premier.jour)} (${nombre(premier.prix, 2)}) : cliquez le second.` : `Cliquez sur le graphique pour placer : ${TRACES[mode].toLowerCase()}.`}</span>}
+                ) : <span>{mode === 'mesure' && mesure && !etape ? <><b>{mesure}</b> · cliquez pour une nouvelle mesure</> : OUTILS[mode][2][etape]}</span>}
                 <button className="btn btn-mini btn-fantome" onClick={annuler}>Annuler</button>
               </div>
             )}
@@ -173,7 +200,8 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
               </div>
             )}
             {t ? <GraphiqueTechnique t={t} options={valeur.source === 'bce' ? { ...options, bougies: false } : options} annotations={annotations}
-                                     onClic={mode ? clic : null} onSelection={setSelection} selection={selection} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
+                                     mode={saisie ? null : mode} selection={selection} onPlacer={placer} onEtape={etapeSuivante} onMesure={setMesure}
+                                     onSelection={setSelection} onDeplacer={deplacerTrace} cle={valeur.id} /> : <div className="chargement">Chargement…</div>}
           </div>
           {t && (
             <div className="legende">
@@ -191,8 +219,8 @@ export default function OngletTechnique({ analyse, enEuros, setEnEuros }) {
           </div>
           <div className="carte">
             <div className="section-titre">Tracés</div>
-            <div className="carte-corps rangee" style={{ flexWrap: 'wrap' }}>
-              {Object.entries(TRACES).map(([cle, l]) => <button key={cle} className={`btn btn-mini${mode === cle ? ' btn-primaire' : ''}`} onClick={() => { setMode(cle); setPremier(null); setSaisie(null); setSelection(null) }}>{l}</button>)}
+            <div className="carte-corps discret" style={{ paddingBottom: annotations.length ? 6 : undefined }}>
+              Outils au-dessus du graphique. Un clic sélectionne un tracé ; glissez-le pour le déplacer, ou une extrémité pour la bouger seule.
             </div>
             {annotations.map(a => (
               <div key={a.id} className="signal">

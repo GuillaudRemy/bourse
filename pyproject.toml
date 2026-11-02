@@ -31,10 +31,3 @@ exclude = ["backend/migrations/"]
 ignore_missing_imports = true
 warn_unused_ignores = true
 
-[[tool.mypy.overrides]]
-# Modules encore a typer completement (requetes SQLModel surtout) : 5 restants sur 14 en 0.6.1.
-module = [
-    "backend.services.analyse_service", "backend.services.portefeuille_service", "backend.services.stockage",
-    "backend.services.valeur_service", "backend.sources.sec",
-]
-ignore_errors = true

@@ -36,5 +36,12 @@ def test_annotations():
         client.post(f"/valeurs/{vid}/annotations", json={"type": "ligne", "donnees": ligne})
         assert [a["type"] for a in client.get(f"/valeurs/{vid}/annotations").json()] == ["niveau", "ligne"]
         assert client.post(f"/valeurs/{vid}/annotations", json={"type": "fleche", "donnees": {}}).status_code == 422
+        canal = {**ligne, "t3": "2024-06-03", "p3": 9}
+        cree = client.post(f"/valeurs/{vid}/annotations", json={"type": "canal", "donnees": canal}).json()
+        deplace = {**canal, "p3": 8.5}
+        adresse = f"/valeurs/{vid}/annotations/{cree['id']}"
+        assert client.put(adresse, json={"type": "canal", "donnees": deplace}).json()["donnees"] == deplace
+        assert client.put(adresse, json={"type": "ligne", "donnees": ligne}).status_code == 422   # le type ne change pas
+        client.delete(f"/valeurs/{vid}/annotations/{cree['id']}")
         client.delete(f"/valeurs/{vid}/annotations/{niveau['id']}")
         assert len(client.get(f"/valeurs/{vid}/annotations").json()) == 1

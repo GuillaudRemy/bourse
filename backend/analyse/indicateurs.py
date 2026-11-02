@@ -42,7 +42,7 @@ def volatilite_annuelle(cloture: pd.Series, seances: int = SEANCES_AN) -> float 
     return float(rendements.std() * np.sqrt(SEANCES_AN))
 
 
-def perte_maximale(cloture: pd.Series) -> tuple[float, object, object] | None:
+def perte_maximale(cloture: pd.Series) -> tuple[float, pd.Timestamp, pd.Timestamp] | None:
     """Pire baisse d'un sommet a un creux : (baisse, date du sommet, date du creux)."""
     if len(cloture) < 2:
         return None
@@ -50,7 +50,7 @@ def perte_maximale(cloture: pd.Series) -> tuple[float, object, object] | None:
     baisses = cloture / sommets - 1
     creux = baisses.idxmin()
     sommet = cloture.loc[:creux].idxmax()
-    return float(baisses.min()), sommet, creux
+    return float(baisses.min()), pd.Timestamp(sommet), pd.Timestamp(creux)
 
 
 def performance(cloture: pd.Series, jours: int) -> float | None:

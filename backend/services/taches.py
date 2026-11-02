@@ -10,13 +10,14 @@ Rapidite (plusieurs centaines de valeurs) :
     seulement s'ils datent de plus d'une semaine (valeur_service.complet_du).
 
 Tant que le logiciel est ouvert, `veiller` relance les cours de toutes les valeurs des qu'ils datent
-de plus d'une heure.
+de plus d'une heure ; marches fermes (nuit, week-end), seulement ceux des cryptomonnaies, cotees sans arret.
 """
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlmodel import Session, select
@@ -43,15 +44,16 @@ MODES = ("auto", "cours", "complet", "horaire")
 PERIODE = timedelta(hours=1)
 
 
-def lancer(mode: str = "auto") -> dict:
+def lancer(mode: str = "auto", types: set[str] | None = None) -> dict:
     """`cours` : seances recentes seulement (rapide) ; `complet` : tout, pour toutes les valeurs ;
     `auto` (demarrage, imports) : seances recentes, et le complet hebdomadaire quand il est du ;
-    `horaire` (veille) : comme `cours`, mais un echec ne compte pas vers l'abandon de la valeur."""
+    `horaire` (veille) : comme `cours`, mais un echec ne compte pas vers l'abandon de la valeur.
+    `types` : seulement ces types de valeurs (« crypto »…) ; rien : toutes."""
     with _verrou:
         if _etat["en_cours"]:
             return etat_sans_verrou()
         with Session(engine) as db:
-            ids = [(v.id, v.nom) for v in db.exec(select(Valeur).order_by(Valeur.nom))]
+            ids = [(v.id, v.nom) for v in db.exec(select(Valeur).order_by(Valeur.nom)) if not types or v.type in types]
         _etat.update(en_cours=True, total=len(ids), faits=0, courant=None, echecs=[], avertissements=[],
                      debut=datetime.now(UTC).isoformat(), fin=None, mode=mode)
     threading.Thread(target=_travailler, args=(ids, mode), daemon=True, name="actualisation").start()
@@ -175,11 +177,28 @@ def cours_perimes(maintenant: datetime | None = None) -> bool:
     return not derniere or (maintenant or datetime.now(UTC)) - datetime.fromisoformat(derniere) >= PERIODE
 
 
+PARIS = ZoneInfo("Europe/Paris")
+
+
+def marches_ouverts(maintenant: datetime | None = None) -> bool:
+    """Du lundi au vendredi, de 8 h a 23 h a Paris : Europe (9 h - 17 h 30) et Etats-Unis (15 h 30 - 22 h), avec de la marge."""
+    heure = (maintenant or datetime.now(UTC)).astimezone(PARIS)
+    return heure.weekday() < 5 and 8 <= heure.hour < 23
+
+
 def veiller(arret: threading.Event) -> None:
-    """Fil de fond, tant que le logiciel tourne : relance les cours quand ils sont perimes."""
+    """Fil de fond, tant que le logiciel tourne : relance les cours quand ils sont perimes ; marches fermes, ceux des
+    cryptomonnaies seulement (rien du tout s'il n'y en a pas)."""
     while not arret.wait(60):
         try:
-            if cours_perimes():
+            if not cours_perimes():
+                continue
+            if marches_ouverts():
                 lancer("horaire")
+                continue
+            with Session(engine) as db:
+                cryptos = db.exec(select(Valeur.id).where(Valeur.type == "crypto")).first() is not None
+            if cryptos:
+                lancer("horaire", {"crypto"})
         except Exception:      # la veille doit survivre a une base momentanement occupee
             _log.exception("veille de l'actualisation")

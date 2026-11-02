@@ -128,6 +128,54 @@ test('plein écran : tracer un niveau, le sélectionner sur le graphique et le s
   await expect(page.locator('.trace-bulle')).toHaveCount(0)
 })
 
+test('outils de tracé hors plein écran : canal, glisser un niveau, mesure, dates dans le futur', async ({ page, request }) => {
+  const traces = async () => (await (await request.get(`/api/valeurs/${id}/annotations`)).json())
+  for (const a of await traces()) await request.delete(`/api/valeurs/${id}/annotations/${a.id}`)
+  await page.goto(`/valeurs/${id}?onglet=technique`)
+  const graphique = page.locator('.graphique.haut')
+  await expect(graphique.locator('canvas').first()).toBeVisible()
+  await page.waitForTimeout(500)
+  const zone = await graphique.boundingBox()
+  const clic = async (x, y) => { await page.mouse.move(zone.x + x, zone.y + y); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(150) }
+  const outil = nom => page.getByRole('button', { name: nom, exact: true }).click()
+
+  await outil('Canal')                                      // 3 clics : la droite puis sa parallele
+  await clic(150, 300); await clic(450, 250)
+  await expect(page.locator('.trace-bulle')).toContainText('parallèle')
+  await clic(300, 180)
+  await expect.poll(async () => (await traces()).map(a => a.type)).toEqual(['canal'])
+  expect(Object.keys((await traces())[0].donnees).sort()).toEqual(['p1', 'p2', 'p3', 't1', 't2', 't3'])
+
+  await outil('Niveau')
+  await clic(300, 120)
+  await page.getByLabel('Texte du tracé').press('Enter')
+  await expect.poll(async () => (await traces()).length).toBe(2)
+  const avant = (await traces()).find(a => a.type === 'niveau').donnees.prix
+  await page.waitForTimeout(600)                            // pas un double-clic avec le suivant
+  await page.mouse.move(zone.x + 500, zone.y + 120)
+  await page.mouse.down()
+  await page.mouse.move(zone.x + 500, zone.y + 60, { steps: 6 })
+  await page.mouse.up()
+  await expect.poll(async () => (await traces()).find(a => a.type === 'niveau').donnees.prix).toBeGreaterThan(avant)
+  expect((await traces()).length).toBe(2)                   // deplace, pas duplique
+
+  await outil('Mesure')
+  await clic(200, 280); await clic(400, 200)
+  await expect(page.locator('.trace-bulle')).toContainText(/%.*barre.*jour/)
+  expect((await traces()).length).toBe(2)                   // une mesure ne s'enregistre pas
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.trace-bulle')).toHaveCount(0)
+
+  // L'axe du temps continue apres la derniere seance : une droite peut y finir.
+  await outil('Droite')
+  await clic(300, 250); await clic(zone.width - 75, 200)
+  await expect.poll(async () => (await traces()).length).toBe(3)
+  const droite = (await traces()).find(a => a.type === 'ligne').donnees
+  const derniere = (await (await request.get(`/api/valeurs/${id}/technique`)).json()).jours.at(-1)
+  expect(droite.t2 > derniere).toBeTruthy()
+  for (const a of await traces()) await request.delete(`/api/valeurs/${id}/annotations/${a.id}`)
+})
+
 test('recherche Ctrl+K ouvre une valeur', async ({ page }) => {
   await page.goto('/accueil')
   await page.keyboard.press('Control+k')

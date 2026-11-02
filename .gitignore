@@ -5,6 +5,7 @@ node_modules/
 frontend/dist/
 donnees/*.db*
 sauvegardes/
+projet/
 backend/.env
 .idea/
 paquet/
@@ -12,3 +13,5 @@ sortie/
 .cache/
 exemple/
 /bourse/
+A_FAIRE.md
+ARCHIVE.md

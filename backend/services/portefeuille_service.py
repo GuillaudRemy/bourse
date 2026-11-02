@@ -2,17 +2,18 @@
 import json
 from collections import defaultdict
 from datetime import date
+from typing import Any
 
 import pandas as pd
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from backend.analyse import fiscalite as fisc
 from backend.analyse import portefeuille as pf
 from backend.analyse.frais import assujetti_ttf, ordre
 from backend.analyse.regression import ajuster, zone
 from backend.core import reglages
-from backend.db.schema import Compte, Transaction, Valeur
+from backend.db.schema import Compte, Transaction, Valeur, ident
 from backend.models.portefeuille import CompteEcriture, CompteRead, TransactionEcriture, TransactionRead
 from backend.services.stockage import charger_cours, charger_divisions, charger_taux, enregistrer_taux
 from backend.sources import bce
@@ -23,14 +24,14 @@ from backend.sources.esef import PAYS_EUROPE
 class PortefeuilleService:
     def __init__(self, session: Session):
         self._db = session
-        self._prix_cache: dict[int, pd.Series] = {}
+        self._prix_cache: dict[tuple[int, bool], pd.Series] = {}
 
     # ── Comptes ──
     def comptes(self) -> list[CompteRead]:
-        return [CompteRead.model_validate(c) for c in self._db.exec(select(Compte).order_by(Compte.nom))]
+        return [CompteRead.model_validate(c) for c in self._db.exec(select(Compte).order_by(col(Compte.nom)))]
 
     def ecrire_compte(self, data: CompteEcriture, compte_id: int | None = None) -> CompteRead:
-        compte = self._compte(compte_id) if compte_id else Compte()
+        compte = self._compte(compte_id) if compte_id else Compte(nom=data.nom)
         for cle, v in data.model_dump().items():
             setattr(compte, cle, v)
         self._db.add(compte)
@@ -44,7 +45,7 @@ class PortefeuilleService:
 
     # ── Transactions ──
     def transactions(self, compte_id: int | None = None) -> list[TransactionRead]:
-        requete = select(Transaction).order_by(Transaction.jour.desc(), Transaction.id.desc())
+        requete = select(Transaction).order_by(col(Transaction.jour).desc(), col(Transaction.id).desc())
         if compte_id:
             requete = requete.where(Transaction.compte_id == compte_id)
         return [TransactionRead.model_validate(t) for t in self._db.exec(requete)]
@@ -66,7 +67,7 @@ class PortefeuilleService:
         champs["ttf"] = 0.0
         if data.type in ("achat", "vente") and data.frais is None:
             # Frais non saisis : courtage du compte + TTF (achat d'action francaise de plus d'un milliard).
-            detail = self.frais(data.compte_id, valeur, data.type, data.quantite * data.prix, data.jour)
+            detail = self.frais(data.compte_id, valeur, data.type, (data.quantite or 0.0) * (data.prix or 0.0), data.jour)
             champs["frais"], champs["ttf"] = detail["total"], detail["ttf"]
             data = data.model_copy(update={"frais": detail["total"]})
         champs["frais"] = champs["frais"] or 0.0
@@ -94,7 +95,7 @@ class PortefeuilleService:
     def _montant(self, data: TransactionEcriture, valeur: Valeur | None) -> float:
         """Flux de tresorerie en euros, signe du point de vue du compte."""
         if data.type in ("achat", "vente"):
-            brut = data.quantite * data.prix / self._taux(valeur.devise if valeur else "EUR", data.jour)
+            brut = (data.quantite or 0.0) * (data.prix or 0.0) / self._taux(valeur.devise if valeur else "EUR", data.jour)
             if data.montant is not None:                     # montant reel du releve : prioritaire
                 return -abs(data.montant) if data.type == "achat" else abs(data.montant)
             frais = data.frais or 0.0
@@ -103,7 +104,7 @@ class PortefeuilleService:
             return -abs(data.montant if data.montant is not None else data.frais or 0.0)
         if data.type == "division":
             return 0.0
-        return abs(data.montant)                              # dividende, depot
+        return abs(data.montant or 0.0)                       # dividende, depot (montant exige plus haut)
 
     def frais(self, compte_id: int, valeur: Valeur | None, sens: str, quantite_x_prix: float, jour: date) -> dict:
         """Frais estimes d'un ordre (montant en devise du titre, converti en euros)."""
@@ -135,9 +136,10 @@ class PortefeuilleService:
         return float((avant.iloc[-1] if len(avant) else taux.iloc[0]) * diviseur)
 
     def _prix_eur(self, valeur: Valeur, ajuste: bool = False) -> pd.Series:
-        if (valeur.id, ajuste) in self._prix_cache:
-            return self._prix_cache[valeur.id, ajuste]
-        cours = charger_cours(self._db, valeur.id)
+        cle = (ident(valeur), ajuste)
+        if cle in self._prix_cache:
+            return self._prix_cache[cle]
+        cours = charger_cours(self._db, ident(valeur))
         if cours.empty:
             return pd.Series(dtype=float)
         serie = (cours["ajuste"] if ajuste and cours["ajuste"].notna().mean() > 0.9 else cours["cloture"]).dropna()
@@ -151,7 +153,7 @@ class PortefeuilleService:
             serie = (serie / diviseur / taux).dropna()
         elif diviseur != 1:
             serie = serie / diviseur
-        self._prix_cache[valeur.id, ajuste] = serie
+        self._prix_cache[cle] = serie
         return serie
 
     # ── Vue d'ensemble ──
@@ -165,8 +167,8 @@ class PortefeuilleService:
         if not transactions:
             return {"vide": True, "comptes": [CompteRead.model_validate(c).model_dump() for c in comptes.values()]}
 
-        valeurs = {v.id: v for v in self._db.exec(select(Valeur).where(
-            Valeur.id.in_({t["valeur_id"] for t in transactions if t["valeur_id"]})))}
+        valeurs = {ident(v): v for v in self._db.exec(select(Valeur).where(
+            col(Valeur.id).in_({t["valeur_id"] for t in transactions if t["valeur_id"]})))}
         prix = {vid: self._prix_eur(v) for vid, v in valeurs.items()}
         divisions = {vid: charger_divisions(self._db, vid) for vid in valeurs}
         lignes = pf.positions(transactions, divisions)
@@ -227,7 +229,7 @@ class PortefeuilleService:
             return {}
         cumul = pf.twr(quotidien)
         annees = max((quotidien.index[-1] - quotidien.index[0]).days / 365.25, 1 / 365)
-        resultat = {
+        resultat: dict[str, Any] = {
             "twr": float(cumul.iloc[-1]),
             "twr_annualise": float((1 + cumul.iloc[-1]) ** (1 / annees) - 1) if annees >= 1 else None,
             "xirr": pf.xirr(pf.flux_investisseur(quotidien)),
@@ -258,7 +260,7 @@ class PortefeuilleService:
         return resultat
 
     def _couloir(self, valeur: Valeur) -> dict:
-        cours = charger_cours(self._db, valeur.id)
+        cours = charger_cours(self._db, ident(valeur))
         if cours.empty:
             return {"position": None, "zone": None}
         base = (cours["ajuste"] if cours["ajuste"].notna().mean() > 0.9 else cours["cloture"]).dropna()
@@ -287,14 +289,14 @@ class PortefeuilleService:
                 quotidien = pf.valeur_quotidienne(ts, prix, divisions)
                 valeur = float(quotidien["valeur"].iloc[-1]) if len(quotidien) else 0.0
                 ids = {t["valeur_id"] for t in ts if t["valeur_id"]}
-                non_eligibles = [v.nom for v in self._db.exec(select(Valeur).where(Valeur.id.in_(ids)))
+                non_eligibles = [v.nom for v in self._db.exec(select(Valeur).where(col(Valeur.id).in_(ids)))
                                  if _eligible_pea(v) is False]
                 fiche |= fisc.pea(versements, valeur, (date.today() - ouverture).days / 365.25, compte.type, annee)
                 fiche |= {"ouverture": ouverture.isoformat(), "valeur": valeur, "non_eligibles": non_eligibles}
                 verse_pea_total += versements
             elif compte.type == "CTO":
                 ventes = [v for l in pf.positions(ts, divisions).values() for v in l.ventes]
-                dividendes = defaultdict(float)
+                dividendes: defaultdict[int, float] = defaultdict(float)
                 for t in ts:
                     if t["type"] == "dividende":
                         dividendes[t["jour"].year] += t["montant"]

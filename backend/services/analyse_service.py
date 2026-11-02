@@ -3,6 +3,7 @@ droite de regression, indicateurs techniques, fiabilite et fondamentaux."""
 import json
 import math
 from datetime import date
+from typing import Any
 
 import pandas as pd
 from fastapi import HTTPException
@@ -13,7 +14,7 @@ from backend.analyse import indicateurs as ind
 from backend.analyse import valorisation as valo
 from backend.analyse.regression import THEORIE, ZONES, ajuster, zone
 from backend.core.config import config
-from backend.db.schema import Valeur
+from backend.db.schema import Valeur, ident
 from backend.models.valeur import ValeurRead
 from backend.services import cache, taux_service
 from backend.services.stockage import charger_cours, charger_fondamentaux, charger_taux
@@ -241,8 +242,8 @@ class AnalyseService:
             return {"secteur": None, "valeurs": [], "medianes": {}}
         lignes = []
         for autre in self._db.exec(select(Valeur).where(Valeur.secteur == valeur.secteur, Valeur.type == "action")):
-            cloture = charger_cours(self._db, autre.id)["cloture"]
-            fond = [f for f in charger_fondamentaux(self._db, autre.id) if f.get("chiffre_affaires") is not None]
+            cloture = charger_cours(self._db, ident(autre))["cloture"]
+            fond = [f for f in charger_fondamentaux(self._db, ident(autre)) if f.get("chiffre_affaires") is not None]
             if cloture.empty or not fond:
                 continue
             situation = valo.situer(float(cloture.iloc[-1]), fond, [])
@@ -362,10 +363,10 @@ class AnalyseService:
 
     def fiche_resumee(self, valeur: Valeur) -> dict:
         """Tout ce qui resume une valeur en une ligne ; calculee une fois, puis gardee en cache."""
-        if (en_cache := cache.lire(valeur.id)) is not None:
+        if (en_cache := cache.lire(ident(valeur))) is not None:
             return en_cache
-        ligne = {"valeur": ValeurRead.model_validate(valeur).model_dump(mode="json")}
-        _, cours, _, fenetre, reg = self._contexte(valeur.id, True, None)
+        ligne: dict[str, Any] = {"valeur": ValeurRead.model_validate(valeur).model_dump(mode="json")}
+        _, cours, _, fenetre, reg = self._contexte(ident(valeur), True, None)
         if not cours.empty:
             cloture = cours["cloture"]
             mm200 = ind.moyenne_mobile(cloture, 200)
@@ -392,7 +393,7 @@ class AnalyseService:
                     "volatilite": None,
                     "ecart_mm200": _f(cloture.iloc[-1] - mm200.iloc[-1]) if pd.notna(mm200.iloc[-1]) else None,
                 }
-        fondamentaux = self._fondamentaux(valeur.id, self._cloture_origine) if not cours.empty else []
+        fondamentaux = self._fondamentaux(ident(valeur), self._cloture_origine) if not cours.empty else []
         if reg is not None:
             cle_zone, libelle = zone(reg.position)
             verifs = [
@@ -432,7 +433,7 @@ class AnalyseService:
         if ligne.get("per") is None and valeur.type == "action":
             # Sans comptes exploitables : le PER publie par Yahoo (benefices des 12 derniers mois).
             ligne["per"] = json.loads(valeur.infos or "{}").get("per")
-        cache.ecrire(valeur.id, ligne)
+        cache.ecrire(ident(valeur), ligne)
         return ligne
 
     def _capitalisation_eur(self, valeur: Valeur, dernier: float | None) -> float | None:

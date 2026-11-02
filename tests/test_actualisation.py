@@ -56,6 +56,42 @@ def test_veille_horaire():
         reglages.ecrire("actualisation_auto", "oui")
 
 
+def test_marches_ouverts():
+    paris = taches.PARIS
+    assert taches.marches_ouverts(datetime(2026, 11, 2, 9, 0, tzinfo=paris))          # lundi matin
+    assert taches.marches_ouverts(datetime(2026, 11, 2, 22, 30, tzinfo=paris))        # cloture de New York passee de peu
+    assert not taches.marches_ouverts(datetime(2026, 11, 2, 23, 30, tzinfo=paris))    # nuit
+    assert not taches.marches_ouverts(datetime(2026, 11, 3, 6, 0, tzinfo=paris))      # avant l'ouverture
+    assert not taches.marches_ouverts(datetime(2026, 11, 7, 12, 0, tzinfo=paris))     # samedi
+    assert taches.marches_ouverts(datetime(2026, 11, 2, 7, 30, tzinfo=UTC))           # 8 h 30 a Paris (heure d'hiver)
+
+
+def test_veille_hors_marches_seulement_les_cryptos(monkeypatch):
+    lances = []
+    monkeypatch.setattr(taches, "lancer", lambda mode, types=None: lances.append((mode, types)))
+    monkeypatch.setattr(taches, "cours_perimes", lambda: True)
+
+    class UnTour:
+        def __init__(self):
+            self.tours = 0
+
+        def wait(self, _):
+            self.tours += 1
+            return self.tours > 1
+    with TestClient(app), Session(engine) as db:
+        monkeypatch.setattr(taches, "marches_ouverts", lambda: True)
+        taches.veiller(UnTour())
+        monkeypatch.setattr(taches, "marches_ouverts", lambda: False)
+        taches.veiller(UnTour())                       # aucune crypto : rien
+        v = Valeur(symbole="VEILLE-USD", nom="Crypto de veille", type="crypto", source="yahoo", devise="USD")
+        db.add(v)
+        db.commit()
+        taches.veiller(UnTour())
+        db.delete(v)
+        db.commit()
+    assert lances == [("horaire", None), ("horaire", {"crypto"})]
+
+
 def test_coupure_pendant_la_veille_ne_compte_pas(monkeypatch):
     """Une coupure internet ne doit pas faire abandonner les valeurs : seule la veille horaire est tolerante."""
     def panne(self, *a, **k):

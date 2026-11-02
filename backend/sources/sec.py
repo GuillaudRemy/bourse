@@ -4,6 +4,7 @@ Officiel, gratuit, sans cle : tous les chiffres XBRL des rapports 10-K depuis 20
 La SEC exige une adresse e-mail de contact dans chaque requete (reglage « contact_sec »).
 """
 import time
+from collections.abc import Sequence
 from datetime import date
 
 from backend.core import reglages
@@ -86,7 +87,7 @@ def couvre(identite: Identite) -> bool:
     return "." not in identite.symbole and not identite.symbole.startswith("^")
 
 
-def comptes(identite: Identite, divisions: list[tuple[date, float]] = ()) -> Comptes:
+def comptes(identite: Identite, divisions: Sequence[tuple[date, float]] = ()) -> Comptes:
     cik = identite.cik or _cik(identite.symbole)
     if not cik:
         raise SourceIndisponible(f"SEC : {identite.symbole} n'est pas une société enregistrée auprès de la SEC.")
@@ -103,9 +104,9 @@ def comptes(identite: Identite, divisions: list[tuple[date, float]] = ()) -> Com
     # 1. Exercices : fins des periodes annuelles du resultat net (ou du CA).
     fins: dict[str, int] = {}
     for concept in ("NetIncomeLoss", "ProfitLoss", "Revenues", "Revenue"):
-        for e in _entrees(faits, concept):
-            if _annuelle(e):
-                fins[e["end"]] = date.fromisoformat(e["end"]).year
+        for fait in _entrees(faits, concept):
+            if _annuelle(fait):
+                fins[fait["end"]] = date.fromisoformat(fait["end"]).year
         if fins:
             break
 
@@ -116,32 +117,32 @@ def comptes(identite: Identite, divisions: list[tuple[date, float]] = ()) -> Com
         # RevenueFromContract… en 2018) : chaque annee prend le premier candidat qui la couvre.
         for concept in candidats:
             retenus: dict[int, dict] = {}
-            for e in _entrees(faits, concept):
+            for fait in _entrees(faits, concept):
                 if cle in INSTANTANES:
-                    if e.get("start") or e["end"] not in fins:
+                    if fait.get("start") or fait["end"] not in fins:
                         continue
-                elif not _annuelle(e):
+                elif not _annuelle(fait):
                     continue
-                annee = fins.get(e["end"], date.fromisoformat(e["end"]).year)
+                annee = fins.get(fait["end"], date.fromisoformat(fait["end"]).year)
                 # Plusieurs rapports citent la meme annee : le plus recent (chiffres retraites) l'emporte.
-                if annee not in retenus or e["filed"] > retenus[annee]["filed"]:
-                    retenus[annee] = e
-            for annee, e in retenus.items():
+                if annee not in retenus or fait["filed"] > retenus[annee]["filed"]:
+                    retenus[annee] = fait
+            for annee, fait in retenus.items():
                 if cle not in annees.get(annee, {}):
-                    annees.setdefault(annee, {})[cle] = signe(cle, float(e["val"]))
-                    publie[annee, cle] = e["filed"]
+                    annees.setdefault(annee, {})[cle] = signe(cle, float(fait["val"]))
+                    publie[annee, cle] = fait["filed"]
 
     # Dette financiere totale rarement publiee telle quelle : reconstituee si besoin.
-    parties = {}
+    parties: dict[tuple[int, str], dict] = {}
     for concept in ("LongTermDebtNoncurrent", "LongTermDebtCurrent", "CommercialPaper", "ShortTermBorrowings"):
-        for e in _entrees(faits, concept):
-            if not e.get("start") and e["end"] in fins:
-                annee = fins[e["end"]]
-                if (annee, concept) not in parties or e["filed"] > parties[annee, concept]["filed"]:
-                    parties[annee, concept] = e
+        for fait in _entrees(faits, concept):
+            if not fait.get("start") and fait["end"] in fins:
+                annee = fins[fait["end"]]
+                if (annee, concept) not in parties or fait["filed"] > parties[annee, concept]["filed"]:
+                    parties[annee, concept] = fait
     for annee, valeurs in annees.items():
         if "dette_financiere" not in valeurs and (annee, "LongTermDebtNoncurrent") in parties:
-            valeurs["dette_financiere"] = sum(float(e["val"]) for (a, _), e in parties.items() if a == annee)
+            valeurs["dette_financiere"] = sum(float(fait["val"]) for (a, _), fait in parties.items() if a == annee)
 
     # Chaque chiffre par action est ajuste des divisions posterieures a SON rapport.
     for annee, valeurs in annees.items():

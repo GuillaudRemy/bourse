@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
+from functools import partial
 
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from backend.db.schema import Transaction, Valeur
+from backend.db.schema import Transaction, Valeur, ident
 from backend.models.valeur import Resultat, ValeurCreate, ValeurRead, ValeurUpdate
 from backend.services import alertes_service, cache, consensus_service
 from backend.services.stockage import (
@@ -25,7 +27,12 @@ from backend.services.stockage import (
     journaliser_correction_cours,
 )
 from backend.sources import bce, catalogue, contre_verification, esef, sec, yahoo, yahoo_direct
-from backend.sources.base import Identite, SourceIndisponible
+from backend.sources.base import Comptes, Identite, SourceIndisponible
+
+# Dans la classe, « list » designe la methode ValeurService.list : alias pour les annotations.
+Messages = list[str]
+Ids = list[int]
+Etapes = list[tuple[str, Callable[[], Comptes]]]
 
 
 class ValeurService:
@@ -84,8 +91,8 @@ class ValeurService:
         self._db.commit()
 
         if valeur.source in TELECHARGEES and actualiser:
-            self.actualiser(valeur.id)
-        return self.get(valeur.id)
+            self.actualiser(ident(valeur))
+        return self.get(ident(valeur))
 
     def update(self, valeur_id: int, data: ValeurUpdate) -> ValeurRead:
         valeur = self._get(valeur_id)
@@ -106,7 +113,7 @@ class ValeurService:
         self._db.delete(self._get(valeur_id))
         self._db.commit()
 
-    def supprimer_plusieurs(self, ids: list[int], confirmer: bool) -> dict:
+    def supprimer_plusieurs(self, ids: Ids, confirmer: bool) -> dict:
         """Suppression groupee depuis le tableau des valeurs. Les operations du portefeuille portant
         sur ces valeurs sont conservees (historique, fiscalite) mais perdent leur lien : on le dit avant."""
         valeurs = [v for v in self._db.exec(select(Valeur).where(col(Valeur.id).in_(ids)))]
@@ -119,11 +126,11 @@ class ValeurService:
         cache.invalider()
         return {"supprimees": len(valeurs), "operations": operations}
 
-    def _cours_recents(self, valeur: Valeur, avertissements: list[str]) -> int | None:
+    def _cours_recents(self, valeur: Valeur, avertissements: Messages) -> int | None:
         """Seances manquantes seulement (+ 10 jours de recouvrement). None s'il faut tout recharger :
         pas encore de cours, dividende ou division dans la periode (le cours ajuste de tout le passe
         change), ou cours de recouvrement differents de ceux deja enregistres (source corrigee)."""
-        dernier = dernier_cours(self._db, valeur.id)
+        dernier = dernier_cours(self._db, ident(valeur))
         if dernier is None:
             return None
         debut = dernier - timedelta(days=RECOUVREMENT_JOURS)
@@ -135,13 +142,13 @@ class ValeurService:
         cours, evenement = resultat
         if evenement:
             return None
-        connues = clotures_depuis(self._db, valeur.id, debut)
+        connues = clotures_depuis(self._db, ident(valeur), debut)
         for jour, cloture in zip(cours["jour"], cours["cloture"], strict=True):
             # Le dernier jour connu a pu etre enregistre en cours de seance : son ecart ne prouve rien.
             if jour < dernier and connues.get(jour) and abs(cloture / connues[jour] - 1) > ECART_RECOUVREMENT:
                 return None
         nouvelles = sum(1 for j in cours["jour"] if j > dernier)
-        enregistrer_cours(self._db, valeur.id, cours)
+        enregistrer_cours(self._db, ident(valeur), cours)
         return nouvelles
 
     def actualiser(self, valeur_id: int, complet: bool = True, change: bool = True, recents: bool = False) -> Resultat:
@@ -159,7 +166,7 @@ class ValeurService:
         et sont repris une fois par semaine (voir `complet_du`). `change=False` : les taux de
         change ont deja ete charges pour tout le lot."""
         valeur = self._get(valeur_id)
-        avertissements: list[str] = []
+        avertissements: Messages = []
         nb_cours = 0
 
         nouvelles = self._cours_recents(valeur, avertissements) if valeur.source == "yahoo" and recents else None
@@ -174,11 +181,11 @@ class ValeurService:
             cours, divisions = resultat
             # Journal des corrections : la source a-t-elle retouche des seances deja connues ? (Une
             # nouvelle division modifie legitimement tout le passe : pas une correction.)
-            if set(divisions) == set(charger_divisions(self._db, valeur.id)):
-                journaliser_correction_cours(self._db, valeur.id, cours, clotures_depuis(self._db, valeur.id, date.min))
-            nb_cours = enregistrer_cours(self._db, valeur.id, cours)
-            enregistrer_divisions(self._db, valeur.id, divisions)
-            enregistrer_dividendes(self._db, valeur.id, cours)
+            if set(divisions) == set(charger_divisions(self._db, ident(valeur))):
+                journaliser_correction_cours(self._db, ident(valeur), cours, clotures_depuis(self._db, ident(valeur), date.min))
+            nb_cours = enregistrer_cours(self._db, ident(valeur), cours)
+            enregistrer_divisions(self._db, ident(valeur), divisions)
+            enregistrer_dividendes(self._db, ident(valeur), cours)
             # Valider tout de suite : SQLite n'a qu'un ecrivain a la fois, et les appels reseau
             # qui suivent (comptes : jusqu'a 20 s) bloqueraient les autres valeurs actualisees en parallele.
             self._db.commit()
@@ -187,7 +194,7 @@ class ValeurService:
 
         if valeur.source == "yahoo" and complet:
             try:
-                enregistrer_evenements(self._db, valeur.id, yahoo.evenements(valeur.symbole))
+                enregistrer_evenements(self._db, ident(valeur), yahoo.evenements(valeur.symbole))
             except Exception as e:        # calendrier secondaire : jamais un echec de toute la valeur
                 avertissements.append(f"Calendrier indisponible : {e}")
             try:
@@ -219,7 +226,7 @@ class ValeurService:
         if complet:
             valeur.complet_le = valeur.maj_le
         self._db.commit()
-        alertes_service.evaluer(self._db, valeur.id)
+        alertes_service.evaluer(self._db, ident(valeur))
 
         message = (f"{valeur.nom} : {nouvelles} nouvelle(s) séance(s)" if nouvelles is not None
                    else f"{valeur.nom} : {nb_cours} séances") + (f", {nb_fond} années de comptes" if complet else "")
@@ -228,7 +235,7 @@ class ValeurService:
             message += " " + " · ".join(avertissements)
         return Resultat(message=message, cours=nb_cours, fondamentaux=nb_fond, avertissements=avertissements)
 
-    def _contre_verifier(self, valeur: Valeur, avertissements: list[str]) -> None:
+    def _contre_verifier(self, valeur: Valeur, avertissements: Messages) -> None:
         """Compare les clotures des 2 dernieres annees a Euronext ou Nasdaq (une fois par semaine, avec la mise a
         jour complete). Resultat garde dans `infos` ; au passage, l'ISIN d'une valeur Euronext est complete."""
         try:
@@ -246,20 +253,20 @@ class ValeurService:
             return
         if autre.empty:
             return
-        cloture = charger_cours(self._db, valeur.id)["cloture"]
+        cloture = charger_cours(self._db, ident(valeur))["cloture"]
         resultat = contre_verification.comparer(cloture[cloture.index >= autre.index[0]], autre, source)
         valeur.infos = json.dumps(json.loads(valeur.infos or "{}") | {"contre_verification": resultat})
         if resultat["statut"] == "alerte":
             avertissements.append(f"Cours différents de {source} sur {resultat['desaccords']} séances "
                                   f"(jusqu'à {resultat['ecart_max']:+.1%} le {resultat['jour_ecart_max']})")
 
-    def _cours_bce(self, valeur: Valeur, avertissements: list[str], recents: bool) -> int:
+    def _cours_bce(self, valeur: Valeur, avertissements: Messages, recents: bool) -> int:
         """Taux europeens (BCE) : la serie entiere est petite ; en mode « cours », le dernier mois seulement."""
         trouve = catalogue.trouver(valeur.symbole)        # le catalogue d'abord : valeur recue par un partage
         cle = trouve[1].serie if trouve else json.loads(valeur.infos or "{}").get("serie")
         if not cle:
             raise HTTPException(409, f"{valeur.nom} : série BCE inconnue.")
-        dernier = dernier_cours(self._db, valeur.id)
+        dernier = dernier_cours(self._db, ident(valeur))
         debut = dernier - timedelta(days=40) if recents and dernier else None
         try:
             cours = bce.serie(cle, debut)
@@ -268,21 +275,21 @@ class ValeurService:
                 raise HTTPException(502, str(e)) from e
             avertissements.append(str(e))
             return 0
-        nombre = enregistrer_cours(self._db, valeur.id, cours) if not cours.empty else 0
+        nombre = enregistrer_cours(self._db, ident(valeur), cours) if not cours.empty else 0
         self._db.commit()
         return nombre
 
-    def _actualiser_comptes(self, valeur: Valeur, avertissements: list[str]) -> tuple[int, list[str]]:
+    def _actualiser_comptes(self, valeur: Valeur, avertissements: Messages) -> tuple[int, Messages]:
         if valeur.type != "action":
             return 0, []
         identite = Identite(symbole=valeur.symbole, nom=valeur.nom, type=valeur.type, pays=valeur.pays,
                             isin=valeur.isin, lei=valeur.lei, cik=valeur.cik)
-        divisions = charger_divisions(self._db, valeur.id)
+        divisions = charger_divisions(self._db, ident(valeur))
         annees: set[int] = set()
         utilisees = []
         # Du moins fiable au plus fiable : la fusion case par case garde la meilleure source.
-        etapes = [("yahoo", lambda: yahoo.comptes(identite))] if valeur.source == "yahoo" else []
-        etapes += [(module.NOM, lambda m=module: m.comptes(identite, divisions))
+        etapes: Etapes = [("yahoo", lambda: yahoo.comptes(identite))] if valeur.source == "yahoo" else []
+        etapes += [(module.NOM, partial(module.comptes, identite, divisions))
                    for module in (esef, sec) if module.couvre(identite)]
         for nom, appel in etapes:
             try:
@@ -291,7 +298,7 @@ class ValeurService:
                 avertissements.append(str(e))
                 continue
             if comptes:
-                enregistrer_fondamentaux(self._db, valeur.id, comptes, nom)
+                enregistrer_fondamentaux(self._db, ident(valeur), comptes, nom)
                 self._db.commit()             # meme raison : ne pas garder le verrou pendant la source suivante
                 annees |= set(comptes)
                 utilisees.append(nom.upper() if nom != "yahoo" else "Yahoo")
@@ -301,7 +308,7 @@ class ValeurService:
                 setattr(valeur, cle, identite.decouverts[cle])
         return len(annees), utilisees
 
-    def _actualiser_change(self, valeur: Valeur, avertissements: list[str]) -> None:
+    def _actualiser_change(self, valeur: Valeur, avertissements: Messages) -> None:
         """Taux BCE des devises de cotation et de publication des comptes (si autre que l'euro)."""
         for brute in {valeur.devise, valeur.devise_comptes}:
             devise, _ = bce.normaliser(brute)
@@ -313,9 +320,9 @@ class ValeurService:
             except SourceIndisponible as e:
                 avertissements.append(str(e))
 
-    def actualiser_change(self, devises: set[str | None]) -> list[str]:
+    def actualiser_change(self, devises: set[str | None]) -> Messages:
         """Taux BCE de plusieurs devises, une fois pour tout un lot de valeurs."""
-        avertissements: list[str] = []
+        avertissements: Messages = []
         for brute in devises:
             devise, _ = bce.normaliser(brute)
             if devise and devise != "EUR":
@@ -327,7 +334,7 @@ class ValeurService:
         return avertissements
 
     @staticmethod
-    def _premier_disponible(appels, avertissements: list[str]):
+    def _premier_disponible(appels, avertissements: Messages):
         """Essaie chaque source dans l'ordre ; la premiere qui repond l'emporte."""
         for appel in appels:
             try:

@@ -4,6 +4,13 @@ from typing import List, Optional
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
+
+def ident(ligne: SQLModel) -> int:
+    """Identifiant d'une ligne deja enregistree : `id` n'est None qu'avant le premier enregistrement."""
+    identifiant = getattr(ligne, "id", None)
+    assert identifiant is not None, f"{type(ligne).__name__} non enregistre"
+    return identifiant
+
 TYPES = ("action", "indice", "etf", "matiere", "devise", "taux", "crypto")
 SOURCES = ("yahoo", "bce", "import")
 
@@ -314,11 +321,12 @@ class Filtre(SQLModel, table=True):
 
 
 class Annotation(SQLModel, table=True):
-    """Trace sur un graphique : niveau horizontal, ligne de tendance ou note datee (donnees en JSON)."""
+    """Trace sur un graphique (donnees en JSON, en dates et en prix : independant de l'unite de temps)."""
     id:         Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    type:       str                      # niveau · ligne · note
-    donnees:    str                      # {"prix": …} · {"t1", "p1", "t2", "p2"} · {"jour", "texte"}
+    type:       str                      # niveau · ligne · canal · fibo · rectangle · note
+    donnees:    str                      # niveau {"prix", "texte"} · note {"jour", "texte"} · canal {"t1".."p3"}
+                                         # ligne, fibo, rectangle {"t1", "p1", "t2", "p2"}
 
     valeur_id: int = Field(sa_column=Column(Integer, ForeignKey("valeur.id", ondelete="CASCADE"), index=True, nullable=False))
 

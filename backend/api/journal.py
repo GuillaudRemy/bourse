@@ -71,9 +71,9 @@ def supprimer_piece(valeur_id: int, piece_id: int, service: JournalService = Dep
     service.supprimer_piece(valeur_id, piece_id)
 
 
-# ── Annotations des graphiques (niveaux, lignes de tendance, notes) ──
+# ── Traces des graphiques (niveaux, droites, canaux, Fibonacci, rectangles, notes) ──
 class AnnotationEcriture(BaseModel):
-    type: Literal["niveau", "ligne", "note"]
+    type: Literal["niveau", "ligne", "canal", "fibo", "rectangle", "note"]
     donnees: dict
 
 
@@ -95,6 +95,19 @@ def creer_annotation(valeur_id: int, data: AnnotationEcriture, db: Session = Dep
     db.add(a)
     db.commit()
     db.refresh(a)
+    return _annotation(a)
+
+
+@annotations.put("/{annotation_id}")
+def modifier_annotation(valeur_id: int, annotation_id: int, data: AnnotationEcriture, db: Session = Depends(get_session)):
+    """Trace deplace a la souris : memes type, nouvelles donnees."""
+    a = db.get(Annotation, annotation_id)
+    if not a or a.valeur_id != valeur_id:
+        raise HTTPException(404, "Annotation introuvable.")
+    if data.type != a.type:
+        raise HTTPException(422, "Le type d'un tracé ne change pas.")
+    a.donnees = json.dumps(data.donnees, ensure_ascii=False)
+    db.commit()
     return _annotation(a)
 
 
